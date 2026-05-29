@@ -340,7 +340,7 @@ begin
   try
     Lang := RsatOption.Lang;
     if Lang = '' then
-      Lang := GetLanguageID.CountryCode;
+      Lang := 'zh';
     TranslateFromResource(Lang);
   except
     on E: EResNotFound do

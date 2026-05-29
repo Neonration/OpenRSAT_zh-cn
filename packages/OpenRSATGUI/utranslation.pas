@@ -32,7 +32,7 @@ var
 begin
   Result := False;
 
-  ResName := FormatUtf8('%.%', [ResBaseName, ALang]);
+  ResName := UpperCase(FormatUtf8('%.%', [ResBaseName, ALang]));
 
   Res := TResourceStream.Create(HInstance, ResName, RT_RCDATA);
   try

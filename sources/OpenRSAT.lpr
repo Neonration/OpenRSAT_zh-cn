@@ -114,8 +114,12 @@ begin
   InitLoggingFromCommandLine;
   TSynLog.Add.Log(sllDebug, 'Logger Initialization');
   RequireDerivedFormResource := True;
+  {$IFDEF DARWIN}
+  Application.Scaled:=False;
+  {$ELSE}
   Application.Scaled:=True;
   Application.LayoutAdjustmentPolicy := lapAutoAdjustForDPI;
+  {$ENDIF}
   Application.Initialize;
   ConfigureUIFont;
 
