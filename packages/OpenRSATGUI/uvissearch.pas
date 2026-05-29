@@ -455,7 +455,7 @@ begin
   end;
 
   if MessageDlg(rsSearchDeleteComputerFromAllDCTitle,
-    FormatUtf8(rsSearchDeleteComputerFromAllDCConfirm, [LineEnding, LineEnding, LineEnding, SelectedObject, LineEnding, LineEnding, DCList]),
+    Format(rsSearchDeleteComputerFromAllDCConfirm, [LineEnding, LineEnding, LineEnding, String(SelectedObject), LineEnding, LineEnding, String(DCList)]),
     mtWarning, [mbYes, mbNo], 0) <> mrYes then
     Exit;
 
@@ -484,7 +484,7 @@ begin
   end;
 
   MessageDlg(rsSearchDeleteComputerFromAllDCTitle,
-    FormatUtf8(rsSearchDeleteComputerFromAllDCResult, [LineEnding, SelectedObject, LineEnding, Results]),
+    Format(rsSearchDeleteComputerFromAllDCResult, [LineEnding, String(SelectedObject), LineEnding, String(Results)]),
     mtInformation, [mbOK], 0);
   Action_Search.Execute;
 end;
@@ -543,7 +543,6 @@ end;
 
 procedure TVisSearch.Action_PropertiesExecute(Sender: TObject);
 begin
-  Action_ShowInView.Execute;
   FrmRSAT.OpenProperty(TisGrid_Result.FocusedRow^.S['distinguishedName'], TisGrid_Result.FocusedRow^.S['name']);
 end;
 
