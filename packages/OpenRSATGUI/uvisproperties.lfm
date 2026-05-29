@@ -11,7 +11,7 @@ object VisProperties: TVisProperties
   Constraints.MinWidth = 480
   KeyPreview = True
   Position = poOwnerFormCenter
-  SessionProperties = 'Width;Top;Left;WindowState'
+  SessionProperties = 'Top;Left'
   LCLVersion = '4.6.0.0'
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
@@ -30,7 +30,7 @@ object VisProperties: TVisProperties
     Top = 8
     Width = 464
     Anchors = [akTop, akLeft, akRight, akBottom]
-    AutoSize = True
+    AutoSize = False
     BorderSpacing.Left = 8
     BorderSpacing.Top = 8
     BorderSpacing.Right = 8
@@ -50,7 +50,7 @@ object VisProperties: TVisProperties
     Top = 462
     Width = 480
     Anchors = [akLeft, akRight, akBottom]
-    AutoSize = True
+    AutoSize = False
     BevelOuter = bvNone
     ClientHeight = 42
     ClientWidth = 480

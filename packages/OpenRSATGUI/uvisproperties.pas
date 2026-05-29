@@ -604,6 +604,8 @@ begin
 
   IniPropStorage1.IniFileName := VisBakFilePath;
   UnifyButtonsWidth([Btn_BottomApply, Btn_BottomCancel, Btn_BottomOK]);
+  Width := 480;
+  Height := 504;
 
   fProperty := TProperty.Create(FrmRSAT.RSAT);
 end;
