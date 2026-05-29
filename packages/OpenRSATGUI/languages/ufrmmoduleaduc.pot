@@ -1,8 +1,83 @@
 ﻿msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8"
 
+#: ufrmmoduleaduc.rsaducbatchmoveou
+msgid "Batch move OUs..."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducbatchmoveouconfirm
+msgid "Move % organizational units to:%s%s"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducbatchmoveoufailed
+msgid "Move failed"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducbatchmoveouinvalidtarget
+msgid "The target container cannot be one of the selected OUs or a child of one of them."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducbatchmoveouonlyou
+msgid "Select two or more organizational units."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducbatchmoveouresult
+#, object-pascal-format
+msgid "Move results:%s%s"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducbatchmoveousuccess
+msgid "Moved"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducbatchmoveoutitle
+msgid "Batch move OUs"
+msgstr ""
+
 #: ufrmmoduleaduc.rsaduccomputeropenfailed
 msgid "The computer object could not be opened. It may be outside the current view or you may not have permission to read it."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldc
+msgid "Delete computer from all domain controllers..."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcalreadyabsent
+msgid "Already absent"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcconfirm
+#, object-pascal-format
+msgid "This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcconnectfailed
+msgid "Connection failed"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcdeletefailed
+msgid "Deletion failed"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcnodc
+msgid "No domain controller could be found."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldconlyone
+msgid "Select exactly one computer object."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcresult
+#, object-pascal-format
+msgid "Deletion results for:%s%s%s%s"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcsuccess
+msgid "Deleted"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldctitle
+msgid "Delete computer from all domain controllers"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducdescriptionbuiltinsystemsettings

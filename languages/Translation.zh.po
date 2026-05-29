@@ -92,7 +92,7 @@ msgstr "？"
 
 #: tvisopenrsat.menuitem_retrieveoldconfiguration.caption
 msgid "Retrieve old configuration"
-msgstr "Retrieve old 配置"
+msgstr "恢复旧配置"
 
 #: tvisopenrsat.menuitem_showgpo.caption
 msgid "MenuItem_ShowGPO"
@@ -122,7 +122,6 @@ msgstr "使用浅色主题（下次启动生效）"
 msgctxt "tvisopenrsat.menuitem_viewthemesystem.caption"
 msgid "Use system theme (at next launch)"
 msgstr "使用系统主题（下次启动生效）"
-
 
 #: uvisconnectconfigs.lrj:$.strings.[9].value
 msgctxt "tformconnectconfigs.action_addconfig.caption"
@@ -212,7 +211,7 @@ msgstr "刷新"
 #: ufrmmoduleserviceinterfaces.lrj:$.strings.[4].value
 msgctxt "tfrmmoduleadsi.label1.caption"
 msgid "Total : 0 elements"
-msgstr "总计：0 个元素"
+msgstr "共 0 个对象"
 
 #: ufrmmoduleserviceinterfaces.lrj:$.strings.[1].value
 msgctxt "tfrmmoduleadsi.tisgrid1.header.columns[1].text"
@@ -457,7 +456,7 @@ msgstr "描述"
 #: ufrmmoduleaduc.lrj:$.strings.[3].value
 msgctxt "tfrmmoduleaduc.label1.caption"
 msgid "Total : 0 elements"
-msgstr "总计：0 个元素"
+msgstr "共 0 个对象"
 
 #: ufrmmoduleaduc.lrj:$.strings.[19].value
 msgctxt "tfrmmoduleaduc.toolbutton_addtogroup.hint"
@@ -647,7 +646,7 @@ msgstr "密钥主服务器"
 #: ufrmmoduledns.lrj:$.strings.[7].value
 msgctxt "tfrmmoduledns.label1.caption"
 msgid "Total : 0 elements"
-msgstr "总计：0 个元素"
+msgstr "共 0 个对象"
 
 #: ufrmmodulesitesandservices.lrj:$.strings.[17].value
 msgctxt "tfrmmodulesitesandservices.action_newsite.caption"
@@ -677,7 +676,7 @@ msgstr "刷新"
 #: ufrmmodulesitesandservices.lrj:$.strings.[12].value
 msgctxt "tfrmmodulesitesandservices.label1.caption"
 msgid "Total : 0 elements"
-msgstr "总计：0 个元素"
+msgstr "共 0 个对象"
 
 #: ufrmmodulesitesandservices.lrj:$.strings.[0].value
 msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[0].text"
@@ -1002,7 +1001,7 @@ msgstr "确认密码："
 #: ufrmnewuser.lrj:$.strings.[0].value
 msgctxt "tfrmnewuser.label_firstname.caption"
 msgid "First name :"
-msgstr "First name ："
+msgstr "名："
 
 #: ufrmnewuser.lrj:$.strings.[3].value
 msgctxt "tfrmnewuser.label_fullname.caption"
@@ -1121,9 +1120,8 @@ msgid ""
 "RFC 822\r\n"
 "(name@domain.lan)"
 msgstr ""
-"This 属性 contains the UPN for a 用户 based on the Internet standard RFC 822
-\n"
-"(name@域.lan)"
+"此属性包含用户的 UPN，格式基于 Internet 标准 RFC 822。\n"
+"例如：name@domain.lan"
 
 #: ufrmpropertyaccount.lrj:$.strings.[3].value
 msgctxt "tfrmpropertyaccount.edit_samaccountname.hint"
@@ -1301,12 +1299,12 @@ msgstr "仅系统"
 #: ufrmpropertybitlocker.lrj:$.strings.[1].value
 msgctxt "tfrmpropertybitlocker.label_bitclockerdetails.caption"
 msgid "Détails :"
-msgstr "Détails ："
+msgstr "详细信息："
 
 #: ufrmpropertybitlocker.lrj:$.strings.[0].value
 msgctxt "tfrmpropertybitlocker.label_bitlockerpassword.caption"
 msgid "Mot de passe de récupération BitLocker :"
-msgstr "Mot de passe de récupération BitLocker ："
+msgstr "BitLocker 恢复密码："
 
 #: ufrmpropertybitlocker.lrj:$.strings.[2].value
 msgctxt "tfrmpropertybitlocker.tisgrid1.header.columns[0].text"
@@ -1354,7 +1352,7 @@ msgstr "计算机名（Windows 2000 以前版本）："
 #: ufrmpropertygeneralcomputer.lrj:$.strings.[3].value
 msgctxt "tfrmpropertygeneralcomputer.label_site.caption"
 msgid "Site:"
-msgstr "Site："
+msgstr "站点："
 
 #: ufrmpropertygeneraldefault.lrj:$.strings.[0].value
 msgctxt "tfrmpropertygeneraldefault.label_description.caption"
@@ -1482,7 +1480,7 @@ msgstr "Street："
 #: ufrmpropertygeneralou.lrj:$.strings.[4].value
 msgctxt "tfrmpropertygeneralou.label_zip.caption"
 msgid "Zip/Postal Code:"
-msgstr "Zip/Postal Code："
+msgstr "邮政编码："
 
 #: ufrmpropertygeneralou.lrj:$.strings.[6].value
 msgctxt "tfrmpropertygeneralou.memo_street.hint"
@@ -1497,7 +1495,7 @@ msgstr "描述："
 #: ufrmpropertygeneralsite.lrj:$.strings.[1].value
 msgctxt "tfrmpropertygeneralsite.label_subnet.caption"
 msgid "Subnets:"
-msgstr "Subnets："
+msgstr "子网："
 
 #: ufrmpropertygeneralsubnet.lrj:$.strings.[0].value
 msgctxt "tfrmpropertygeneralsubnet.label_description.caption"
@@ -1507,12 +1505,12 @@ msgstr "描述："
 #: ufrmpropertygeneralsubnet.lrj:$.strings.[2].value
 msgctxt "tfrmpropertygeneralsubnet.label_prefix.caption"
 msgid "Prefix"
-msgstr "Prefix"
+msgstr "前缀"
 
 #: ufrmpropertygeneralsubnet.lrj:$.strings.[1].value
 msgctxt "tfrmpropertygeneralsubnet.label_site.caption"
 msgid "Site:"
-msgstr "Site："
+msgstr "站点："
 
 #: ufrmpropertygeneraluser.lrj:$.strings.[17].value
 msgctxt "tfrmpropertygeneraluser.action_homepage.caption"
@@ -1572,7 +1570,7 @@ msgstr "描述："
 #: ufrmpropertygeneraluser.lrj:$.strings.[5].value
 msgctxt "tfrmpropertygeneraluser.label_desktopprofile.caption"
 msgid "Desktop :"
-msgstr "办公室："
+msgstr "桌面："
 
 #: ufrmpropertygeneraluser.lrj:$.strings.[3].value
 msgctxt "tfrmpropertygeneraluser.label_displayname.caption"
@@ -1597,7 +1595,7 @@ msgstr "缩写："
 #: ufrmpropertygeneraluser.lrj:$.strings.[12].value
 msgctxt "tfrmpropertygeneraluser.label_mail.caption"
 msgid "Email adress :"
-msgstr "Email adress ："
+msgstr "电子邮件："
 
 #: ufrmpropertygeneraluser.lrj:$.strings.[2].value
 msgctxt "tfrmpropertygeneraluser.label_surname.caption"
@@ -1662,22 +1660,22 @@ msgstr "本地管理员密码解决方案"
 #: ufrmpropertylaps.lrj:$.strings.[1].value
 msgctxt "tfrmpropertylaps.label_currentexpiration.caption"
 msgid "Expiration actuelle du mot de passe LAPS :"
-msgstr "Expiration actuelle du mot de passe LAPS ："
+msgstr "当前 LAPS 密码到期时间："
 
 #: ufrmpropertylaps.lrj:$.strings.[4].value
 msgctxt "tfrmpropertylaps.label_localadminaccountname.caption"
 msgid "Nom du compte d'administrateur local LAPS :"
-msgstr "Nom du compte d'administrateur local LAPS ："
+msgstr "LAPS 本地管理员账户名称："
 
 #: ufrmpropertylaps.lrj:$.strings.[5].value
 msgctxt "tfrmpropertylaps.label_localadminaccountpassword.caption"
 msgid "Mot de passe du compte d'administrateur local LAPS :"
-msgstr "Mot de passe du compte d'administrateur local LAPS ："
+msgstr "LAPS 本地管理员账户密码："
 
 #: ufrmpropertylaps.lrj:$.strings.[2].value
 msgctxt "tfrmpropertylaps.label_newexpiration.caption"
 msgid "Définir l'expiration du nouveau mot de passe LAPS :"
-msgstr "Définir l'expiration du nouveau mot de passe LAPS ："
+msgstr "设置新的 LAPS 密码到期时间："
 
 #: ufrmpropertylocation.lrj:$.strings.[1].value
 msgctxt "tfrmpropertylocation.edit_location.hint"
@@ -1851,7 +1849,7 @@ msgstr "原始："
 #: ufrmpropertyobject.lrj:$.strings.[4].value
 msgctxt "tfrmpropertyobject.label_usnupdate.caption"
 msgid "Amount of sequential updates (USN):"
-msgstr "序列更新号 (USN)："
+msgstr "顺序更新次数（USN）："
 
 #: ufrmpropertyobject.lrj:$.strings.[3].value
 msgctxt "tfrmpropertyobject.label_whenchanged.caption"
@@ -1929,22 +1927,22 @@ msgstr "包含用户的职务。此属性通常用于表示正式职位，例如
 #: ufrmpropertyorganization.lrj:$.strings.[0].value
 msgctxt "tfrmpropertyorganization.groupbox_manager.caption"
 msgid "Manager :"
-msgstr "Manager ："
+msgstr "经理："
 
 #: ufrmpropertyorganization.lrj:$.strings.[4].value
 msgctxt "tfrmpropertyorganization.label_company.caption"
 msgid "Company :"
-msgstr "Company ："
+msgstr "公司："
 
 #: ufrmpropertyorganization.lrj:$.strings.[3].value
 msgctxt "tfrmpropertyorganization.label_department.caption"
 msgid "Departement :"
-msgstr "Departement ："
+msgstr "部门："
 
 #: ufrmpropertyorganization.lrj:$.strings.[8].value
 msgctxt "tfrmpropertyorganization.label_directreports.caption"
 msgid "Direct reports / Subordinates :"
-msgstr "Direct reports / Subordinates ："
+msgstr "直接下属："
 
 #: ufrmpropertyorganization.lrj:$.strings.[1].value
 msgctxt "tfrmpropertyorganization.label_manager.caption"
@@ -1954,7 +1952,7 @@ msgstr "名称："
 #: ufrmpropertyorganization.lrj:$.strings.[2].value
 msgctxt "tfrmpropertyorganization.label_title.caption"
 msgid "Job Title :"
-msgstr "Job Title ："
+msgstr "职务："
 
 #: ufrmpropertyorganization.lrj:$.strings.[9].value
 msgctxt "tfrmpropertyorganization.tisgrid_directreports.header.columns[0].text"
@@ -2010,27 +2008,27 @@ msgstr "用户配置文件"
 #: ufrmpropertyprofile.lrj:$.strings.[10].value
 msgctxt "tfrmpropertyprofile.label_connectto.caption"
 msgid "To :"
-msgstr "To ："
+msgstr "连接到："
 
 #: ufrmpropertyprofile.lrj:$.strings.[1].value
 msgctxt "tfrmpropertyprofile.label_profilepath.caption"
 msgid "Profile path :"
-msgstr "Profile path ："
+msgstr "配置文件路径："
 
 #: ufrmpropertyprofile.lrj:$.strings.[3].value
 msgctxt "tfrmpropertyprofile.label_scriptpath.caption"
 msgid "Logon script path :"
-msgstr "Logon script path ："
+msgstr "登录脚本路径："
 
 #: ufrmpropertyprofile.lrj:$.strings.[8].value
 msgctxt "tfrmpropertyprofile.radiobutton_connectto.caption"
 msgid "Connect :"
-msgstr "Connect ："
+msgstr "连接："
 
 #: ufrmpropertyprofile.lrj:$.strings.[6].value
 msgctxt "tfrmpropertyprofile.radiobutton_homedirectory.caption"
 msgid "Local path :"
-msgstr "Local path ："
+msgstr "本地路径："
 
 #: ufrmpropertypublishedcertificates.lrj:$.strings.[6].value
 msgctxt "tfrmpropertypublishedcertificates.action_add.caption"
@@ -2174,12 +2172,12 @@ msgstr "电话号码"
 #: ufrmpropertytelephone.lrj:$.strings.[4].value
 msgctxt "tfrmpropertytelephone.label_facsimiletelephonenumber.caption"
 msgid "Fax :"
-msgstr "Fax ："
+msgstr "传真："
 
 #: ufrmpropertytelephone.lrj:$.strings.[1].value
 msgctxt "tfrmpropertytelephone.label_homephone.caption"
 msgid "Home :"
-msgstr "Home ："
+msgstr "家庭电话："
 
 #: ufrmpropertytelephone.lrj:$.strings.[16].value
 msgctxt "tfrmpropertytelephone.label_info.caption"
@@ -2189,17 +2187,17 @@ msgstr "备注："
 #: ufrmpropertytelephone.lrj:$.strings.[5].value
 msgctxt "tfrmpropertytelephone.label_ipphone.caption"
 msgid "IP phone :"
-msgstr "IP phone ："
+msgstr "IP 电话："
 
 #: ufrmpropertytelephone.lrj:$.strings.[3].value
 msgctxt "tfrmpropertytelephone.label_mobile.caption"
 msgid "Mobile :"
-msgstr "Mobile ："
+msgstr "手机："
 
 #: ufrmpropertytelephone.lrj:$.strings.[2].value
 msgctxt "tfrmpropertytelephone.label_pager.caption"
 msgid "Pager :"
-msgstr "Pager ："
+msgstr "寻呼机："
 
 #: ufrmpropertytelephone.lrj:$.strings.[17].value
 msgctxt "tfrmpropertytelephone.memo_info.hint"
@@ -2214,7 +2212,7 @@ msgstr "高级功能"
 #: ufrmrsat.lrj:$.strings.[1].value
 msgctxt "tfrmrsat.action_ldapconnect.caption"
 msgid "Connect"
-msgstr "Connect"
+msgstr "连接"
 
 #: ufrmrsat.lrj:$.strings.[2].value
 msgctxt "tfrmrsat.action_ldapconnect.hint"
@@ -2224,7 +2222,7 @@ msgstr "打开到 LDAP 服务器的连接"
 #: ufrmrsat.lrj:$.strings.[3].value
 msgctxt "tfrmrsat.action_ldapdisconnect.caption"
 msgid "Disconnect"
-msgstr "Disconnect"
+msgstr "断开连接"
 
 #: ufrmrsat.lrj:$.strings.[4].value
 msgctxt "tfrmrsat.action_ldapoptions.caption"
@@ -2296,7 +2294,7 @@ msgstr "确定"
 #: uvisaddaces.lrj:$.strings.[36].value
 msgctxt "tvisaddaces.action_replace.caption"
 msgid "Replace"
-msgstr "Replace"
+msgstr "替换"
 
 #: uvisaddaces.lrj:$.strings.[31].value
 msgctxt "tvisaddaces.bitbtn_cancel.caption"
@@ -2391,22 +2389,22 @@ msgstr "写入属性"
 #: uvisaddaces.lrj:$.strings.[2].value
 msgctxt "tvisaddaces.checkgroup_access.caption"
 msgid "Access"
-msgstr "Access"
+msgstr "访问权限"
 
 #: uvisaddaces.lrj:$.strings.[16].value
 msgctxt "tvisaddaces.checkgroup_inheritance.caption"
 msgid "Inheritance"
-msgstr "Inheritance"
+msgstr "继承"
 
 #: uvisaddaces.lrj:$.strings.[22].value
 msgctxt "tvisaddaces.label_inheritance.caption"
 msgid "Inheritance:"
-msgstr "Inheritance："
+msgstr "继承："
 
 #: uvisaddaces.lrj:$.strings.[21].value
 msgctxt "tvisaddaces.label_property.caption"
 msgid "Target Property :"
-msgstr "Target Property ："
+msgstr "目标属性："
 
 #: uvisaddaces.lrj:$.strings.[0].value
 msgctxt "tvisaddaces.label_title.caption"
@@ -2416,7 +2414,7 @@ msgstr "创建并添加新的权限 (ACE)："
 #: uvisaddaces.lrj:$.strings.[1].value
 msgctxt "tvisaddaces.label_trustee.caption"
 msgid "Trustee :"
-msgstr "Trustee ："
+msgstr "安全主体："
 
 #: uvisaddaces.lrj:$.strings.[23].value
 msgctxt "tvisaddaces.radiobutton_allow.caption"
@@ -2441,7 +2439,7 @@ msgstr "Trustee"
 #: uvisaddaces.lrj:$.strings.[27].value
 msgctxt "tvisaddaces.tisgrid1.header.columns[2].text"
 msgid "Access"
-msgstr "Access"
+msgstr "访问权限"
 
 #: uvisaddaces.lrj:$.strings.[28].value
 msgctxt "tvisaddaces.tisgrid1.header.columns[3].text"
@@ -2691,7 +2689,7 @@ msgstr "Trustee"
 #: uvisadvancedsecurity.lrj:$.strings.[39].value
 msgctxt "tvisadvancedsecurity.tisgrid_acl.header.columns[2].text"
 msgid "Access"
-msgstr "Access"
+msgstr "访问权限"
 
 #: uvisadvancedsecurity.lrj:$.strings.[40].value
 msgctxt "tvisadvancedsecurity.tisgrid_acl.header.columns[3].text"
@@ -4314,7 +4312,7 @@ msgstr "路径："
 #: uvissearch.lrj:$.strings.[22].value
 msgctxt "tvissearch.label_resultcount.caption"
 msgid "Total : 0 elements"
-msgstr "总计：0 个元素"
+msgstr "共 0 个对象"
 
 #: uvissearch.lrj:$.strings.[14].value
 msgctxt "tvissearch.label_searchscope.caption"
@@ -5006,6 +5004,229 @@ msgstr "卷"
 msgctxt "ufrmmoduleaduc.rsaduccomputeropenfailed"
 msgid "The computer object could not be opened. It may be outside the current view or you may not have permission to read it."
 msgstr "无法打开计算机对象。它可能不在当前视图中，或者你没有读取它的权限。"
+
+#: zh-localization-pass
+msgid "Include subcontainer"
+msgstr "包含子容器"
+
+#: zh-localization-pass
+msgid "Total : % elements"
+msgstr "总计：% 个对象"
+
+#: zh-localization-pass
+msgid "Show group relation"
+msgstr "显示组关系"
+
+#: zh-localization-pass
+msgid "Disable Enable Account"
+msgstr "禁用/启用帐户"
+
+#: zh-localization-pass
+msgid "Modify GPLink"
+msgstr "修改 GPLink"
+
+#: zh-localization-pass
+msgid "Enable GPO"
+msgstr "启用 GPO"
+
+#: zh-localization-pass
+msgid "Disable GPO"
+msgstr "禁用 GPO"
+
+#: zh-localization-pass
+msgid "Enforce GPO"
+msgstr "强制 GPO"
+
+#: zh-localization-pass
+msgid "Block GPO Inheritance"
+msgstr "阻止 GPO 继承"
+
+#: zh-localization-pass
+msgid "Show object location"
+msgstr "显示对象位置"
+
+#: zh-localization-pass
+msgid "Prepare DJOIN"
+msgstr "准备 DJOIN"
+
+#: zh-localization-pass
+msgid "Create KeyTab"
+msgstr "创建 KeyTab"
+
+#: zh-localization-pass
+msgid "Edit columns"
+msgstr "编辑列"
+
+#: zh-localization-pass
+msgid "Unlock account."
+msgstr "解锁帐户。"
+
+#: zh-localization-pass
+msgid "Group relations"
+msgstr "组关系"
+
+#: zh-localization-pass
+msgid "Selected: "
+msgstr "已选择："
+
+#: zh-localization-pass
+msgid "Search:"
+msgstr "搜索："
+
+#: zh-localization-pass
+msgid "Search: "
+msgstr "搜索："
+
+#: zh-localization-pass
+msgid "Show user"
+msgstr "显示用户"
+
+#: zh-localization-pass
+msgid "Hide single node"
+msgstr "隐藏单个节点"
+
+#: zh-localization-pass
+msgid "Circular dependencies"
+msgstr "循环依赖"
+
+#: zh-localization-pass
+msgid "Focus selected group"
+msgstr "定位选中的组"
+
+#: zh-localization-pass
+msgid "Synchronize"
+msgstr "同步"
+
+#: zh-localization-pass
+msgid "Save to PNG"
+msgstr "保存为 PNG"
+
+#: zh-localization-pass
+msgid "Clear focused group"
+msgstr "清除定位的组"
+
+#: zh-localization-pass
+msgid "Save to DOT"
+msgstr "保存为 DOT"
+
+#: zh-localization-pass
+msgid "Focus Selected"
+msgstr "定位选中项"
+
+#: zh-localization-pass
+msgid "View KeyTab"
+msgstr "查看 KeyTab"
+
+#: zh-localization-pass
+msgid "Close"
+msgstr "关闭"
+
+#: zh-localization-pass
+msgid "Filename"
+msgstr "文件名"
+
+#: zh-localization-pass
+msgid "Load from file"
+msgstr "从文件加载"
+
+#: zh-localization-pass
+msgid "Select folder"
+msgstr "选择文件夹"
+
+#: zh-localization-pass
+msgid "Save to file"
+msgstr "保存到文件"
+
+#: zh-localization-pass
+msgid "Copy to clipboard (base64)"
+msgstr "复制到剪贴板（base64）"
+
+#: zh-localization-pass
+msgid "Forward Lookup Zones"
+msgstr "正向查找区域"
+
+#: zh-localization-pass
+msgid "Reverse Lookup Zones"
+msgstr "反向查找区域"
+
+#: zh-localization-pass
+msgid "Retrieve records: "
+msgstr "获取记录："
+
+#: zh-localization-pass
+msgid "The user must logoff and then logon again for the change to take effect."
+msgstr "用户必须注销并重新登录后，更改才会生效。"
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldc
+msgid "Delete computer from all domain controllers..."
+msgstr "从所有域控制器删除计算机..."
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldctitle
+msgid "Delete computer from all domain controllers"
+msgstr "从所有域控制器删除计算机"
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcconfirm
+msgid "This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s"
+msgstr "将尝试从下列每个域控制器删除此计算机对象。%s%s计算机：%s%s%s域控制器：%s%s"
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcnodc
+msgid "No domain controller could be found."
+msgstr "未找到域控制器。"
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldconlyone
+msgid "Select exactly one computer object."
+msgstr "请选择一个计算机对象。"
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcresult
+msgid "Deletion results for:%s%s%s%s"
+msgstr "删除结果：%s%s%s%s"
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcsuccess
+msgid "Deleted"
+msgstr "已删除"
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcalreadyabsent
+msgid "Already absent"
+msgstr "已不存在"
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcconnectfailed
+msgid "Connection failed"
+msgstr "连接失败"
+
+#: ufrmmoduleaduc.rsaducdeletecomputerfromalldcdeletefailed
+msgid "Deletion failed"
+msgstr "删除失败"
+#: ufrmmoduleaduc.rsaducbatchmoveou
+msgid "Batch move OUs..."
+msgstr "批量移动 OU..."
+
+#: ufrmmoduleaduc.rsaducbatchmoveoutitle
+msgid "Batch move OUs"
+msgstr "批量移动 OU"
+
+#: ufrmmoduleaduc.rsaducbatchmoveouonlyou
+msgid "Select two or more organizational units."
+msgstr "请选择两个或更多组织单位。"
+
+#: ufrmmoduleaduc.rsaducbatchmoveouinvalidtarget
+msgid "The target container cannot be one of the selected OUs or a child of one of them."
+msgstr "目标容器不能是已选 OU 本身或其子级。"
+
+#: ufrmmoduleaduc.rsaducbatchmoveouconfirm
+msgid "Move % organizational units to:%s%s"
+msgstr "将 % 个组织单位移动到：%s%s"
+
+#: ufrmmoduleaduc.rsaducbatchmoveouresult
+msgid "Move results:%s%s"
+msgstr "移动结果：%s%s"
+
+#: ufrmmoduleaduc.rsaducbatchmoveousuccess
+msgid "Moved"
+msgstr "已移动"
+
+#: ufrmmoduleaduc.rsaducbatchmoveoufailed
+msgid "Move failed"
+msgstr "移动失败"
+
 #: ucommon.rsaccountunlocked
 msgid "Account Unlock"
 msgstr "帐户解锁"
@@ -5859,7 +6080,7 @@ msgstr "读取控制"
 
 #: ucommon.rssecaccessreadprop
 msgid "Read"
-msgstr "Read"
+msgstr "读取"
 
 #: ucommon.rssecaccessselfwrite
 msgid "Self Write"
@@ -5867,7 +6088,7 @@ msgstr "自写入"
 
 #: ucommon.rssecaccesssynchronize
 msgid "Synchronize"
-msgstr "Synchronize"
+msgstr "同步"
 
 #: ucommon.rssecaccesswritedac
 msgid "Write Dac"
@@ -5879,7 +6100,7 @@ msgstr "写入所有者"
 
 #: ucommon.rssecaccesswriteprop
 msgid "Write"
-msgstr "Write"
+msgstr "写入"
 
 #: ucommon.rssecuritydescriptorinvalid
 msgid "Fail to read security descriptor"
@@ -6417,151 +6638,3 @@ msgstr "此组织"
 #: ucommon.rswellknownsidworld
 msgid "Everyone"
 msgstr "Everyone"
-
-
-
-
-
-#: zh-localization-pass
-msgid "Include subcontainer"
-msgstr "包含子容器"
-
-#: zh-localization-pass
-msgid "Total : % elements"
-msgstr "总计：% 个对象"
-
-#: zh-localization-pass
-msgid "Show group relation"
-msgstr "显示组关系"
-
-#: zh-localization-pass
-msgid "Disable Enable Account"
-msgstr "禁用/启用帐户"
-
-#: zh-localization-pass
-msgid "Modify GPLink"
-msgstr "修改 GPLink"
-
-#: zh-localization-pass
-msgid "Enable GPO"
-msgstr "启用 GPO"
-
-#: zh-localization-pass
-msgid "Disable GPO"
-msgstr "禁用 GPO"
-
-#: zh-localization-pass
-msgid "Enforce GPO"
-msgstr "强制 GPO"
-
-#: zh-localization-pass
-msgid "Block GPO Inheritance"
-msgstr "阻止 GPO 继承"
-
-#: zh-localization-pass
-msgid "Show object location"
-msgstr "显示对象位置"
-
-#: zh-localization-pass
-msgid "Create KeyTab"
-msgstr "创建 KeyTab"
-
-#: zh-localization-pass
-msgid "Edit columns"
-msgstr "编辑列"
-
-#: zh-localization-pass
-msgid "Unlock account."
-msgstr "解锁帐户。"
-
-#: zh-localization-pass
-msgid "Group relations"
-msgstr "组关系"
-
-#: zh-localization-pass
-msgid "Selected: "
-msgstr "已选择："
-
-#: zh-localization-pass
-msgid "Search:"
-msgstr "搜索："
-
-#: zh-localization-pass
-msgid "Search: "
-msgstr "搜索："
-
-#: zh-localization-pass
-msgid "Show user"
-msgstr "显示用户"
-
-#: zh-localization-pass
-msgid "Hide single node"
-msgstr "隐藏单个节点"
-
-#: zh-localization-pass
-msgid "Circular dependencies"
-msgstr "循环依赖"
-
-#: zh-localization-pass
-msgid "Focus selected group"
-msgstr "定位选中的组"
-
-#: zh-localization-pass
-msgid "Save to PNG"
-msgstr "保存为 PNG"
-
-#: zh-localization-pass
-msgid "Clear focused group"
-msgstr "清除定位的组"
-
-#: zh-localization-pass
-msgid "Save to DOT"
-msgstr "保存为 DOT"
-
-#: zh-localization-pass
-msgid "Focus Selected"
-msgstr "定位选中项"
-
-#: zh-localization-pass
-msgid "View KeyTab"
-msgstr "查看 KeyTab"
-
-#: zh-localization-pass
-msgid "Close"
-msgstr "关闭"
-
-#: zh-localization-pass
-msgid "Filename"
-msgstr "文件名"
-
-#: zh-localization-pass
-msgid "Load from file"
-msgstr "从文件加载"
-
-#: zh-localization-pass
-msgid "Select folder"
-msgstr "选择文件夹"
-
-#: zh-localization-pass
-msgid "Save to file"
-msgstr "保存到文件"
-
-#: zh-localization-pass
-msgid "Copy to clipboard (base64)"
-msgstr "复制到剪贴板（base64）"
-
-#: zh-localization-pass
-msgid "Forward Lookup Zones"
-msgstr "正向查找区域"
-
-#: zh-localization-pass
-msgid "Reverse Lookup Zones"
-msgstr "反向查找区域"
-
-#: zh-localization-pass
-msgid "Retrieve records: "
-msgstr "获取记录："
-
-#: zh-localization-pass
-msgid "The user must logoff and then logon again for the change to take effect."
-msgstr "用户必须注销并重新登录后，更改才会生效。"
