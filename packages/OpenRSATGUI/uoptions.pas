@@ -445,7 +445,7 @@ begin
   f := TTisInifiles.Create(fOptionsPath);
   try
     Inc(fUpdating);
-    Lang := f.ReadString(fSection, 'Lang', 'en');
+    Lang := f.ReadString(fSection, 'Lang', 'zh');
     UsersAndComputers.LoadOptions(f);
     SitesAndServices.LoadOptions(f);
   finally
