@@ -92,6 +92,7 @@ type
     Action_Properties: TAction;
     Action_Refresh: TAction;
     Action_Search: TAction;
+    Action_FindBitLockerRecoveryPassword: TAction;
     Action_SearchRoot: TAction;
     Action_ShowGPO: TAction;
     Action_SitesAndServices: TAction;
@@ -159,6 +160,7 @@ type
     MenuItem_SendMail: TMenuItem;
     MenuItem_Manage: TMenuItem;
     MenuItem_Find: TMenuItem;
+    MenuItem_FindBitLockerRecoveryPassword: TMenuItem;
     MenuItem_ChangeDomainController: TMenuItem;
     MenuItem_AddToAGroup: TMenuItem;
     MenuItem_NameMapping: TMenuItem;
@@ -271,6 +273,8 @@ type
     procedure Action_PropertiesUpdate(Sender: TObject);
     procedure Action_RefreshExecute(Sender: TObject);
     procedure Action_RefreshUpdate(Sender: TObject);
+    procedure Action_FindBitLockerRecoveryPasswordExecute(Sender: TObject);
+    procedure Action_FindBitLockerRecoveryPasswordUpdate(Sender: TObject);
     procedure Action_SearchExecute(Sender: TObject);
     procedure Action_SearchUpdate(Sender: TObject);
     procedure Action_ShowObjectLocationExecute(Sender: TObject);
@@ -379,7 +383,7 @@ type
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
 
-    procedure Focus(DistinguishedName: String);
+    function Focus(DistinguishedName: String): Boolean;
 
     procedure BeginUpdate;
     procedure EndUpdate;
@@ -416,12 +420,42 @@ uses
   uvisshowrelationship,
   uconfig,
   uhelpers,
+  uvisbitlockerrecoverysearch,
   mormot.crypt.secure,
   mormot.crypt.core,
   mormot.core.os,
   ugplink;
 
 {$R *.lfm}
+
+resourcestring
+  rsADUCRootNode = 'Active Directory Users and Computers';
+  rsADUCSavedQueryNode = 'Saved Query';
+  rsADUCObjectClassBuiltinDomain = 'builtinDomain';
+  rsADUCObjectClassComputer = 'computer';
+  rsADUCObjectClassContact = 'contact';
+  rsADUCObjectClassContainer = 'container';
+  rsADUCObjectClassDomainDNS = 'domainDNS';
+  rsADUCObjectClassGroup = 'group';
+  rsADUCObjectClassGroupPolicyContainer = 'groupPolicyContainer';
+  rsADUCObjectClassInfrastructureUpdate = 'infrastructureUpdate';
+  rsADUCObjectClassLostAndFound = 'lostAndFound';
+  rsADUCObjectClassNTDSDSA = 'nTDSDSA';
+  rsADUCObjectClassOrganizationalUnit = 'organizationalUnit';
+  rsADUCObjectClassPrintQueue = 'printQueue';
+  rsADUCObjectClassServer = 'server';
+  rsADUCObjectClassSite = 'site';
+  rsADUCObjectClassSubnet = 'subnet';
+  rsADUCObjectClassUser = 'user';
+  rsADUCObjectClassVolume = 'volume';
+  rsADUCDescriptionDefaultComputerAccounts = 'Default container for upgraded computer accounts';
+  rsADUCDescriptionDefaultDomainControllers = 'Default container for domain controllers';
+  rsADUCDescriptionDefaultSecurityIdentifiers = 'Default container for security identifiers (SIDs) associated with objects from external, trusted domains';
+  rsADUCDescriptionDefaultOrphanedObjects = 'Default container for orphaned objects';
+  rsADUCDescriptionDefaultManagedServiceAccounts = 'Default container for managed service accounts';
+  rsADUCDescriptionDefaultApplicationData = 'Default location for storage of application data.';
+  rsADUCDescriptionBuiltinSystemSettings = 'Builtin system settings';
+  rsADUCComputerOpenFailed = 'The computer object could not be opened. It may be outside the current view or you may not have permission to read it.';
 
 type
   // Enumeration of actions new on ldap
@@ -470,6 +504,44 @@ begin
     if Value = contain then
       Exit;
   result := False;
+end;
+
+function TranslateADUCObjectClass(const AValue: RawUtf8): String;
+begin
+  case AValue of
+    'builtinDomain': Result := rsADUCObjectClassBuiltinDomain;
+    'computer': Result := rsADUCObjectClassComputer;
+    'contact': Result := rsADUCObjectClassContact;
+    'container': Result := rsADUCObjectClassContainer;
+    'domainDNS': Result := rsADUCObjectClassDomainDNS;
+    'group': Result := rsADUCObjectClassGroup;
+    'groupPolicyContainer': Result := rsADUCObjectClassGroupPolicyContainer;
+    'infrastructureUpdate': Result := rsADUCObjectClassInfrastructureUpdate;
+    'lostAndFound': Result := rsADUCObjectClassLostAndFound;
+    'nTDSDSA': Result := rsADUCObjectClassNTDSDSA;
+    'organizationalUnit': Result := rsADUCObjectClassOrganizationalUnit;
+    'printQueue': Result := rsADUCObjectClassPrintQueue;
+    'server': Result := rsADUCObjectClassServer;
+    'site': Result := rsADUCObjectClassSite;
+    'subnet': Result := rsADUCObjectClassSubnet;
+    'user': Result := rsADUCObjectClassUser;
+    'volume': Result := rsADUCObjectClassVolume;
+    else Result := AValue;
+  end;
+end;
+
+function TranslateADUCDescription(const AValue: RawUtf8): String;
+begin
+  case AValue of
+    'Default container for upgraded computer accounts': Result := rsADUCDescriptionDefaultComputerAccounts;
+    'Default container for domain controllers': Result := rsADUCDescriptionDefaultDomainControllers;
+    'Default container for security identifiers (SIDs) associated with objects from external, trusted domains': Result := rsADUCDescriptionDefaultSecurityIdentifiers;
+    'Default container for orphaned objects': Result := rsADUCDescriptionDefaultOrphanedObjects;
+    'Default container for managed service accounts': Result := rsADUCDescriptionDefaultManagedServiceAccounts;
+    'Default location for storage of application data.': Result := rsADUCDescriptionDefaultApplicationData;
+    'Builtin system settings': Result := rsADUCDescriptionBuiltinSystemSettings;
+    else Result := AValue;
+  end;
 end;
 
 { TFrmModuleADUC }
@@ -1417,6 +1489,31 @@ begin
   Action_Refresh.Enabled := {Active and} Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected();
 end;
 
+procedure TFrmModuleADUC.Action_FindBitLockerRecoveryPasswordExecute(
+  Sender: TObject);
+var
+  Vis: TVisBitLockerRecoverySearch;
+begin
+  if Assigned(fLog) then
+    fLog.Log(sllTrace, '% - Execute', [Action_FindBitLockerRecoveryPassword.Caption]);
+
+  Vis := TVisBitLockerRecoverySearch.Create(Self, FrmRSAT.LdapClient);
+  try
+    if (Vis.ShowModal = mrOk) and (Vis.SelectedComputerDN <> '') then
+      if not Focus(String(Vis.SelectedComputerDN)) then
+        MessageDlg(rsWarning, rsADUCComputerOpenFailed, mtWarning, [mbOK], 0);
+  finally
+    Vis.Free;
+  end;
+end;
+
+procedure TFrmModuleADUC.Action_FindBitLockerRecoveryPasswordUpdate(
+  Sender: TObject);
+begin
+  Action_FindBitLockerRecoveryPassword.Enabled := Assigned(FrmRSAT.LdapClient)
+    and FrmRSAT.LdapClient.Connected;
+end;
+
 procedure TFrmModuleADUC.Action_SearchExecute(Sender: TObject);
 var
   NodeData: TADUCTreeNodeObject;
@@ -1909,7 +2006,8 @@ begin
     begin
       VisibleItems := Concat(VisibleItems, [MenuItem_DelegateControl,
         MenuItem_ChangeDomainController,MenuItem_OperationsMasters,MenuItem_New,
-        MenuItem_Search,MenuItem_Refresh,MenuItem_Delete,MenuItem_Properties]);
+        MenuItem_FindBitLockerRecoveryPassword, MenuItem_Search,MenuItem_Refresh,
+        MenuItem_Delete,MenuItem_Properties]);
       if fModuleAduc.ADUCOption.ShowGPO then
         VisibleItems := Concat(VisibleItems, [MenuItem_BlockGPOInheritance]);
     end;
@@ -2094,6 +2192,7 @@ begin
     MenuItem_SendMail,
     MenuItem_Manage,
     MenuItem_Find,
+    MenuItem_FindBitLockerRecoveryPassword,
     MenuItem_PrepareDJOIN,
     MenuItem_CreateKeyTab,
     MenuItem_New,
@@ -2346,7 +2445,7 @@ begin
   if not Assigned(PropertyValues) or (Length(PropertyValues) <= 0) then
     Exit;
   case PropertyName of
-    'objectClass': aText := PropertyValues[High(PropertyValues)];
+    'objectClass': aText := TranslateADUCObjectClass(PropertyValues[High(PropertyValues)]);
     else
       aText := FormatUtf8('(%)[%]', [Length(PropertyValues), String.Join(';', TStringDynArray(PropertyValues))]);
   end;
@@ -3250,7 +3349,12 @@ begin
           if not Assigned(AttributeItem) then
             Continue;
           if (AttributeItem.Count = 1) then
-            NewRow.AddOrUpdateValue(AttributeItem.AttributeName, AttributeItem.GetReadable())
+          begin
+            if AttributeItem.AttributeName = 'description' then
+              NewRow.AddOrUpdateValue(AttributeItem.AttributeName, TranslateADUCDescription(AttributeItem.GetReadable()))
+            else
+              NewRow.AddOrUpdateValue(AttributeItem.AttributeName, AttributeItem.GetReadable());
+          end
           else if (AttributeItem.Count > 1) then
           begin
             for i := 0 to Pred(AttributeItem.Count) do
@@ -3324,11 +3428,11 @@ begin
   fModuleAduc := TModuleADUC.Create(FrmRSAT.RSAT);
   fTreeSelectionHistory := TTreeSelectionHistory.Create;
 
-  fADUCRootNode := (TreeADUC.Items.Add(nil, 'Active Directory Users and Computers') as TADUCTreeNode);
+  fADUCRootNode := (TreeADUC.Items.Add(nil, rsADUCRootNode) as TADUCTreeNode);
   fADUCRootNode.ImageIndex := Ord(ileAppIcon);
   fADUCRootNode.SelectedIndex := fADUCRootNode.ImageIndex;
 
-  fADUCQueryNode := (TreeADUC.Items.AddChild(fADUCRootNode, 'Saved Query') as TADUCTreeNode);
+  fADUCQueryNode := (TreeADUC.Items.AddChild(fADUCRootNode, rsADUCSavedQueryNode) as TADUCTreeNode);
   fADUCQueryNode.ImageIndex := Ord(ileADContainer);
   fADUCQueryNode.SelectedIndex := fADUCQueryNode.ImageIndex;
 
@@ -3355,31 +3459,34 @@ begin
   inherited Destroy;
 end;
 
-procedure TFrmModuleADUC.Focus(DistinguishedName: String);
+function TFrmModuleADUC.Focus(DistinguishedName: String): Boolean;
 var
   parentDN: String;
   node: PVirtualNode;
   row: PDocVariantData;
   FoundNode: TADUCTreeNode;
 
-  function Find(DN: String): TADUCTreeNode;
+  function FindChild(AParent: TADUCTreeNode; DN: String): TADUCTreeNode;
   var
     i: Integer;
     ItemNodeData: TADUCTreeNodeObject;
   begin
     result := nil;
-    for i := 0 to fADUCDomainNode.Count - 1 do
+    if not Assigned(AParent) then
+      Exit;
+
+    for i := 0 to AParent.Count - 1 do
     begin
-      if not Assigned(fADUCDomainNode.Items[i]) then
+      if not Assigned(AParent.Items[i]) then
         continue;
 
-      ItemNodeData := (fADUCDomainNode.Items[i] as TADUCTreeNode).GetNodeDataObject;
+      ItemNodeData := (AParent.Items[i] as TADUCTreeNode).GetNodeDataObject;
       if not Assigned(ItemNodeData) then
         continue;
 
-      if (ItemNodeData.DistinguishedName = DN) then
+      if SameText(ItemNodeData.DistinguishedName, DN) then
       begin
-        result := (fADUCDomainNode.Items[i] as TADUCTreeNode);
+        result := (AParent.Items[i] as TADUCTreeNode);
         Break;
       end;
     end;
@@ -3387,46 +3494,60 @@ var
 
   function Search(DN: String): TADUCTreeNode;
   var
-    SplittedCN: TStringArray;
+    Path: TStringArray;
     Node: TADUCTreeNode;
     i: Integer;
-    NodeData: TADUCTreeNodeObject;
-    NodeDistinguishedName: String;
+    CurrentDN: String;
   begin
     result := nil;
 
-    SplittedCN := String(DNToCN(DN)).Split('/');
-
-    // No node assigned
     Node := fADUCDomainNode;
     if not Assigned(Node) then
       Exit;
 
-    // No data assigned to node
-    NodeData := Node.GetNodeDataObject;
-    if not Assigned(NodeData) then
-      Exit;
-
-    // Get distinguishedName
-    NodeDistinguishedName := NodeData.DistinguishedName;
-
-    for i := 1 to Length(SplittedCN) - 1 do
+    if DN = FrmRSAT.LdapClient.DefaultDN() then
     begin
+      result := Node;
+      Exit;
+    end;
+
+    CurrentDN := DN;
+    SetLength(Path, 0);
+    while (CurrentDN <> '') and (CurrentDN <> FrmRSAT.LdapClient.DefaultDN()) do
+    begin
+      Insert(CurrentDN, Path, 0);
+      CurrentDN := GetParentDN(CurrentDN);
+    end;
+
+    for i := 0 to High(Path) do
+    begin
+      TreeADUC.Select(Node);
       RefreshADUCTreeNode(Node);
-      Node := Find(FormatUtf8('OU=%,%', [SplittedCN[i], NodeDistinguishedName]));
+      Node := FindChild(Node, Path[i]);
       if not Assigned(Node) then
-        break;
+        Exit;
     end;
     result := Node;
   end;
 
 begin
-  if (DistinguishedName <> FrmRSAT.LdapClient.DefaultDN()) then
+  Result := False;
+
+  if not Assigned(FrmRSAT) or not Assigned(FrmRSAT.LdapClient) then
+    Exit;
+
+  if not SameText(DistinguishedName, FrmRSAT.LdapClient.DefaultDN()) then
     parentDN := GetParentDN(DistinguishedName);
 
-  FoundNode := Find(DistinguishedName);
+  FoundNode := FindChild(fADUCDomainNode, DistinguishedName);
   if not Assigned(FoundNode) then
-    TreeADUC.Select(Search(parentDN));
+    FoundNode := Search(parentDN);
+  if Assigned(FoundNode) then
+    TreeADUC.Select(FoundNode);
+
+  if not Assigned(TreeADUC.Selected) then
+    Exit;
+
   UpdateGridADUC((TreeADUC.Selected as TADUCTreeNode));
 
   GridADUC.FocusedNode := nil;
@@ -3435,8 +3556,14 @@ begin
   while Assigned(node) do
   begin
     row := GridADUC.GetNodeAsPDocVariantData(node);
-    if (row^.U['objectName'] = DistinguishedName) then
+    if Assigned(row) and SameText(String(row^.U['objectName']), DistinguishedName) then
+    begin
+      GridADUC.FocusedNode := node;
       GridADUC.AddToSelection(node);
+      GridADUC.ScrollIntoView(node, True);
+      Result := True;
+      Break;
+    end;
     node := GridADUC.GetNext(node);
   end;
 end;

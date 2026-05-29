@@ -1,0 +1,82 @@
+﻿msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: uvisproperties.rspropertytabaccount
+msgid "Account"
+msgstr ""
+
+#: uvisproperties.rspropertytabaddress
+msgid "Address"
+msgstr ""
+
+#: uvisproperties.rspropertytabattributes
+msgid "Attributes"
+msgstr ""
+
+#: uvisproperties.rspropertytabbitlocker
+msgid "BitLocker"
+msgstr ""
+
+#: uvisproperties.rspropertytabconnections
+msgid "Connections"
+msgstr ""
+
+#: uvisproperties.rspropertytabgeneral
+msgid "General"
+msgstr ""
+
+#: uvisproperties.rspropertytablaps
+msgid "LAPS"
+msgstr ""
+
+#: uvisproperties.rspropertytablocation
+msgid "Location"
+msgstr ""
+
+#: uvisproperties.rspropertytabmanagedby
+msgid "Managed By"
+msgstr ""
+
+#: uvisproperties.rspropertytabmember
+msgid "Member"
+msgstr ""
+
+#: uvisproperties.rspropertytabmemberof
+msgid "Member Of"
+msgstr ""
+
+#: uvisproperties.rspropertytabntauthcertificates
+msgid "NTAuthCertificates"
+msgstr ""
+
+#: uvisproperties.rspropertytabobject
+msgid "Object"
+msgstr ""
+
+#: uvisproperties.rspropertytaboperatingsystem
+msgid "Operating System"
+msgstr ""
+
+#: uvisproperties.rspropertytaborganization
+msgid "Organization"
+msgstr ""
+
+#: uvisproperties.rspropertytabprofile
+msgid "Profile"
+msgstr ""
+
+#: uvisproperties.rspropertytabpublishedcertificates
+msgid "Published Certificates"
+msgstr ""
+
+#: uvisproperties.rspropertytabsecurity
+msgid "Security"
+msgstr ""
+
+#: uvisproperties.rspropertytabtelephone
+msgid "Telephone"
+msgstr ""
+
+#: uvisproperties.rspropertytabunixattributes
+msgid "UNIX Attributes"
+msgstr ""

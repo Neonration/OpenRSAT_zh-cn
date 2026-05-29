@@ -100,6 +100,16 @@ begin
   result := 'OpenRSAT';
 end;
 
+procedure ConfigureUIFont;
+begin
+  {$IFDEF WINDOWS}
+  Screen.SystemFont.Name := 'Microsoft YaHei UI';
+  Screen.MenuFont.Name := 'Microsoft YaHei UI';
+  Screen.HintFont.Name := 'Microsoft YaHei UI';
+  Screen.IconFont.Name := 'Microsoft YaHei UI';
+  {$ENDIF}
+end;
+
 begin
   InitLoggingFromCommandLine;
   TSynLog.Add.Log(sllDebug, 'Logger Initialization');
@@ -107,6 +117,7 @@ begin
   Application.Scaled:=True;
   Application.LayoutAdjustmentPolicy := lapAutoAdjustForDPI;
   Application.Initialize;
+  ConfigureUIFont;
 
   {$IFDEF DEBUG}
   if FileExists('heap.trc') then

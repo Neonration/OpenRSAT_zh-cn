@@ -1,0 +1,1411 @@
+﻿#: ucommon.rsaccountunlocked
+msgid "Account Unlock"
+msgstr "帐户解锁"
+
+#: ucommon.rsaccountunlockedmessage
+msgid "Account has been unlocked successfully."
+msgstr "帐户已成功解锁。"
+
+#: ucommon.rsacecreatefailure
+msgid "Failed to create ACE for object % in ACL."
+msgstr "无法在 ACL 中为对象 % 创建 ACE。"
+
+#: ucommon.rsacenotfound
+msgid "ACE for object % not found in ACL."
+msgstr "在 ACL 中未找到对象 % 的 ACE。"
+
+#: ucommon.rsacepaadparent
+msgid "A Deny Delete-Tree right will be added to the ACL of the parent of this object. Do you wish to continue?"
+msgstr "将在此对象父级的 ACL 中添加“拒绝删除树”权限。是否继续？"
+
+#: ucommon.rsaceparsing
+msgid "Failed to parse ACL."
+msgstr "无法解析 ACL。"
+
+#: ucommon.rsace_flags
+msgid ""
+"Container Inherit (CI)\n"
+"Object Inherit (OI)\n"
+"No Propagate (NP)\n"
+"Inherit Only (E/S)"
+msgstr ""
+"容器继承 (CI)\n"
+"对象继承 (OI)\n"
+"不传播 (NP)\n"
+"仅继承 (E/S)"
+
+#: ucommon.rsace_mask
+msgid ""
+"Full Control\n"
+"List Content\n"
+"Read (WP)\n"
+"Write (RP)\n"
+"Create Child (CC)\n"
+"Delete Child (DC)\n"
+"List Child (LC)\n"
+"List Object (be visible) (LO)\n"
+"Delete (SD)\n"
+"Delete Tree (DT)\n"
+"Read Security (RC)\n"
+"Write Security (WD)\n"
+"Write Owner (WO)\n"
+"Validated Write (SW)\n"
+"Control Access (CR)"
+msgstr ""
+"完全控制\n"
+"列出内容\n"
+"读取 (WP)\n"
+"写入 (RP)\n"
+"创建子对象 (CC)\n"
+"删除子对象 (DC)\n"
+"列出子对象 (LC)\n"
+"列出对象（可见）(LO)\n"
+"删除 (SD)\n"
+"删除树 (DT)\n"
+"读取安全性 (RC)\n"
+"写入安全性 (WD)\n"
+"写入所有者 (WO)\n"
+"验证写入 (SW)\n"
+"控制访问 (CR)"
+
+#: ucommon.rsactiondisableobject
+msgid "Object % has been disabled."
+msgstr "对象 % 已被禁用。"
+
+#: ucommon.rsactionenableobject
+msgid "Object % has been enabled."
+msgstr "对象 % 已被启用。"
+
+#: ucommon.rsaliasdereferencingproblem
+msgid "The server encountered an alias while processing the request and that there was some problem related to that alias."
+msgstr "服务器在处理请求时遇到别名，并且该别名存在相关问题。"
+
+#: ucommon.rsaliasproblem
+msgid "A problem occured while attempting to dereference an alias during search processing."
+msgstr "搜索处理期间尝试解析别名时发生问题。"
+
+#: ucommon.rsallow
+msgid "Allow"
+msgstr "允许"
+
+#: ucommon.rsand
+msgid "% and %"
+msgstr "% 和 %"
+
+#: ucommon.rsanonymousconnection
+msgid "Anonymous Connection"
+msgstr "匿名连接"
+
+#: ucommon.rsattributeorvalueexists
+msgid "Attribute or Value already exists."
+msgstr "属性或值已存在。"
+
+#: ucommon.rsauthmethodnotsupported
+msgid "The server does not allow this kind of auth method."
+msgstr "服务器不允许此类身份验证方式。"
+
+#: ucommon.rsbitlockercomputer
+msgid "Computer: "
+msgstr "计算机："
+
+#: ucommon.rsbitlockerdate
+msgid "Date: "
+msgstr "日期："
+
+#: ucommon.rsbitlockerpasswordid
+msgid "Password ID: "
+msgstr "密码 ID："
+
+#: ucommon.rsbitlockerrecovery
+msgid "BitLocker recovery"
+msgstr "BitLocker 恢复"
+
+#: ucommon.rsbitlockerrecoverypassword
+msgid "Recovery Password: "
+msgstr "恢复密码："
+
+#: ucommon.rschangeoptionrequiredrestart
+msgid "The changes you have made require a console restart. Restart now?"
+msgstr "所做更改需要重启控制台。现在重启吗？"
+
+#: ucommon.rsconfidentialityrequired
+msgid "The server do not allow your operation, cause your connection is not secured enought."
+msgstr "服务器不允许此操作，因为当前连接不够安全。"
+
+#: ucommon.rsconfirmation
+msgid "Confirmation"
+msgstr "确认"
+
+#: ucommon.rsconnectedondomainas
+msgid "You are connected as \"%\"."
+msgstr "你已以“%”身份连接。"
+
+#: ucommon.rsconnectedondomainwithdc
+msgid "The DC of this domain is \"%\"."
+msgstr "此域的域控制器是“%”。"
+
+#: ucommon.rsconnectsuccess
+msgid "Successfully connected to domain controller \"%\""
+msgstr "已成功连接到域控制器“%”。"
+
+#: ucommon.rsconstraintviolation
+msgid "The requests violates some constraint defined within the server."
+msgstr "该请求违反了服务器中定义的某些约束。"
+
+#: ucommon.rsdelegatecontrolfolder
+msgid "You chose to delegate control of objects in the following Active Directory folder:"
+msgstr "你选择委派以下 Active Directory 文件夹中对象的控制权："
+
+#: ucommon.rsdelegatecontrolobjects
+msgid "The groups, users, or computers to which you have given control are:"
+msgstr "你授予控制权的组、用户或计算机为："
+
+#: ucommon.rsdelegatecontroltasks
+msgid "You chose to delegate the following tasks:"
+msgstr "你选择委派以下任务："
+
+#: ucommon.rsdelete
+msgctxt "ucommon.rsdelete"
+msgid "Delete"
+msgstr "删除"
+
+#: ucommon.rsdeleteconfirm
+msgid "Are you sure you want to delete the following object: %"
+msgstr "确定要删除以下对象吗：%"
+
+#: ucommon.rsdeletememberfromgroups
+msgid "Are you sure that you want to delete % from the selected group(s)?"
+msgstr "确定要从选定组中删除 % 吗？"
+
+#: ucommon.rsdeleteobjectconfirmation
+msgid "Do you want to delete the record % from the server?"
+msgstr "要从服务器删除记录 % 吗？"
+
+#: ucommon.rsdeleteobjectsconfirmation
+msgid "Do you want to delete the selected records from the server?"
+msgstr "要从服务器删除选定记录吗？"
+
+#: ucommon.rsdeleteprimarygroup
+msgid "The primary group cannot be deleted. You need to define another if you wish to delete this one."
+msgstr "不能删除主组。如需删除此组，请先指定另一个主组。"
+
+#: ucommon.rsdeleteprofile
+msgid "Do you want to delete the profile %?"
+msgstr "要删除配置文件 % 吗？"
+
+#: ucommon.rsdeny
+msgid "Deny"
+msgstr "拒绝"
+
+#: ucommon.rsdisableaccount
+msgid "Disable Account"
+msgstr "禁用帐户"
+
+#: ucommon.rsdnspropertyzoneagingenabledtime
+msgid "Aging enabled time"
+msgstr "老化启用时间"
+
+#: ucommon.rsdnspropertyzoneagingstate
+msgid "Aging state"
+msgstr "老化状态"
+
+#: ucommon.rsdnspropertyzoneallowupdate
+msgid "Allow Update"
+msgstr "允许更新"
+
+#: ucommon.rsdnspropertyzoneautonsservers
+msgid "Auto NS servers"
+msgstr "自动 NS 服务器"
+
+#: ucommon.rsdnspropertyzoneautonsserversda
+msgid "Auto NS servers DA"
+msgstr "自动 NS 服务器 DA"
+
+#: ucommon.rsdnspropertyzonedcpromoconvert
+msgid "DC promo convert"
+msgstr "DC 提升转换"
+
+#: ucommon.rsdnspropertyzonedeletedfromhostname
+msgid "Deleted from hostname"
+msgstr "从主机名删除"
+
+#: ucommon.rsdnspropertyzonemasterservers
+msgid "Master servers"
+msgstr "主服务器"
+
+#: ucommon.rsdnspropertyzonemasterserversda
+msgid "Master servers DA"
+msgstr "主服务器 DA"
+
+#: ucommon.rsdnspropertyzonenodedbflags
+msgid "Node DB flags"
+msgstr "节点数据库标志"
+
+#: ucommon.rsdnspropertyzonenorefreshinterval
+msgid "No Refresh Interval"
+msgstr "无刷新间隔"
+
+#: ucommon.rsdnspropertyzonerefreshinterval
+msgid "Refresh Interval"
+msgstr "刷新间隔"
+
+#: ucommon.rsdnspropertyzonescavengingservers
+msgid "Scavenging servers"
+msgstr "清理服务器"
+
+#: ucommon.rsdnspropertyzonescavengingserversda
+msgid "Scavenging servers DA"
+msgstr "清理服务器 DA"
+
+#: ucommon.rsdnspropertyzonesecuretime
+msgid "Secure Time"
+msgstr "安全时间"
+
+#: ucommon.rsdnspropertyzonetype
+msgid "Type"
+msgstr "类型"
+
+#: ucommon.rsdnsrecorda
+msgid "Host (A or AAAA)"
+msgstr "主机（A 或 AAAA）"
+
+#: ucommon.rsdnsrecordadescription
+msgid "Host address (A or AAAA) record. Maps a DNS domain name to a 32-bit IP version 4 address (RFC 1035) or a 128-bit IP version 6 address (RFC 1886)."
+msgstr "主机地址（A 或 AAAA）记录。将 DNS 域名映射到 32 位 IPv4 地址（RFC 1035）或 128 位 IPv6 地址（RFC 1886）。"
+
+#: ucommon.rsdnsrecordcname
+msgid "Alias (CNAME)"
+msgstr "别名（CNAME）"
+
+#: ucommon.rsdnsrecordcnamedescription
+msgid "Alias record. Indicates an alternate or alias DNS domain name for a name already specified in other resource record types used in this zone. The record is also known as the canonical name (CNAME) record type. (RFC 1035)"
+msgstr "别名记录。为此区域中已由其他资源记录类型指定的名称提供备用或别名 DNS 域名。该记录也称为规范名称（CNAME）记录类型。（RFC 1035）"
+
+#: ucommon.rsdnsrecordmx
+msgid "Mail Exchanger (MX)"
+msgstr "邮件交换器（MX）"
+
+#: ucommon.rsdnsrecordmxdescription
+msgid "Mail exchanger (MX) record. Provides message routing to a specified mail exchange host that is acting as a mail exchanger for a specified DNS domain name. MX records use a 16-bit integer to indicate host priority in message routing where multiple mail exchange hosts are specified. For each mail exchange host specified in this record type, a corresponding host address (A) type record is needed. (RFC 1035)"
+msgstr "邮件交换器 (MX) 记录。为指定 DNS 域名提供邮件路由。MX 记录使用 16 位整数表示多个邮件交换主机之间的路由优先级。此记录类型中指定的每个邮件交换主机都需要对应的主机地址 (A) 记录。(RFC 1035)"
+
+#: ucommon.rsdnsrecordptr
+msgid "Pointer (PTR)"
+msgstr "指针（PTR）"
+
+#: ucommon.rsdnsrecordptrdescription
+msgid "Pointer (PTR) record. Points to a location in the domain name space. PTR records are typically used in special domains to perform reverse lookups of address-to-name mappings. Each record provides simple data that points to some other location in the domain name space (usually a forward lookup zone). Where PTR records are used, no additional section processing is implied or caused by their presence. (RFC 1035)"
+msgstr "指针 (PTR) 记录。指向域名空间中的某个位置。PTR 记录通常用于特殊域，以执行地址到名称映射的反向查找。每条记录提供指向域名空间中其他位置（通常是正向查找区域）的简单数据。使用 PTR 记录时，不会隐含或触发其他节处理。(RFC 1035)"
+
+#: ucommon.rsdnsrecordsrv
+msgid "Service Location (SRV)"
+msgstr "服务位置（SRV）"
+
+#: ucommon.rsdnsrecordsrvdescription
+msgid "Service (SRV) record. Allows administrators to use several servers for a single DNS domain, to easily move a TCP/IP service from one host to another host with administration, and to designate some service provider hosts as primary servers for a service and other hosts as backups. DNS clients that use a SRV-type query ask for a specific TCP/IP service and protocol mapped to a specific DNS domain and receive the names of any available servers. (RFC 2052)"
+msgstr "服务 (SRV) 记录。允许管理员为单个 DNS 域使用多台服务器，便于将 TCP/IP 服务从一台主机迁移到另一台主机，并可指定某些服务提供主机作为主服务器、其他主机作为备份服务器。使用 SRV 查询的 DNS 客户端会请求映射到特定 DNS 域的 TCP/IP 服务和协议，并获得所有可用服务器的名称。(RFC 2052)"
+
+#: ucommon.rsdnszonedcpromoconvertdomain
+msgid "Domain"
+msgstr "域"
+
+#: ucommon.rsdnszonedcpromoconvertforest
+msgid "Forest"
+msgstr "林"
+
+#: ucommon.rsdnszonedcpromoconvertnone
+msgid "None"
+msgstr "无"
+
+#: ucommon.rsdnszonetypecache
+msgid "Cache"
+msgstr "缓存"
+
+#: ucommon.rsdnszonetypeforwarder
+msgid "Forwarder"
+msgstr "转发器"
+
+#: ucommon.rsdnszonetypeprimary
+msgid "Primary"
+msgstr "主"
+
+#: ucommon.rsdnszonetypesecondary
+msgid "Secondary"
+msgstr "辅助"
+
+#: ucommon.rsdnszonetypesecondarycache
+msgid "Secondary cache"
+msgstr "辅助缓存"
+
+#: ucommon.rsdnszonetypestub
+msgid "Stub"
+msgstr "存根"
+
+#: ucommon.rsdnszoneupdateoff
+msgid "OFF"
+msgstr "关闭"
+
+#: ucommon.rsdnszoneupdatesecure
+msgid "Secure"
+msgstr "安全"
+
+#: ucommon.rsdnszoneupdateunsecure
+msgid "Unsecure"
+msgstr "不安全"
+
+#: ucommon.rsenableaccount
+msgid "Enable Account"
+msgstr "启用帐户"
+
+#: ucommon.rsentryalreadyexists
+msgid "The requested operation would have resulted in an entry with the same DN as an entry that already exists in the server."
+msgstr "请求的操作会产生与服务器中现有条目相同 DN 的条目。"
+
+#: ucommon.rserror
+msgid "Error"
+msgstr "错误"
+
+#: ucommon.rsflagalldescendants
+msgid "all descendants"
+msgstr "所有后代"
+
+#: ucommon.rsflagdirectdesendants
+msgid "direct descendants"
+msgstr "直接后代"
+
+#: ucommon.rsflagthisobject
+msgid "this object"
+msgstr "此对象"
+
+#: ucommon.rsfriday
+msgid "Friday"
+msgstr "星期五"
+
+#: ucommon.rsgeneratekeytab
+msgid "Generate KeyTab"
+msgstr "生成 KeyTab"
+
+#: ucommon.rsgeneratekeytabconfirmation
+msgid "You are about to change the password for the selected object. This will remove the trust relationships with the domain. Continue?"
+msgstr "即将更改选定对象的密码。这会移除其与域的信任关系。是否继续？"
+
+#: ucommon.rsgeneratekeytabfailed
+msgid "Generate KeyTab failed: %"
+msgstr "生成 KeyTab 失败：%"
+
+#: ucommon.rsgeneratekeytabfinished
+msgid "Generate KeyTab finished. Open folder?"
+msgstr "KeyTab 生成完成。打开文件夹吗？"
+
+#: ucommon.rsgeneratekeytabpassword
+msgid "Would you like to generate a random password?"
+msgstr "是否生成随机密码？"
+
+#: ucommon.rsgeneratekeytabpasswordmessage
+msgid "Enter password. Leave empty to generate random password."
+msgstr "输入密码。留空则生成随机密码。"
+
+#: ucommon.rsgeneratekeytabselectfolder
+msgid "Select folder to store KeyTab file"
+msgstr "选择用于保存 KeyTab 文件的文件夹"
+
+#: ucommon.rsgridconfdeleterow
+#, object-pascal-format
+msgid "Confirm the deletion of the %d selected rows?"
+msgstr "确认删除选中的 %d 行吗？"
+
+#: ucommon.rsgriddeleterows
+msgid "Delete selected rows"
+msgstr "删除选中行"
+
+#: ucommon.rshidepassword
+msgid "Hide password"
+msgstr "隐藏密码"
+
+#: ucommon.rsinappropriateauthentication
+msgid "The client attempted to bind in an inappropriate manner that is inappropriate for the target account."
+msgstr "客户端尝试以不适用于目标帐户的方式进行绑定。"
+
+#: ucommon.rsinappropriatematching
+msgid "The matching condition is not supported for this attributeType."
+msgstr "此属性类型不支持该匹配条件。"
+
+#: ucommon.rsinsufficientaccessrights
+msgid "The client requested an operation for which it does not have the necessary access control permissions."
+msgstr "客户端请求执行其不具备必要访问控制权限的操作。"
+
+#: ucommon.rsinvalidattributesyntax
+msgid "Attribute already has a value with a different syntax."
+msgstr "属性已存在使用不同语法的值。"
+
+#: ucommon.rsinvalidcredentials
+msgid "The client attempted to bind with a set of credentials that cannot be used to authenticate. Verify your username and password."
+msgstr "客户端尝试使用无法通过身份验证的凭据进行绑定。请检查用户名和密码。"
+
+#: ucommon.rsinvaliddnsyntax
+msgid "The request included a malformed entry DN."
+msgstr "请求包含格式错误的条目 DN。"
+
+#: ucommon.rsinvalidipformat
+msgid "Invalid IP format"
+msgstr "IP 格式无效"
+
+#: ucommon.rsldapaddfailed
+msgid "Ldap add failed: \"%\""
+msgstr "LDAP 添加失败：“%”"
+
+#: ucommon.rsldapconnectfailed
+msgid "Ldap connect failed: \"%\""
+msgstr "LDAP 连接失败：“%”"
+
+#: ucommon.rsldapdeletefailed
+msgid "Ldap delete failed: \"%\""
+msgstr "LDAP 删除失败：“%”"
+
+#: ucommon.rsldaperror
+msgid "Ldap Error"
+msgstr "LDAP 错误"
+
+#: ucommon.rsldapfailed
+msgid "Ldap failed: \"%\""
+msgstr "LDAP 失败：“%”"
+
+#: ucommon.rsldapmissingtls
+msgid "You try to connect to a Domain Controller without TLS connection. It is highly recommanded to enable TLS with a simple connection."
+msgstr "你正在尝试不使用 TLS 连接到域控制器。强烈建议为简单绑定启用 TLS。"
+
+#: ucommon.rsldapmodifyfailed
+msgid "Ldap modify failed: \"%\""
+msgstr "LDAP 修改失败：“%”"
+
+#: ucommon.rsldapmovewarningmessage
+msgid ""
+"Moving objects in Active Directory Domain Services can prevent your existing system from working the way it was designed. For exemple, moving an organizational unit (OU) can affect the way that group policies are applied to the accounts within the OU.\n"
+"Are you sure you want to move this object?"
+msgstr "确定要移动此对象吗？"
+
+#: ucommon.rsldapsearchfailed
+msgid "Ldap search failed: \"%\""
+msgstr "LDAP 搜索失败：“%”"
+
+#: ucommon.rsldapsuccess
+msgid "Ldap Success"
+msgstr "LDAP 成功"
+
+#: ucommon.rsldapsuccessauthmessage
+msgid "Authentication with user \"%\" has succeeded."
+msgstr "用户“%”身份验证成功。"
+
+#: ucommon.rsldapsuccessconnmessage
+msgid "Connection to domain \"%\" with domain controller \"%\" on port \"%\" can be established."
+msgstr "可以通过端口“%”连接到域“%”的域控制器“%”。"
+
+#: ucommon.rsldaptlsinvalidcert
+msgid "TLS connection is enabled, but the certificate is not recognized. Be carefull."
+msgstr "已启用 TLS 连接，但证书未被识别。请谨慎操作。"
+
+#: ucommon.rsldapwarning
+msgid "Ldap Warning"
+msgstr "LDAP 警告"
+
+#: ucommon.rslockedaccount
+msgid "This account is currently locked out on this Active Directory Domain Controller."
+msgstr "此帐户当前在该 Active Directory 域控制器上被锁定。"
+
+#: ucommon.rsloopdetect
+msgid "The server detected some kind of circular reference in the course of processing an operation."
+msgstr "服务器在处理操作时检测到某种循环引用。"
+
+#: ucommon.rsmoduleadsidisplayname
+msgid "Services and Interfaces"
+msgstr "服务和接口"
+
+#: ucommon.rsmoduleadsiname
+msgid "ServicesAndInterfaces"
+msgstr "ServicesAndInterfaces"
+
+#: ucommon.rsmoduleadssdisplayname
+msgid "Sites and Services"
+msgstr "站点和服务"
+
+#: ucommon.rsmoduleadssname
+msgid "SitesAndServices"
+msgstr "SitesAndServices"
+
+#: ucommon.rsmoduleaducdisplayname
+msgid "Users and Computers"
+msgstr "用户和计算机"
+
+#: ucommon.rsmoduleaducname
+msgid "UsersAndComputers"
+msgstr "UsersAndComputers"
+
+#: ucommon.rsmodulednsdisplayname
+msgid "Domain Name System"
+msgstr "域名系统"
+
+#: ucommon.rsmodulednsname
+msgid "DomainNameSystem"
+msgstr "DomainNameSystem"
+
+#: ucommon.rsmonday
+msgid "Monday"
+msgstr "星期一"
+
+#: ucommon.rsmultistringeditor
+msgid "Multi-valued String Editor"
+msgstr "多值字符串编辑器"
+
+#: ucommon.rsmultitimeeditor
+msgid "Multi-valued Time Editor"
+msgstr "多值时间编辑器"
+
+#: ucommon.rsnamingviolation
+msgid "The requested add or modify DN operation would have resulted in an entry that violates some naming constraint within the server."
+msgstr "请求的添加或修改 DN 操作会导致条目违反服务器中的某些命名约束。"
+
+#: ucommon.rsnewconfirmpassdifferent
+msgid "The New and Confirm passwords must match. Please re-type them."
+msgstr "新密码和确认密码必须一致。请重新输入。"
+
+#: ucommon.rsnewobjectbtnback
+msgid "< Back"
+msgstr "< 上一步"
+
+#: ucommon.rsnewobjectbtnnext
+msgid "Next >"
+msgstr "下一步 >"
+
+#: ucommon.rsnewobjectbtnok
+msgid "OK"
+msgstr "确定"
+
+#: ucommon.rsnewobjectcomputer
+msgid "New object - Computer"
+msgstr "新建对象 - 计算机"
+
+#: ucommon.rsnewobjectcontact
+msgid "New object - Contact"
+msgstr "新建对象 - 联系人"
+
+#: ucommon.rsnewobjectgroup
+msgid "New object - Group"
+msgstr "新建对象 - 组"
+
+#: ucommon.rsnewobjectinetorgperson
+msgid "New object - Inet Org. Person"
+msgstr "新建对象 - InetOrgPerson"
+
+#: ucommon.rsnewobjectmsdnsserversettings
+msgid "New object - msDNS-ServerSettings"
+msgstr "新建对象 - msDNS-ServerSettings"
+
+#: ucommon.rsnewobjectmsdskeycredential
+msgid "New object - msDS-KeyCredential"
+msgstr "新建对象 - msDS-KeyCredential"
+
+#: ucommon.rsnewobjectmsdsresourcepropertylist
+msgid "New object - msDS-ResourcePropertyList"
+msgstr "新建对象 - msDS-ResourcePropertyList"
+
+#: ucommon.rsnewobjectmsdsshadowprincipalcontainer
+msgid "New object - msDS-ShadowPrincipalContainer"
+msgstr "新建对象 - msDS-ShadowPrincipalContainer"
+
+#: ucommon.rsnewobjectmsimagingpsps
+msgid "New object - msImaging-PSPs"
+msgstr "新建对象 - msImaging-PSPs"
+
+#: ucommon.rsnewobjectou
+msgid "New object - OU"
+msgstr "新建对象 - 组织单位"
+
+#: ucommon.rsnewobjectprinter
+msgid "New object - Printer"
+msgstr "新建对象 - 打印机"
+
+#: ucommon.rsnewobjectserver
+msgid "New object - Server"
+msgstr "新建对象 - 服务器"
+
+#: ucommon.rsnewobjectsharedfolder
+msgid "New object - Shared Folder"
+msgstr "新建对象 - 共享文件夹"
+
+#: ucommon.rsnewobjectsite
+msgid "New object - Site"
+msgstr "新建对象 - 站点"
+
+#: ucommon.rsnewobjectsitelink
+msgid "New Object - Site Link"
+msgstr "新建对象 - 站点链接"
+
+#: ucommon.rsnewobjectsubnet
+msgid "New object - Subnet"
+msgstr "新建对象 - 子网"
+
+#: ucommon.rsnewobjectuser
+msgid "New object - User"
+msgstr "新建对象 - 用户"
+
+#: ucommon.rsnewuserchangepassword
+msgid "The user will have to change his password at next logon."
+msgstr "用户下次登录时必须更改密码。"
+
+#: ucommon.rsnewuserdisabled
+msgid "The account is disabled."
+msgstr "该帐户已禁用。"
+
+#: ucommon.rsnewuserfullname
+msgid "Full name: %"
+msgstr "全名：%"
+
+#: ucommon.rsnewuserlogonname
+msgid "User logon name: %"
+msgstr "用户登录名：%"
+
+#: ucommon.rsnewusernochangepassword
+msgid "The user cannot change his password."
+msgstr "用户不能更改自己的密码。"
+
+#: ucommon.rsnewuserpasswordnoexpire
+msgid "The Password never expires."
+msgstr "密码永不过期。"
+
+#: ucommon.rsnosuchattribute
+msgid "The targeted attribute does not exist in the specified entry."
+msgstr "指定条目中不存在目标属性。"
+
+#: ucommon.rsnosuchobject
+msgid "The targeted entry does not exists."
+msgstr "目标条目不存在。"
+
+#: ucommon.rsnotallowedonnonleaf
+msgid "The requested operation is only supported for leaf entries, but the targeted entry has one or more subordinates."
+msgstr "请求的操作仅支持叶条目，但目标条目有一个或多个下级对象。"
+
+#: ucommon.rsnotallowedonrdn
+msgid "The requested modify operation would have resulted in an entry that does not include all of the attributes used in its RDN."
+msgstr "请求的修改操作会导致条目不包含其 RDN 中使用的全部属性。"
+
+#: ucommon.rsnotrequiredtochangepassword
+msgid "The user will not be required to change the password at next logon."
+msgstr "用户下次登录时不需要更改密码。"
+
+#: ucommon.rsobjectclassviolation
+msgid "The requested operation would have resulted in an entry that has an inappropriate set of object classes, or whose attributes violate the constraints associated with its set of object classes."
+msgstr "请求的操作会导致条目具有不合适的对象类集合，或其属性违反对象类集合关联的约束。"
+
+#: ucommon.rsoperationserror
+msgid "Operation occurs in a wrong order."
+msgstr "操作顺序错误。"
+
+#: ucommon.rspasswordshouldneverexpire
+msgid "You specified that the password should never expire."
+msgstr "你已指定密码永不过期。"
+
+#: ucommon.rspreparedjoin
+msgid "Prepare DJOIN"
+msgstr "准备 DJOIN"
+
+#: ucommon.rspreparedjoinconfirmation
+msgid "You are about to change the password for the selected machines. This will remove the trust relationships with the domain. Continue?"
+msgstr "即将更改选定计算机的密码。这会移除其与域的信任关系。是否继续？"
+
+#: ucommon.rspreparedjoinfinished
+msgid "Prepare DJOIN finished. Open folder?"
+msgstr "DJOIN 准备完成。打开文件夹吗？"
+
+#: ucommon.rspreparedjoinselectfolder
+msgid "Select folder to store djoin files"
+msgstr "选择用于保存 djoin 文件的文件夹"
+
+#: ucommon.rsprotocolerror
+msgid "Malformed LDAP message. Unrecognized operation."
+msgstr "LDAP 消息格式错误。无法识别的操作。"
+
+#: ucommon.rsreferral
+msgid "This should not be an error. Client should follow referral. Please try the action on a different server."
+msgstr "这通常不应视为错误。客户端应跟随引用。请在其他服务器上尝试该操作。"
+
+#: ucommon.rsrename
+msgid "Rename"
+msgstr "重命名"
+
+#: ucommon.rsresetpassword
+msgid "Reset Password"
+msgstr "重置密码"
+
+#: ucommon.rsresetpasswordmessage
+msgid "Password has been reset successfully."
+msgstr "密码已成功重置。"
+
+#: ucommon.rsrestarttitle
+msgid "Restart confirmation"
+msgstr "重启确认"
+
+#: ucommon.rssafauditfailure
+msgid "Audit Failure"
+msgstr "审核失败"
+
+#: ucommon.rssafauditsuccess
+msgid "Audit Success"
+msgstr "审核成功"
+
+#: ucommon.rssafcontainerinherit
+msgid "Container Inherit"
+msgstr "容器继承"
+
+#: ucommon.rssafinherited
+msgid "Inherited"
+msgstr "已继承"
+
+#: ucommon.rssafinheritonly
+msgid "Inherit Only"
+msgstr "仅继承"
+
+#: ucommon.rssafnopropagate
+msgid "No Propagate"
+msgstr "不传播"
+
+#: ucommon.rssafobjectinherit
+msgid "Object Inherit"
+msgstr "对象继承"
+
+#: ucommon.rssaslbindinprogress
+msgid "The server is working on a bind request. Try again later."
+msgstr "服务器正在处理绑定请求。请稍后重试。"
+
+#: ucommon.rssaturday
+msgid "Saturday"
+msgstr "星期六"
+
+#: ucommon.rssearchscopebaseobject
+msgid "Base object"
+msgstr "基准对象"
+
+#: ucommon.rssearchscopesinglelevel
+msgid "Single level"
+msgstr "单级"
+
+#: ucommon.rssearchscopewholesubtree
+msgid "Whole subtree"
+msgstr "整个子树"
+
+#: ucommon.rssecaccesscontrolaccess
+msgid "Control Access"
+msgstr "控制访问"
+
+#: ucommon.rssecaccesscreatechild
+msgid "Create child"
+msgstr "创建子对象"
+
+#: ucommon.rssecaccessdelete
+msgctxt "ucommon.rssecaccessdelete"
+msgid "Delete"
+msgstr "删除"
+
+#: ucommon.rssecaccessdeletechild
+msgid "Delete child"
+msgstr "删除子对象"
+
+#: ucommon.rssecaccessdeletetree
+msgid "Delete Tree"
+msgstr "删除树"
+
+#: ucommon.rssecaccessfullcontrol
+msgid "Full control"
+msgstr "完全控制"
+
+#: ucommon.rssecaccessgenericall
+msgid "Generic All"
+msgstr "通用全部权限"
+
+#: ucommon.rssecaccessgenericexecute
+msgid "Generic Execute"
+msgstr "通用执行"
+
+#: ucommon.rssecaccessgenericread
+msgid "Generic Read"
+msgstr "通用读取"
+
+#: ucommon.rssecaccessgenericwrite
+msgid "Generic Write"
+msgstr "通用写入"
+
+#: ucommon.rssecaccesslistchildren
+msgid "List Children"
+msgstr "列出子对象"
+
+#: ucommon.rssecaccesslistcontent
+msgid "List content"
+msgstr "列出内容"
+
+#: ucommon.rssecaccesslistobject
+msgid "List Object"
+msgstr "列出对象"
+
+#: ucommon.rssecaccessreadcontrol
+msgid "Read Control"
+msgstr "读取控制"
+
+#: ucommon.rssecaccessreadprop
+msgid "Read"
+msgstr "Read"
+
+#: ucommon.rssecaccessselfwrite
+msgid "Self Write"
+msgstr "自写入"
+
+#: ucommon.rssecaccesssynchronize
+msgid "Synchronize"
+msgstr "Synchronize"
+
+#: ucommon.rssecaccesswritedac
+msgid "Write Dac"
+msgstr "写入 DACL"
+
+#: ucommon.rssecaccesswriteowner
+msgid "Write Owner"
+msgstr "写入所有者"
+
+#: ucommon.rssecaccesswriteprop
+msgid "Write"
+msgstr "Write"
+
+#: ucommon.rssecuritydescriptorinvalid
+msgid "Fail to read security descriptor"
+msgstr "无法读取安全描述符"
+
+#: ucommon.rsshowpassword
+msgid "Show password"
+msgstr "显示密码"
+
+#: ucommon.rssinglestringeditor
+msgid "Single String Editor"
+msgstr "单值字符串编辑器"
+
+#: ucommon.rssingletimeeditor
+msgid "Single Time Editor"
+msgstr "单值时间编辑器"
+
+#: ucommon.rssizelimitexceeded
+msgid "The result retrieved more objects than the server allowed."
+msgstr "返回的对象数量超过服务器允许的限制。"
+
+#: ucommon.rsstatusbardc
+msgid "DC: %"
+msgstr "DC： %"
+
+#: ucommon.rsstatusbarusername
+msgid "User: %"
+msgstr "User： %"
+
+#: ucommon.rsstrongerauthrequired
+msgid "The server requires the client to authenticate with a stronger authentication."
+msgstr "服务器要求客户端使用更强的身份验证方式。"
+
+#: ucommon.rssunday
+msgid "Sunday"
+msgstr "星期日"
+
+#: ucommon.rsthursday
+msgid "Thursday"
+msgstr "星期四"
+
+#: ucommon.rstimelimitexceeded
+msgid "The request time limit has been reached."
+msgstr "已达到请求时间限制。"
+
+#: ucommon.rstitleadvancedsecurity
+msgctxt "ucommon.rstitleadvancedsecurity"
+msgid "Advanced Security Settings for %"
+msgstr "% 的高级安全设置"
+
+#: ucommon.rstitleconnectorbind
+msgid "Connect or bind error."
+msgstr "连接或绑定错误。"
+
+#: ucommon.rstitleconnectsuccess
+msgid "Successful connection"
+msgstr "连接成功"
+
+#: ucommon.rstitledeletemember
+msgid "Delete a group user"
+msgstr "删除组用户"
+
+#: ucommon.rstitledeleteobject
+msgid "Delete object"
+msgstr "删除对象"
+
+#: ucommon.rstitleinvalidformat
+msgid "Invalid format"
+msgstr "格式无效"
+
+#: ucommon.rstitlenotfound
+msgid "Error not found"
+msgstr "未找到错误"
+
+#: ucommon.rstitleparsing
+msgid "Parsing error"
+msgstr "解析错误"
+
+#: ucommon.rstitlepermissionsfor
+msgid "Permissions for %"
+msgstr "% 的权限"
+
+#: ucommon.rstitleselectgroups
+msgid "Select groups"
+msgstr "选择组"
+
+#: ucommon.rstitleselectnewmanager
+msgid "Select new Manager"
+msgstr "选择新管理者"
+
+#: ucommon.rstitleselectowner
+msgid "Select owner"
+msgstr "选择所有者"
+
+#: ucommon.rstoofewsitesavailableforsitelink
+msgid "Active Directory Sites and Services cannot locate two sites to create a working site link object. You may create a new site link that links only one site, but it will have no effect until it links at least two sites."
+msgstr "Active Directory 站点和服务无法找到两个站点来创建可用的站点链接对象。你可以创建仅链接一个站点的新站点链接，但在至少链接两个站点之前它不会生效。"
+
+#: ucommon.rstuesday
+msgid "Tuesday"
+msgstr "星期二"
+
+#: ucommon.rsuacserver
+msgid "Domain controller"
+msgstr "域控制器"
+
+#: ucommon.rsuacworkstation
+msgid "Workstation or server"
+msgstr "工作站或服务器"
+
+#: ucommon.rsundefinedattributetype
+msgid "The targeted attribute does not exist in the server schema."
+msgstr "目标属性在服务器架构中不存在。"
+
+#: ucommon.rsunsavedchangequit
+msgid ""
+"There are unsaved changes.\n"
+"Are you sure you want to quit?"
+msgstr "存在未保存的更改。确定要退出吗？"
+
+#: ucommon.rsunwillingtoperform
+msgid "The server is not willing to process the requested operation for some reason. This is a fairly generic result code that may be used if the server refuses to process an operation for a reason that is not covered by a more specific result code."
+msgstr "服务器因某种原因不愿处理请求的操作。这是一个较通用的结果代码，通常用于服务器拒绝处理操作且原因不属于更具体结果代码覆盖范围的情况。"
+
+#: ucommon.rsusecurrentcreds
+msgid "Current user credentials"
+msgstr "当前用户凭据"
+
+#: ucommon.rsusermustchangepasswordandcannotchange
+msgid "You cannot check both User must change password at next logon and User cannot change password for the same user."
+msgstr "不能为同一用户同时选择“用户下次登录时必须更改密码”和“用户不能更改密码”。"
+
+#: ucommon.rsvisadvancedsecuritytitle
+#, fuzzy
+msgctxt "ucommon.rsvisadvancedsecuritytitle"
+msgid "Advanced Security Settings for %"
+msgstr "% 的高级安全设置"
+
+#: ucommon.rswarning
+msgid "Warning"
+msgstr "警告"
+
+#: ucommon.rswednesday
+msgid "Wednesday"
+msgstr "星期三"
+
+#: ucommon.rswellknownsidanonymous
+msgid "Anonymous"
+msgstr "匿名"
+
+#: ucommon.rswellknownsidauthenticateduser
+msgid "Authenticated User"
+msgstr "已验证用户"
+
+#: ucommon.rswellknownsidauthenticationauthorityasserted
+msgid "Authentication Authority Asserted"
+msgstr "身份验证机构断言"
+
+#: ucommon.rswellknownsidauthenticationfreshkeyauth
+msgid "Authentication Fresh Key Auth"
+msgstr "身份验证新密钥认证"
+
+#: ucommon.rswellknownsidauthenticationkeypropertyattestation
+msgid "Authentication Key Property Attestation"
+msgstr "身份验证密钥属性证明"
+
+#: ucommon.rswellknownsidauthenticationkeypropertymfa
+msgid "Authentication Key Property Mfa"
+msgstr "身份验证密钥属性 MFA"
+
+#: ucommon.rswellknownsidauthenticationkeytrust
+msgid "Authentication Key Trust"
+msgstr "身份验证密钥信任"
+
+#: ucommon.rswellknownsidauthenticationserviceasserted
+msgid "Authentication Service Asserted"
+msgstr "身份验证服务断言"
+
+#: ucommon.rswellknownsidbatch
+msgid "Batch"
+msgstr "Batch"
+
+#: ucommon.rswellknownsidbuiltinaccesscontrolassistanceoperators
+msgid "Builtin Access Control Assistance Operators"
+msgstr "内置访问控制辅助操作员"
+
+#: ucommon.rswellknownsidbuiltinaccountoperators
+msgid "Builtin Account Operators"
+msgstr "内置帐户操作员"
+
+#: ucommon.rswellknownsidbuiltinadministrators
+msgid "Builtin Administrators"
+msgstr "内置管理员"
+
+#: ucommon.rswellknownsidbuiltinanypackage
+msgid "Builtin Any Package"
+msgstr "内置任意包"
+
+#: ucommon.rswellknownsidbuiltinanyrestrictedpackage
+msgid "Builtin Any Restricted Package"
+msgstr "内置任意受限包"
+
+#: ucommon.rswellknownsidbuiltinauthorizationaccess
+msgid "Builtin Authorization Access"
+msgstr "内置授权访问"
+
+#: ucommon.rswellknownsidbuiltinbackupoperators
+msgid "Builtin Backup Operators"
+msgstr "内置备份操作员"
+
+#: ucommon.rswellknownsidbuiltincacheableprincipalsgroups
+msgid "Builtin Cacheable Principals Groups"
+msgstr "内置可缓存主体组"
+
+#: ucommon.rswellknownsidbuiltincertsvcdcomaccessgroup
+msgid "Builtin Cert Svc DCom Access Group"
+msgstr "内置证书服务 DCOM 访问组"
+
+#: ucommon.rswellknownsidbuiltincryptooperators
+msgid "Builtin Crypto Operators"
+msgstr "内置加密操作员"
+
+#: ucommon.rswellknownsidbuiltindcomusers
+msgid "Builtin Dcom Users"
+msgstr "内置 DCOM 用户"
+
+#: ucommon.rswellknownsidbuiltindefaultsystemmanagedgroup
+msgid "Builtin Default System Managed Group"
+msgstr "内置默认系统托管组"
+
+#: ucommon.rswellknownsidbuiltindeviceowners
+msgid "Builtin Device Owners"
+msgstr "内置设备所有者"
+
+#: ucommon.rswellknownsidbuiltindomain
+msgid "Builtin Domain"
+msgstr "内置域"
+
+#: ucommon.rswellknownsidbuiltineventlogreadersgroup
+msgid "Builtin Event Log Readers Group"
+msgstr "内置事件日志读取器组"
+
+#: ucommon.rswellknownsidbuiltinguests
+msgid "Builtin Guests"
+msgstr "内置来宾"
+
+#: ucommon.rswellknownsidbuiltinhypervadmins
+msgid "Builtin Hyper VAdmins"
+msgstr "内置 Hyper-V 管理员"
+
+#: ucommon.rswellknownsidbuiltinincomingforesttrustbuilders
+msgid "Builtin Incoming Forest Trust Builders"
+msgstr "内置传入林信任创建者"
+
+#: ucommon.rswellknownsidbuiltiniusers
+msgid "Builtin IUsers"
+msgstr "内置 IUsers"
+
+#: ucommon.rswellknownsidbuiltinnetworkconfigurationoperators
+msgid "Builtin Network Configuration Operators"
+msgstr "内置网络配置操作员"
+
+#: ucommon.rswellknownsidbuiltinnoncacheableprincipalsgroups
+msgid "Builtin Non Cacheable Principals Groups"
+msgstr "内置不可缓存主体组"
+
+#: ucommon.rswellknownsidbuiltinperfloggingusers
+msgid "Builtin Perf Logging Users"
+msgstr "内置性能日志用户"
+
+#: ucommon.rswellknownsidbuiltinperfmonitoringusers
+msgid "Builtin Perf Monitoring Users"
+msgstr "内置性能监视用户"
+
+#: ucommon.rswellknownsidbuiltinpowerusers
+msgid "Builtin Power Users"
+msgstr "内置 Power Users"
+
+#: ucommon.rswellknownsidbuiltinprewindows2000compatibleaccess
+msgid "Builtin Pre Windows 200 Compatible Access"
+msgstr "内置 Windows 2000 以前兼容访问"
+
+#: ucommon.rswellknownsidbuiltinprintoperators
+msgid "Builtin Print Operators"
+msgstr "内置打印操作员"
+
+#: ucommon.rswellknownsidbuiltinrasservers
+msgid "Builtin Ras Servers"
+msgstr "内置 RAS 服务器"
+
+#: ucommon.rswellknownsidbuiltinrdsendpointservers
+msgid "Builtin Rds Endpoint Servers"
+msgstr "内置 RDS 终结点服务器"
+
+#: ucommon.rswellknownsidbuiltinrdsmanagementservers
+msgid "Builtin Rds Management Servers"
+msgstr "内置 RDS 管理服务器"
+
+#: ucommon.rswellknownsidbuiltinrdsremoteaccessservers
+msgid "Builtin Rds Remote Access Servers"
+msgstr "内置 RDS 远程访问服务器"
+
+#: ucommon.rswellknownsidbuiltinremotedesktopusers
+msgid "Builtin Remote Desktop Users"
+msgstr "内置远程桌面用户"
+
+#: ucommon.rswellknownsidbuiltinremotemanagementusers
+msgid "Builtin Remote Management Users"
+msgstr "内置远程管理用户"
+
+#: ucommon.rswellknownsidbuiltinreplicator
+msgid "Builtin Replicator"
+msgstr "内置复制器"
+
+#: ucommon.rswellknownsidbuiltinstoragereplicaadmins
+msgid "Builtin Storage Replica Admins"
+msgstr "内置存储副本管理员"
+
+#: ucommon.rswellknownsidbuiltinsystemoperators
+msgid "Builtin System Operators"
+msgstr "内置系统操作员"
+
+#: ucommon.rswellknownsidbuiltinterminalserverlicenseservers
+msgid "Builtin Terminal Server License Servers"
+msgstr "内置终端服务器许可证服务器"
+
+#: ucommon.rswellknownsidbuiltinunknown
+msgid "Builtin Unknown"
+msgstr "内置未知"
+
+#: ucommon.rswellknownsidbuiltinusermodedriver
+msgid "Builtin User Mode Driver"
+msgstr "内置用户模式驱动"
+
+#: ucommon.rswellknownsidbuiltinusers
+msgid "Builtin Users"
+msgstr "内置用户"
+
+#: ucommon.rswellknownsidbuiltinwriterestrictedcode
+msgid "Builtin Write Restricted Code"
+msgstr "内置写入受限代码"
+
+#: ucommon.rswellknownsidcapabilityappointments
+msgid "Capability Appointments"
+msgstr "功能：约会"
+
+#: ucommon.rswellknownsidcapabilitycontacts
+msgid "Capability Contacts"
+msgstr "功能：联系人"
+
+#: ucommon.rswellknownsidcapabilitydocumentslibrary
+msgid "Capability Documents Library"
+msgstr "功能：文档库"
+
+#: ucommon.rswellknownsidcapabilityenterpriseauthentication
+msgid "Capability Enterprise Authentication"
+msgstr "功能：企业身份验证"
+
+#: ucommon.rswellknownsidcapabilityinternetclient
+msgid "Capability Internet Client"
+msgstr "功能：Internet 客户端"
+
+#: ucommon.rswellknownsidcapabilityinternetclientserver
+msgid "Capability Internet Client Server"
+msgstr "功能：Internet 客户端服务器"
+
+#: ucommon.rswellknownsidcapabilitymusiclibrary
+msgid "Capability Music Library"
+msgstr "功能：音乐库"
+
+#: ucommon.rswellknownsidcapabilitypictureslibrary
+msgid "Capability Pictures Library"
+msgstr "功能：图片库"
+
+#: ucommon.rswellknownsidcapabilityprivatenetworkclientserver
+msgid "Capability Private Network Client Server"
+msgstr "功能：专用网络客户端服务器"
+
+#: ucommon.rswellknownsidcapabilityremovablestorage
+msgid "Capability Removable Storage"
+msgstr "可移动存储功能"
+
+#: ucommon.rswellknownsidcapabilitysharedusercertificates
+msgid "Capability Shared User Certificates"
+msgstr "功能：共享用户证书"
+
+#: ucommon.rswellknownsidcapabilityvideoslibrary
+msgid "Capability Videos Library"
+msgstr "功能：视频库"
+
+#: ucommon.rswellknownsidconsolelogon
+msgid "Console Logon"
+msgstr "控制台登录"
+
+#: ucommon.rswellknownsidcreatorgroup
+msgid "Creator Group"
+msgstr "创建者组"
+
+#: ucommon.rswellknownsidcreatorgroupserver
+msgid "Creator Group Server"
+msgstr "创建者组服务器"
+
+#: ucommon.rswellknownsidcreatorowner
+msgid "Creator Owner"
+msgstr "创建者所有者"
+
+#: ucommon.rswellknownsidcreatorownerrights
+msgid "Creator Owner Rights"
+msgstr "创建者所有者权限"
+
+#: ucommon.rswellknownsidcreatorownerserver
+msgid "Creator Owner Server"
+msgstr "创建者所有者服务器"
+
+#: ucommon.rswellknownsiddialup
+msgid "Dialup"
+msgstr "Dialup"
+
+#: ucommon.rswellknownsiddigestauthentication
+msgid "Digest Authentication"
+msgstr "摘要身份验证"
+
+#: ucommon.rswellknownsidenterprisecontrollers
+msgid "Enterprise Controllers"
+msgstr "企业控制器"
+
+#: ucommon.rswellknownsidiisuser
+msgid "Iis User"
+msgstr "IIS 用户"
+
+#: ucommon.rswellknownsidintegrityhigh
+msgid "Integrity High"
+msgstr "完整性级别：高"
+
+#: ucommon.rswellknownsidintegritylow
+msgid "Integrity Low"
+msgstr "完整性级别：低"
+
+#: ucommon.rswellknownsidintegritymedium
+msgid "Integrity Medium"
+msgstr "完整性级别：中"
+
+#: ucommon.rswellknownsidintegritymediumplus
+msgid "Integrity Medium Plus"
+msgstr "完整性级别：中高"
+
+#: ucommon.rswellknownsidintegrityprotectedprocess
+msgid "Integrity Protected Process"
+msgstr "完整性级别：受保护进程"
+
+#: ucommon.rswellknownsidintegritysecureprocess
+msgid "Integrity Secure Process"
+msgstr "完整性级别：安全进程"
+
+#: ucommon.rswellknownsidintegritysystem
+msgid "Integrity System"
+msgstr "完整性级别：系统"
+
+#: ucommon.rswellknownsidintegrityuntrusted
+msgid "Integrity Untrusted"
+msgstr "完整性级别：不受信任"
+
+#: ucommon.rswellknownsidinteractive
+msgid "Interactive"
+msgstr "Interactive"
+
+#: ucommon.rswellknownsidlocal
+msgid "Local"
+msgstr "Local"
+
+#: ucommon.rswellknownsidlocalaccount
+msgid "Local Account"
+msgstr "本地帐户"
+
+#: ucommon.rswellknownsidlocalaccountandadministrator
+msgid "Local Account And Administrator"
+msgstr "本地帐户和管理员"
+
+#: ucommon.rswellknownsidlocalservice
+msgid "Local Service"
+msgstr "本地服务"
+
+#: ucommon.rswellknownsidlocalsystem
+msgid "Local System"
+msgstr "本地系统"
+
+#: ucommon.rswellknownsidnetwork
+msgid "Network"
+msgstr "Network"
+
+#: ucommon.rswellknownsidnetworkservice
+msgid "Network Service"
+msgstr "网络服务"
+
+#: ucommon.rswellknownsidntauthority
+msgid "Nt Authority"
+msgstr "NT AUTHORITY"
+
+#: ucommon.rswellknownsidntlmauthentication
+msgid "Ntlm Authentication"
+msgstr "NTLM 身份验证"
+
+#: ucommon.rswellknownsidproxy
+msgid "Proxy"
+msgstr "Proxy"
+
+#: ucommon.rswellknownsidremotelogonid
+msgid "Remote Logon Id"
+msgstr "远程登录 ID"
+
+#: ucommon.rswellknownsidrestrictedcode
+msgid "Restricted Code"
+msgstr "受限代码"
+
+#: ucommon.rswellknownsidschannelauthentication
+msgid "SChannel Authentication"
+msgstr "SChannel 身份验证"
+
+#: ucommon.rswellknownsidself
+msgid "Self"
+msgstr "Self"
+
+#: ucommon.rswellknownsidservice
+msgid "Service"
+msgstr "Service"
+
+#: ucommon.rswellknownsidterminalserver
+msgid "Terminal Server"
+msgstr "终端服务器"
+
+#: ucommon.rswellknownsidthisorganisation
+msgid "This Organisation"
+msgstr "此组织"
+
+#: ucommon.rswellknownsidworld
+msgid "Everyone"
+msgstr "Everyone"

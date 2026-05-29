@@ -1,0 +1,50 @@
+﻿msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: uvisbitlockerrecoverysearch.rscomputer
+msgid "Computer"
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rscopypassword
+msgid "Copy password"
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rsdateadded
+msgid "Date Added"
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rsenterrecoveryid
+msgid "Enter a recovery password ID."
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rsfindbitlockerrecoverypassword
+msgid "Find BitLocker Recovery Password"
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rsnobitlockerrecoveryfound
+msgid "No BitLocker recovery password was found for the specified ID."
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rsopencomputer
+msgid "Open Computer"
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rsrecoveryid
+msgid "Recovery ID"
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rsrecoverypassword
+msgid "Recovery Password"
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rsrecoverypasswordid
+msgid "Recovery Password ID:"
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rsrecoverypasswordidhint
+msgid "Enter the first 8 characters or the full recovery password ID."
+msgstr ""
+
+#: uvisbitlockerrecoverysearch.rssearchbitlockerrecovery
+msgid "Search"
+msgstr ""

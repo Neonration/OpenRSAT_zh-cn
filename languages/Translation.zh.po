@@ -1,0 +1,6567 @@
+﻿msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_CN\n"
+
+#: tvisabout.caption
+msgctxt "tvisabout.caption"
+msgid "About"
+msgstr "关于"
+
+#: tvisabout.label_description.caption
+msgid "OpenRSAT is an open-source, cross-platform tool for Active Directory administration via an interface, inspired by Microsoft’s RSAT tools. It enables system administrators to manage users, groups, and organizational units on Windows, Linux, and macOS. "
+msgstr "OpenRSAT 是一个开源、跨平台的 Active Directory 图形化管理工具，灵感来自 Microsoft RSAT 工具。它可以帮助系统管理员在 Windows、Linux 和 macOS 上管理用户、组和组织单位。"
+
+#: tvisabout.label_discord.caption
+msgid "Click to join Tranquil IT discord."
+msgstr "点击加入 Tranquil IT Discord。"
+
+#: tvisabout.label_documentation.caption
+msgid "Click to open Documentation page. (Not yet implemented)"
+msgstr "点击打开文档页面。（尚未实现）"
+
+#: tvisabout.label_github.caption
+msgid "Click to open OpenRSAT github page."
+msgstr "点击打开 OpenRSAT GitHub 页面。"
+
+#: tvisabout.label_githubissue.caption
+msgid "You found a bug or want to give feedback? Click to open an issue on github!"
+msgstr "发现问题或想反馈？点击在 GitHub 上创建 issue！"
+
+#: tvisabout.label_tranquilit.caption
+msgid "Click to open Tranquil IT home page."
+msgstr "点击打开 Tranquil IT 主页。"
+
+#: tvisabout.label_waptpackage.caption
+msgid "Click to open OpenRSAT WAPT package."
+msgstr "点击打开 OpenRSAT WAPT 包页面。"
+
+#: tvisopenrsat.action_about.caption
+msgctxt "tvisopenrsat.action_about.caption"
+msgid "About"
+msgstr "关于"
+
+#: tvisopenrsat.action_newwindow.caption
+msgid "Action_NewWindow"
+msgstr "新建窗口"
+
+#: tvisopenrsat.action_openedproperties.caption
+msgctxt "tvisopenrsat.action_openedproperties.caption"
+msgid "Properties"
+msgstr "属性"
+
+#: tvisopenrsat.action_quit.caption
+msgctxt "tvisopenrsat.action_quit.caption"
+msgid "Quit"
+msgstr "退出"
+
+#: tvisopenrsat.caption
+msgctxt "tvisopenrsat.caption"
+msgid "OpenRSAT"
+msgstr "OpenRSAT"
+
+#: tvisopenrsat.menuitem3.caption
+msgctxt "tvisopenrsat.menuitem3.caption"
+msgid "Change tool"
+msgstr "切换工具"
+
+#: tvisopenrsat.menuitem_advancedfeatures.caption
+msgctxt "tvisopenrsat.menuitem_advancedfeatures.caption"
+msgid "MenuItem_AdvancedFeatures"
+msgstr "高级功能"
+
+#: tvisopenrsat.menuitem_debug.caption
+msgctxt "tvisopenrsat.menuitem_debug.caption"
+msgid "Debug options"
+msgstr "调试选项"
+
+#: tvisopenrsat.menuitem_file.caption
+msgctxt "tvisopenrsat.menuitem_file.caption"
+msgid "File"
+msgstr "文件"
+
+#: tvisopenrsat.menuitem_fileoptions.caption
+msgctxt "tvisopenrsat.menuitem_fileoptions.caption"
+msgid "Options"
+msgstr "选项"
+
+#: tvisopenrsat.menuitem_help.caption
+msgctxt "tvisopenrsat.menuitem_help.caption"
+msgid "?"
+msgstr "？"
+
+#: tvisopenrsat.menuitem_retrieveoldconfiguration.caption
+msgid "Retrieve old configuration"
+msgstr "Retrieve old 配置"
+
+#: tvisopenrsat.menuitem_showgpo.caption
+msgid "MenuItem_ShowGPO"
+msgstr "显示 GPO"
+
+#: tvisopenrsat.menuitem_view.caption
+msgctxt "tvisopenrsat.menuitem_view.caption"
+msgid "View"
+msgstr "视图"
+
+#: tvisopenrsat.menuitem_viewtheme.caption
+msgctxt "tvisopenrsat.menuitem_viewtheme.caption"
+msgid "Theme"
+msgstr "主题"
+
+#: tvisopenrsat.menuitem_viewthemedark.caption
+msgctxt "tvisopenrsat.menuitem_viewthemedark.caption"
+msgid "Use dark theme (at next launch)"
+msgstr "使用深色主题（下次启动生效）"
+
+#: tvisopenrsat.menuitem_viewthemelight.caption
+msgctxt "tvisopenrsat.menuitem_viewthemelight.caption"
+msgid "Use light theme (at next launch)"
+msgstr "使用浅色主题（下次启动生效）"
+
+#: tvisopenrsat.menuitem_viewthemesystem.caption
+msgctxt "tvisopenrsat.menuitem_viewthemesystem.caption"
+msgid "Use system theme (at next launch)"
+msgstr "使用系统主题（下次启动生效）"
+
+
+#: uvisconnectconfigs.lrj:$.strings.[9].value
+msgctxt "tformconnectconfigs.action_addconfig.caption"
+msgid "Add"
+msgstr "添加"
+
+#: uvisconnectconfigs.lrj:$.strings.[8].value
+msgctxt "tformconnectconfigs.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisconnectconfigs.lrj:$.strings.[10].value
+msgctxt "tformconnectconfigs.action_deleteconfig.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: uvisconnectconfigs.lrj:$.strings.[6].value
+msgctxt "tformconnectconfigs.action_editconfig.caption"
+msgid "Edit"
+msgstr "编辑"
+
+#: uvisconnectconfigs.lrj:$.strings.[7].value
+msgctxt "tformconnectconfigs.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvisconnectconfigs.lrj:$.strings.[0].value
+msgctxt "tformconnectconfigs.caption"
+msgid "OpenRSAT Authentication"
+msgstr "OpenRSAT 身份验证"
+
+#: uvisconnectconfigs.lrj:$.strings.[5].value
+msgctxt "tformconnectconfigs.label1.caption"
+msgid "Auto connect"
+msgstr "自动连接"
+
+#: uvisconnectconfigs.lrj:$.strings.[1].value
+msgctxt "tformconnectconfigs.label_password.caption"
+msgid "Password:"
+msgstr "密码："
+
+#: uvisconnectconfigs.lrj:$.strings.[4].value
+msgctxt "tformconnectconfigs.label_server.caption"
+msgid "Server"
+msgstr "服务器"
+
+#: uvisconnectconfigs.lrj:$.strings.[2].value
+msgctxt "tformconnectconfigs.label_username.caption"
+msgid "Username: "
+msgstr "用户名："
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[15].value
+msgctxt "tfrmmoduleadsi.action_deleteobject.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[14].value
+msgctxt "tfrmmoduleadsi.action_newobject.caption"
+msgid "New"
+msgstr "新建"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[11].value
+msgctxt "tfrmmoduleadsi.action_next.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[12].value
+msgctxt "tfrmmoduleadsi.action_parent.caption"
+msgid "Parent"
+msgstr "上一级"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[10].value
+msgctxt "tfrmmoduleadsi.action_previous.caption"
+msgid "Previous"
+msgstr "上一个"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[13].value
+msgctxt "tfrmmoduleadsi.action_property.caption"
+msgid "Property"
+msgstr "属性"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[9].value
+msgctxt "tfrmmoduleadsi.action_refresh.caption"
+msgid "Refresh"
+msgstr "刷新"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[4].value
+msgctxt "tfrmmoduleadsi.label1.caption"
+msgid "Total : 0 elements"
+msgstr "总计：0 个元素"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[1].value
+msgctxt "tfrmmoduleadsi.tisgrid1.header.columns[1].text"
+msgid "Name"
+msgstr "名称"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[2].value
+msgctxt "tfrmmoduleadsi.tisgrid1.header.columns[2].text"
+msgid "Type"
+msgstr "类型"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[3].value
+msgctxt "tfrmmoduleadsi.tisgrid1.header.columns[3].text"
+msgid "Description"
+msgstr "描述"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[5].value
+msgctxt "tfrmmoduleadsi.tisgrid2.header.columns[0].text"
+msgid "Attribute"
+msgstr "属性"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[6].value
+msgctxt "tfrmmoduleadsi.tisgrid2.header.columns[1].text"
+msgid "Value"
+msgstr "值"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[7].value
+msgctxt "tfrmmoduleadsi.tisgrid2.header.columns[2].text"
+msgid "Type"
+msgstr "类型"
+
+#: ufrmmoduleserviceinterfaces.lrj:$.strings.[8].value
+msgctxt "tfrmmoduleadsi.tisgrid2.header.columns[3].text"
+msgid "Size"
+msgstr "大小"
+
+#: ufrmmoduleadssoptions.lrj:$.strings.[0].value
+msgctxt "tfrmmoduleadssoptions.label1.caption"
+msgid "Show Service"
+msgstr "显示服务"
+
+#: ufrmmoduleaduc.lrj:$.strings.[54].value
+msgctxt "tfrmmoduleaduc.action_changedomaincontroller.caption"
+msgid "Change Domain Controller"
+msgstr "更改域控制器"
+
+#: ufrmmoduleaduc.lrj:$.strings.[44].value
+msgctxt "tfrmmoduleaduc.action_copy.caption"
+msgid "Copy"
+msgstr "复制"
+
+#: ufrmmoduleaduc.lrj:$.strings.[45].value
+msgctxt "tfrmmoduleaduc.action_cut.caption"
+msgid "Cut"
+msgstr "剪切"
+
+#: ufrmmoduleaduc.lrj:$.strings.[57].value
+msgctxt "tfrmmoduleaduc.action_delegatecontrol.caption"
+msgid "Delegate control"
+msgstr "委派控制"
+
+#: ufrmmoduleaduc.lrj:$.strings.[24].value
+msgctxt "tfrmmoduleaduc.action_delete.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: ufrmmoduleaduc.lrj:$.strings.[43].value
+msgctxt "tfrmmoduleaduc.action_filter.caption"
+msgid "Filter"
+msgstr "筛选"
+
+#: ufrmmoduleaduc.lrj:$.strings.[37].value
+msgctxt "tfrmmoduleaduc.action_newall.caption"
+msgid "New"
+msgstr "新建"
+
+#: ufrmmoduleaduc.lrj:$.strings.[35].value
+msgctxt "tfrmmoduleaduc.action_newcomputer.caption"
+msgid "Computer"
+msgstr "计算机"
+
+#: ufrmmoduleaduc.lrj:$.strings.[39].value
+msgctxt "tfrmmoduleaduc.action_newcontact.caption"
+msgid "Contact"
+msgstr "联系人"
+
+#: ufrmmoduleaduc.lrj:$.strings.[38].value
+msgctxt "tfrmmoduleaduc.action_newdefault.caption"
+msgid "Default"
+msgstr "默认"
+
+#: ufrmmoduleaduc.lrj:$.strings.[23].value
+msgctxt "tfrmmoduleaduc.action_newgroup.caption"
+msgid "New Group"
+msgstr "新建组"
+
+#: ufrmmoduleaduc.lrj:$.strings.[36].value
+msgctxt "tfrmmoduleaduc.action_newou.caption"
+msgid "New OU"
+msgstr "新建组织单位"
+
+#: ufrmmoduleaduc.lrj:$.strings.[41].value
+msgctxt "tfrmmoduleaduc.action_newsharedfolder.caption"
+msgid "Shared Folder"
+msgstr "共享文件夹"
+
+#: ufrmmoduleaduc.lrj:$.strings.[22].value
+msgctxt "tfrmmoduleaduc.action_newuser.caption"
+msgid "New User"
+msgstr "新建用户"
+
+#: ufrmmoduleaduc.lrj:$.strings.[51].value
+msgctxt "tfrmmoduleaduc.action_next.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: ufrmmoduleaduc.lrj:$.strings.[58].value
+msgctxt "tfrmmoduleaduc.action_operationsmasters.caption"
+msgid "Operations masters"
+msgstr "操作主机"
+
+#: ufrmmoduleaduc.lrj:$.strings.[46].value
+msgctxt "tfrmmoduleaduc.action_paste.caption"
+msgid "Paste"
+msgstr "粘贴"
+
+#: ufrmmoduleaduc.lrj:$.strings.[50].value
+msgctxt "tfrmmoduleaduc.action_previous.caption"
+msgid "Previous"
+msgstr "上一个"
+
+#: ufrmmoduleaduc.lrj:$.strings.[21].value
+msgctxt "tfrmmoduleaduc.action_properties.caption"
+msgid "Properties"
+msgstr "属性"
+
+#: ufrmmoduleaduc.lrj:$.strings.[20].value
+msgctxt "tfrmmoduleaduc.action_refresh.caption"
+msgid "Refresh"
+msgstr "刷新"
+
+#: ufrmmoduleaduc.lrj:$.strings.[42].value
+msgctxt "tfrmmoduleaduc.action_search.caption"
+msgid "Search"
+msgstr "搜索"
+
+#: ufrmmoduleaduc.lrj:$.strings.[48].value
+msgctxt "tfrmmoduleaduc.action_searchroot.caption"
+msgid "Search"
+msgstr "搜索"
+
+#: ufrmmoduleaduc.lrj:$.strings.[53].value
+msgctxt "tfrmmoduleaduc.action_showgpo.caption"
+msgid "Show GPO"
+msgstr "显示 GPO"
+
+#: ufrmmoduleaduc.lrj:$.strings.[55].value
+msgctxt "tfrmmoduleaduc.action_sitesandservices.caption"
+msgid "Sites and services"
+msgstr "站点和服务"
+
+#: ufrmmoduleaduc.lrj:$.strings.[49].value
+msgctxt "tfrmmoduleaduc.action_switchtoolbarcaption.caption"
+msgid "Switch toolbar size"
+msgstr "切换工具栏大小"
+
+#: ufrmmoduleaduc.lrj:$.strings.[27].value
+msgctxt "tfrmmoduleaduc.action_taskaddtoagroup.caption"
+msgid "Add to a group"
+msgstr "添加到组"
+
+#: ufrmmoduleaduc.lrj:$.strings.[26].value
+msgctxt "tfrmmoduleaduc.action_taskcopy.caption"
+msgid "Copy"
+msgstr "复制"
+
+#: ufrmmoduleaduc.lrj:$.strings.[25].value
+msgctxt "tfrmmoduleaduc.action_taskdelegatecontrol.caption"
+msgid "Delagate Control"
+msgstr "委派控制"
+
+#: ufrmmoduleaduc.lrj:$.strings.[29].value
+msgctxt "tfrmmoduleaduc.action_taskdisableaccount.caption"
+msgid "Disable Account"
+msgstr "禁用帐户"
+
+#: ufrmmoduleaduc.lrj:$.strings.[34].value
+msgctxt "tfrmmoduleaduc.action_taskmanage.caption"
+msgid "Manage"
+msgstr "管理"
+
+#: ufrmmoduleaduc.lrj:$.strings.[31].value
+msgctxt "tfrmmoduleaduc.action_taskmove.caption"
+msgid "Move"
+msgstr "移动"
+
+#: ufrmmoduleaduc.lrj:$.strings.[28].value
+msgctxt "tfrmmoduleaduc.action_tasknamemappings.caption"
+msgid "Name mappings"
+msgstr "名称映射"
+
+#: ufrmmoduleaduc.lrj:$.strings.[32].value
+msgctxt "tfrmmoduleaduc.action_taskopenhomepage.caption"
+msgid "Open Home Page"
+msgstr "打开主页"
+
+#: ufrmmoduleaduc.lrj:$.strings.[30].value
+msgctxt "tfrmmoduleaduc.action_taskresetpassword.caption"
+msgid "Reset Password"
+msgstr "重置密码"
+
+#: ufrmmoduleaduc.lrj:$.strings.[33].value
+msgctxt "tfrmmoduleaduc.action_tasksendmail.caption"
+msgid "Send Mail"
+msgstr "发送邮件"
+
+#: ufrmmoduleaduc.lrj:$.strings.[47].value
+msgctxt "tfrmmoduleaduc.action_treenewall.caption"
+msgid "New"
+msgstr "新建"
+
+#: ufrmmoduleaduc.lrj:$.strings.[56].value
+msgctxt "tfrmmoduleaduc.action_usersandcomputers.caption"
+msgid "Users and computers"
+msgstr "用户和计算机"
+
+#: ufrmmoduleaduc.lrj:$.strings.[0].value
+msgctxt "tfrmmoduleaduc.gridaduc.header.columns[0].text"
+msgid "Name"
+msgstr "名称"
+
+#: ufrmmoduleaduc.lrj:$.strings.[1].value
+msgctxt "tfrmmoduleaduc.gridaduc.header.columns[1].text"
+msgid "Type"
+msgstr "类型"
+
+#: ufrmmoduleaduc.lrj:$.strings.[2].value
+msgctxt "tfrmmoduleaduc.gridaduc.header.columns[2].text"
+msgid "Description"
+msgstr "描述"
+
+#: ufrmmoduleaduc.lrj:$.strings.[3].value
+msgctxt "tfrmmoduleaduc.label1.caption"
+msgid "Total : 0 elements"
+msgstr "总计：0 个元素"
+
+#: ufrmmoduleaduc.lrj:$.strings.[19].value
+msgctxt "tfrmmoduleaduc.toolbutton_addtogroup.hint"
+msgid "Add to a Group"
+msgstr "添加到组"
+
+#: ufrmmoduleaduc.lrj:$.strings.[15].value
+msgctxt "tfrmmoduleaduc.toolbutton_copy.hint"
+msgid "Copy"
+msgstr "复制"
+
+#: ufrmmoduleaduc.lrj:$.strings.[16].value
+msgctxt "tfrmmoduleaduc.toolbutton_cut.hint"
+msgid "Cut"
+msgstr "剪切"
+
+#: ufrmmoduleaduc.lrj:$.strings.[18].value
+msgctxt "tfrmmoduleaduc.toolbutton_delete.hint"
+msgid "Delete"
+msgstr "删除"
+
+#: ufrmmoduleaduc.lrj:$.strings.[9].value
+msgctxt "tfrmmoduleaduc.toolbutton_filter.hint"
+msgid "Filter"
+msgstr "筛选"
+
+#: ufrmmoduleaduc.lrj:$.strings.[12].value
+msgctxt "tfrmmoduleaduc.toolbutton_group.hint"
+msgid "New Group"
+msgstr "新建组"
+
+#: ufrmmoduleaduc.lrj:$.strings.[5].value
+msgctxt "tfrmmoduleaduc.toolbutton_next.hint"
+msgid "Next"
+msgstr "下一步"
+
+#: ufrmmoduleaduc.lrj:$.strings.[13].value
+msgctxt "tfrmmoduleaduc.toolbutton_ou.hint"
+msgid "New OU"
+msgstr "新建组织单位"
+
+#: ufrmmoduleaduc.lrj:$.strings.[6].value
+msgctxt "tfrmmoduleaduc.toolbutton_parent.hint"
+msgid "Parent"
+msgstr "上一级"
+
+#: ufrmmoduleaduc.lrj:$.strings.[17].value
+msgctxt "tfrmmoduleaduc.toolbutton_paste.hint"
+msgid "Paste"
+msgstr "粘贴"
+
+#: ufrmmoduleaduc.lrj:$.strings.[4].value
+msgctxt "tfrmmoduleaduc.toolbutton_previous.hint"
+msgid "Previous"
+msgstr "上一个"
+
+#: ufrmmoduleaduc.lrj:$.strings.[7].value
+msgctxt "tfrmmoduleaduc.toolbutton_property.hint"
+msgid "Property"
+msgstr "属性"
+
+#: ufrmmoduleaduc.lrj:$.strings.[8].value
+msgctxt "tfrmmoduleaduc.toolbutton_search.hint"
+msgid "Search"
+msgstr "搜索"
+
+#: ufrmmoduleaduc.lrj:$.strings.[11].value
+msgctxt "tfrmmoduleaduc.toolbutton_user.hint"
+msgid "New User"
+msgstr "新建用户"
+
+#: ufrmmoduleaducoption.lrj:$.strings.[3].value
+msgctxt "tfrmmoduleaducoption.label1.caption"
+msgid "Grid options"
+msgstr "表格选项"
+
+#: ufrmmoduleaducoption.lrj:$.strings.[6].value
+msgctxt "tfrmmoduleaducoption.label2.caption"
+msgid "Tree options"
+msgstr "树选项"
+
+#: ufrmmoduleaducoption.lrj:$.strings.[4].value
+msgctxt "tfrmmoduleaducoption.label3.caption"
+msgid "Filter"
+msgstr "筛选"
+
+#: ufrmmoduleaducoption.lrj:$.strings.[5].value
+msgctxt "tfrmmoduleaducoption.label4.caption"
+msgid "Ldap attributes"
+msgstr "LDAP 属性"
+
+#: ufrmmoduleaducoption.lrj:$.strings.[2].value
+msgctxt "tfrmmoduleaducoption.label_filter.caption"
+msgid "Filter"
+msgstr "筛选"
+
+#: ufrmmoduleaducoption.lrj:$.strings.[1].value
+msgctxt "tfrmmoduleaducoption.label_searchpagenumber.caption"
+msgid "Search Page Number"
+msgstr "搜索页码"
+
+#: ufrmmoduleaducoption.lrj:$.strings.[0].value
+msgctxt "tfrmmoduleaducoption.label_searchpagesize.caption"
+msgid "Search Page Size"
+msgstr "搜索页大小"
+
+#: ufrmmoduleaducoption.lrj:$.strings.[7].value
+msgctxt "tfrmmoduleaducoption.label_showgpo.caption"
+msgid "Show GPO"
+msgstr "显示 GPO"
+
+#: ufrmmoduledns.lrj:$.strings.[13].value
+msgctxt "tfrmmoduledns.action_delete.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: ufrmmoduledns.lrj:$.strings.[15].value
+msgctxt "tfrmmoduledns.action_newzone.caption"
+msgid "New Zone"
+msgstr "新建区域"
+
+#: ufrmmoduledns.lrj:$.strings.[9].value
+msgctxt "tfrmmoduledns.action_next.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: ufrmmoduledns.lrj:$.strings.[12].value
+msgctxt "tfrmmoduledns.action_othernewrecords.caption"
+msgid "Other New Records"
+msgstr "其他新记录"
+
+#: ufrmmoduledns.lrj:$.strings.[10].value
+msgctxt "tfrmmoduledns.action_parent.caption"
+msgid "Parent"
+msgstr "上一级"
+
+#: ufrmmoduledns.lrj:$.strings.[8].value
+msgctxt "tfrmmoduledns.action_previous.caption"
+msgid "Previous"
+msgstr "上一个"
+
+#: ufrmmoduledns.lrj:$.strings.[11].value
+msgctxt "tfrmmoduledns.action_property.caption"
+msgid "Property"
+msgstr "属性"
+
+#: ufrmmoduledns.lrj:$.strings.[14].value
+msgctxt "tfrmmoduledns.action_refresh.caption"
+msgid "Refresh"
+msgstr "刷新"
+
+#: ufrmmoduledns.lrj:$.strings.[0].value
+msgctxt "tfrmmoduledns.griddns.header.columns[0].text"
+msgid "Name"
+msgstr "名称"
+
+#: ufrmmoduledns.lrj:$.strings.[1].value
+msgctxt "tfrmmoduledns.griddns.header.columns[1].text"
+msgid "Type"
+msgstr "类型"
+
+#: ufrmmoduledns.lrj:$.strings.[2].value
+msgctxt "tfrmmoduledns.griddns.header.columns[2].text"
+msgid "Data"
+msgstr "数据"
+
+#: ufrmmoduledns.lrj:$.strings.[3].value
+msgctxt "tfrmmoduledns.griddns.header.columns[3].text"
+msgid "Timestamp"
+msgstr "时间戳"
+
+#: ufrmmoduledns.lrj:$.strings.[4].value
+msgctxt "tfrmmoduledns.griddns.header.columns[4].text"
+msgid "Status"
+msgstr "状态"
+
+#: ufrmmoduledns.lrj:$.strings.[5].value
+msgctxt "tfrmmoduledns.griddns.header.columns[5].text"
+msgid "DNSSEC Status"
+msgstr "DNSSEC 状态"
+
+#: ufrmmoduledns.lrj:$.strings.[6].value
+msgctxt "tfrmmoduledns.griddns.header.columns[6].text"
+msgid "Key Master"
+msgstr "密钥主服务器"
+
+#: ufrmmoduledns.lrj:$.strings.[7].value
+msgctxt "tfrmmoduledns.label1.caption"
+msgid "Total : 0 elements"
+msgstr "总计：0 个元素"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[17].value
+msgctxt "tfrmmodulesitesandservices.action_newsite.caption"
+msgid "New Site"
+msgstr "新建站点"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[18].value
+msgctxt "tfrmmodulesitesandservices.action_newsubnet.caption"
+msgid "New Subnet"
+msgstr "新建子网"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[15].value
+msgctxt "tfrmmodulesitesandservices.action_next.caption"
+msgid "Action_Next"
+msgstr "Action_Next"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[19].value
+msgctxt "tfrmmodulesitesandservices.action_property.caption"
+msgid "Property"
+msgstr "属性"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[13].value
+msgctxt "tfrmmodulesitesandservices.action_refresh.caption"
+msgid "Refresh"
+msgstr "刷新"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[12].value
+msgctxt "tfrmmodulesitesandservices.label1.caption"
+msgid "Total : 0 elements"
+msgstr "总计：0 个元素"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[0].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[0].text"
+msgid "Name"
+msgstr "名称"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[10].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[10].text"
+msgid "From Server"
+msgstr "源服务器"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[11].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[11].text"
+msgid "From Site"
+msgstr "源站点"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[1].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[1].text"
+msgid "Type"
+msgstr "类型"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[2].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[2].text"
+msgid "Description"
+msgstr "描述"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[3].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[3].text"
+msgid "Location"
+msgstr "位置"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[4].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[4].text"
+msgid "Site"
+msgstr "站点"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[5].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[5].text"
+msgid "Cost"
+msgstr "开销"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[6].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[6].text"
+msgid "Replication Interval"
+msgstr "复制间隔"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[7].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[7].text"
+msgid "Domain"
+msgstr "域"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[8].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[8].text"
+msgid "Bridgehead"
+msgstr "桥头服务器"
+
+#: ufrmmodulesitesandservices.lrj:$.strings.[9].value
+msgctxt "tfrmmodulesitesandservices.tisgrid1.header.columns[9].text"
+msgid "DC Type"
+msgstr "域控制器类型"
+
+#: ufrmnewcomputer.lrj:$.strings.[4].value
+msgctxt "tfrmnewcomputer.bitbtn_changeuserorgroup.caption"
+msgid "Change..."
+msgstr "更改..."
+
+#: ufrmnewcomputer.lrj:$.strings.[5].value
+msgctxt "tfrmnewcomputer.checkbox_assigncomputer.caption"
+msgid "Assign this computer account as a pre-Windows 2000 computer"
+msgstr "将此计算机帐户指定为 Windows 2000 以前版本的计算机"
+
+#: ufrmnewcomputer.lrj:$.strings.[2].value
+msgctxt "tfrmnewcomputer.label1.caption"
+msgid "The following user or group can join this computer to a domain."
+msgstr "以下用户或组可以将此计算机加入域。"
+
+#: ufrmnewcomputer.lrj:$.strings.[0].value
+msgctxt "tfrmnewcomputer.label_computername.caption"
+msgid "Computer name:"
+msgstr "计算机名："
+
+#: ufrmnewcomputer.lrj:$.strings.[1].value
+msgctxt "tfrmnewcomputer.label_computername2000.caption"
+msgid "Computer name (pre-Windows 2000):"
+msgstr "计算机名（Windows 2000 以前版本）："
+
+#: ufrmnewcomputer.lrj:$.strings.[3].value
+msgctxt "tfrmnewcomputer.label_userorgroup.caption"
+msgid "User or group:"
+msgstr "用户或组："
+
+#: ufrmnewcontact.lrj:$.strings.[5].value
+msgctxt "tfrmnewcontact.action_next.caption"
+msgid "OK"
+msgstr "确定"
+
+#: ufrmnewcontact.lrj:$.strings.[4].value
+msgctxt "tfrmnewcontact.label_displayname.caption"
+msgid "Display name:"
+msgstr "显示名称："
+
+#: ufrmnewcontact.lrj:$.strings.[0].value
+msgctxt "tfrmnewcontact.label_firstname.caption"
+msgid "First name:"
+msgstr "名："
+
+#: ufrmnewcontact.lrj:$.strings.[3].value
+msgctxt "tfrmnewcontact.label_fullname.caption"
+msgid "Full name:"
+msgstr "全名："
+
+#: ufrmnewcontact.lrj:$.strings.[1].value
+msgctxt "tfrmnewcontact.label_initial.caption"
+msgid "Initials :"
+msgstr "缩写："
+
+#: ufrmnewcontact.lrj:$.strings.[2].value
+msgctxt "tfrmnewcontact.label_lastname.caption"
+msgid "Last name:"
+msgstr "姓："
+
+#: ufrmnewgroup.lrj:$.strings.[0].value
+msgctxt "tfrmnewgroup.label_name.caption"
+msgid "Group name :"
+msgstr "组名："
+
+#: ufrmnewgroup.lrj:$.strings.[1].value
+msgctxt "tfrmnewgroup.label_netbiosname.caption"
+msgid "Group name (pre-Windows 2000) :"
+msgstr "组名（Windows 2000 以前版本）："
+
+#: ufrmnewgroup.lrj:$.strings.[8].value
+msgctxt "tfrmnewgroup.radiobtn_distribution.caption"
+msgid "Distribution"
+msgstr "通讯组"
+
+#: ufrmnewgroup.lrj:$.strings.[4].value
+msgctxt "tfrmnewgroup.radiobtn_global.caption"
+msgid "Global"
+msgstr "全局"
+
+#: ufrmnewgroup.lrj:$.strings.[3].value
+msgctxt "tfrmnewgroup.radiobtn_local.caption"
+msgid "Domain local"
+msgstr "域本地"
+
+#: ufrmnewgroup.lrj:$.strings.[7].value
+msgctxt "tfrmnewgroup.radiobtn_security.caption"
+msgid "Security"
+msgstr "安全"
+
+#: ufrmnewgroup.lrj:$.strings.[5].value
+msgctxt "tfrmnewgroup.radiobtn_universal.caption"
+msgid "Universal"
+msgstr "通用"
+
+#: ufrmnewgroup.lrj:$.strings.[2].value
+msgctxt "tfrmnewgroup.radiogroup_scope.caption"
+msgid "Group scope"
+msgstr "组作用域"
+
+#: ufrmnewgroup.lrj:$.strings.[6].value
+msgctxt "tfrmnewgroup.radiogroup_type.caption"
+msgid "Group type"
+msgstr "组类型"
+
+#: ufrmnewobject.lrj:$.strings.[2].value
+msgctxt "tfrmnewobject.label1.caption"
+msgid "Object class"
+msgstr "对象类"
+
+#: ufrmnewobject.lrj:$.strings.[3].value
+msgctxt "tfrmnewobject.label2.caption"
+msgid "Object name"
+msgstr "对象名称"
+
+#: ufrmnewobject.lrj:$.strings.[4].value
+msgctxt "tfrmnewobject.label3.caption"
+msgid "Attributes"
+msgstr "属性"
+
+#: ufrmnewobject.lrj:$.strings.[0].value
+msgctxt "tfrmnewobject.tisgrid1.header.columns[0].text"
+msgid "Name"
+msgstr "名称"
+
+#: ufrmnewobject.lrj:$.strings.[1].value
+msgctxt "tfrmnewobject.tisgrid1.header.columns[1].text"
+msgid "Value"
+msgstr "值"
+
+#: ufrmnewou.lrj:$.strings.[1].value
+msgctxt "tfrmnewou.checkbox_protected.caption"
+msgid "Protect container from accidental deletion"
+msgstr "防止容器被意外删除"
+
+#: ufrmnewou.lrj:$.strings.[0].value
+msgctxt "tfrmnewou.label_name.caption"
+msgid "Name :"
+msgstr "名称："
+
+#: ufrmnewsharedfolder.lrj:$.strings.[2].value
+msgctxt "tfrmnewsharedfolder.action_next.caption"
+msgid "OK"
+msgstr "确定"
+
+#: ufrmnewsharedfolder.lrj:$.strings.[0].value
+msgctxt "tfrmnewsharedfolder.label_name.caption"
+msgid "Name:"
+msgstr "名称："
+
+#: ufrmnewsharedfolder.lrj:$.strings.[1].value
+msgctxt "tfrmnewsharedfolder.label_path.caption"
+msgid "Network path (\\\\server\\share):"
+msgstr "网络路径 (\\\\server\\share)："
+
+#: ufrmnewsite.lrj:$.strings.[4].value
+msgctxt "tfrmnewsite.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: ufrmnewsite.lrj:$.strings.[1].value
+msgctxt "tfrmnewsite.label_info.caption"
+msgid ""
+"Select a site link object for this site. Site link objects are located in "
+"the Sites/Inter-Site Transports container."
+msgstr "为此站点选择站点链接对象。站点链接对象位于 Sites/Inter-Site Transports 容器中。"
+
+#: ufrmnewsite.lrj:$.strings.[0].value
+msgctxt "tfrmnewsite.label_name.caption"
+msgid "Name"
+msgstr "名称"
+
+#: ufrmnewsite.lrj:$.strings.[2].value
+msgctxt "tfrmnewsite.tisgrid1.header.columns[0].text"
+msgid "Link Name"
+msgstr "链接名称"
+
+#: ufrmnewsite.lrj:$.strings.[3].value
+msgctxt "tfrmnewsite.tisgrid1.header.columns[1].text"
+msgid "Transport"
+msgstr "传输"
+
+#: ufrmnewsubnet.lrj:$.strings.[8].value
+msgctxt "tfrmnewsubnet.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: ufrmnewsubnet.lrj:$.strings.[0].value
+msgctxt "tfrmnewsubnet.label1.caption"
+msgid ""
+"Enter the address prefix using network prefix notation (address/prefix "
+"length), where the prefix length indicates the number of fixed bits. You can "
+"enter either an IPv4 or an IPv6 subnet prefix."
+msgstr "使用网络前缀表示法（地址/前缀长度）输入地址前缀，前缀长度表示固定位数。可以输入 IPv4 或 IPv6 子网前缀。"
+
+#: ufrmnewsubnet.lrj:$.strings.[1].value
+msgctxt "tfrmnewsubnet.label2.caption"
+msgid "Learn more about entering address prefixes."
+msgstr "了解有关输入地址前缀的更多信息。"
+
+#: ufrmnewsubnet.lrj:$.strings.[2].value
+msgctxt "tfrmnewsubnet.label3.caption"
+msgid "IPv4 example:   157.54.208.0/20"
+msgstr "IPv4 示例：   157.54.208.0/20"
+
+#: ufrmnewsubnet.lrj:$.strings.[3].value
+msgctxt "tfrmnewsubnet.label4.caption"
+msgid "IPv6 example:   3FFE:FFFF:0:C000::/64"
+msgstr "IPv6 示例：   3FFE:FFFF:0:C000::/64"
+
+#: ufrmnewsubnet.lrj:$.strings.[4].value
+msgctxt "tfrmnewsubnet.label5.caption"
+msgid "Prefix:"
+msgstr "前缀："
+
+#: ufrmnewsubnet.lrj:$.strings.[5].value
+msgctxt "tfrmnewsubnet.label6.caption"
+msgid "Prefix name in Active Directory Domain Services:"
+msgstr "Active Directory 域服务中的前缀名称："
+
+#: ufrmnewsubnet.lrj:$.strings.[6].value
+msgctxt "tfrmnewsubnet.label7.caption"
+msgid "Select a site object for this prefix."
+msgstr "为此前缀选择站点对象。"
+
+#: ufrmnewsubnet.lrj:$.strings.[7].value
+msgctxt "tfrmnewsubnet.tisgrid1.header.columns[0].text"
+msgid "Site Name"
+msgstr "站点名称"
+
+#: ufrmnewuser.lrj:$.strings.[12].value
+msgctxt "tfrmnewuser.checkbox_accountdisabled.caption"
+msgid "Account is disabled"
+msgstr "帐户已禁用"
+
+#: ufrmnewuser.lrj:$.strings.[10].value
+msgctxt "tfrmnewuser.checkbox_cannotchangepassword.caption"
+msgid "User cannot change password"
+msgstr "用户不能更改密码"
+
+#: ufrmnewuser.lrj:$.strings.[9].value
+msgctxt "tfrmnewuser.checkbox_mustchangepassword.caption"
+msgid "User must change password at next logon"
+msgstr "用户下次登录时必须更改密码"
+
+#: ufrmnewuser.lrj:$.strings.[11].value
+msgctxt "tfrmnewuser.checkbox_passwordneverexpires.caption"
+msgid "Password never expires"
+msgstr "密码永不过期"
+
+#: ufrmnewuser.lrj:$.strings.[4].value
+msgctxt "tfrmnewuser.edit_fullname.hint"
+msgid "The person's preferred name to be used when beeing displayed"
+msgstr "显示时使用的首选名称"
+
+#: ufrmnewuser.lrj:$.strings.[8].value
+msgctxt "tfrmnewuser.label_confirm.caption"
+msgid "Confirm Password :"
+msgstr "确认密码："
+
+#: ufrmnewuser.lrj:$.strings.[0].value
+msgctxt "tfrmnewuser.label_firstname.caption"
+msgid "First name :"
+msgstr "First name ："
+
+#: ufrmnewuser.lrj:$.strings.[3].value
+msgctxt "tfrmnewuser.label_fullname.caption"
+msgid "Full name :"
+msgstr "全名："
+
+#: ufrmnewuser.lrj:$.strings.[1].value
+msgctxt "tfrmnewuser.label_initials.caption"
+msgid "Initials :"
+msgstr "缩写："
+
+#: ufrmnewuser.lrj:$.strings.[2].value
+msgctxt "tfrmnewuser.label_lastname.caption"
+msgid "Last name :"
+msgstr "姓："
+
+#: ufrmnewuser.lrj:$.strings.[7].value
+msgctxt "tfrmnewuser.label_password.caption"
+msgid "Password :"
+msgstr "密码："
+
+#: ufrmnewuser.lrj:$.strings.[13].value
+msgctxt "tfrmnewuser.label_resume.caption"
+msgid "When you click Finish, the following object will be created :"
+msgstr "单击“完成”后，将创建以下对象："
+
+#: ufrmnewuser.lrj:$.strings.[5].value
+msgctxt "tfrmnewuser.label_userlogon.caption"
+msgid "User logon name :"
+msgstr "用户登录名："
+
+#: ufrmnewuser.lrj:$.strings.[6].value
+msgctxt "tfrmnewuser.label_winuserlogonname.caption"
+msgid "User logon name (pre-Windows 2000) :"
+msgstr "用户登录名（Windows 2000 以前版本）："
+
+#: ufrmpropertyaccount.lrj:$.strings.[21].value
+msgctxt "tfrmpropertyaccount.action_logonhours.caption"
+msgid "Logon Hours"
+msgstr "登录时间"
+
+#: ufrmpropertyaccount.lrj:$.strings.[22].value
+msgctxt "tfrmpropertyaccount.action_logonto.caption"
+msgid "Log On To"
+msgstr "登录到"
+
+#: ufrmpropertyaccount.lrj:$.strings.[7].value
+msgctxt "tfrmpropertyaccount.checkbox_cannotchange.caption"
+msgid "User cannot change password"
+msgstr "用户不能更改密码"
+
+#: ufrmpropertyaccount.lrj:$.strings.[10].value
+msgctxt "tfrmpropertyaccount.checkbox_disabled.caption"
+msgid "Account is disabled"
+msgstr "帐户已禁用"
+
+#: ufrmpropertyaccount.lrj:$.strings.[14].value
+msgctxt "tfrmpropertyaccount.checkbox_kerberosaes128encryption.caption"
+msgid "This account supports Kerberos AES 128 bit encryption"
+msgstr "此帐户支持 Kerberos AES 128 位加密"
+
+#: ufrmpropertyaccount.lrj:$.strings.[15].value
+msgctxt "tfrmpropertyaccount.checkbox_kerberosaes256encryption.caption"
+msgid "This account supports Kerberos AES 256 bit encryption"
+msgstr "此帐户支持 Kerberos AES 256 位加密"
+
+#: ufrmpropertyaccount.lrj:$.strings.[13].value
+msgctxt "tfrmpropertyaccount.checkbox_kerberosdesencryption.caption"
+msgid "Use only Kerberos DES encryption types for this account"
+msgstr "此帐户仅使用 Kerberos DES 加密类型"
+
+#: ufrmpropertyaccount.lrj:$.strings.[6].value
+msgctxt "tfrmpropertyaccount.checkbox_mustchange.caption"
+msgid "User must change password at next logon"
+msgstr "用户下次登录时必须更改密码"
+
+#: ufrmpropertyaccount.lrj:$.strings.[8].value
+msgctxt "tfrmpropertyaccount.checkbox_neverexpires.caption"
+msgid "Password never expires"
+msgstr "密码永不过期"
+
+#: ufrmpropertyaccount.lrj:$.strings.[16].value
+msgctxt "tfrmpropertyaccount.checkbox_nokerberospreauth.caption"
+msgid "Do not require Kerberos preauthentification"
+msgstr "不要求 Kerberos 预身份验证"
+
+#: ufrmpropertyaccount.lrj:$.strings.[9].value
+msgctxt "tfrmpropertyaccount.checkbox_reversibleencryption.caption"
+msgid "Store password using reversible encryption"
+msgstr "使用可逆加密存储密码"
+
+#: ufrmpropertyaccount.lrj:$.strings.[12].value
+msgctxt "tfrmpropertyaccount.checkbox_sensitive.caption"
+msgid "Account is sensitive and cannot be delegated"
+msgstr "帐户敏感，不能被委派"
+
+#: ufrmpropertyaccount.lrj:$.strings.[11].value
+msgctxt "tfrmpropertyaccount.checkbox_smartcard.caption"
+msgid "Smart card is required for interactive logon"
+msgstr "交互式登录需要智能卡"
+
+#: ufrmpropertyaccount.lrj:$.strings.[4].value
+msgctxt "tfrmpropertyaccount.checkbox_unlock.caption"
+msgid "Unlock account"
+msgstr "解锁帐户"
+
+#: ufrmpropertyaccount.lrj:$.strings.[20].value
+msgctxt "tfrmpropertyaccount.datetimepicker_expires.textfornulldate"
+msgid "NULL"
+msgstr "NULL"
+
+#: ufrmpropertyaccount.lrj:$.strings.[1].value
+msgctxt "tfrmpropertyaccount.edit_name.hint"
+msgid ""
+"This attribute contains the UPN for a user based on the Internet standard "
+"RFC 822\r\n"
+"(name@domain.lan)"
+msgstr ""
+"This 属性 contains the UPN for a 用户 based on the Internet standard RFC 822
+\n"
+"(name@域.lan)"
+
+#: ufrmpropertyaccount.lrj:$.strings.[3].value
+msgctxt "tfrmpropertyaccount.edit_samaccountname.hint"
+msgid ""
+"The logon name used to support clients and servers running earlier versions "
+"of the operating system\r\n"
+"Such as Windows NT 4.0, Windows 95, Windows 98, and LAN Manager"
+msgstr "用于支持早期版本操作系统客户端和服务器的登录名，例如 Windows NT 4.0、Windows 95、Windows 98 和 LAN Manager"
+
+#: ufrmpropertyaccount.lrj:$.strings.[17].value
+msgctxt "tfrmpropertyaccount.goupbox_expires.caption"
+msgid "Account expires"
+msgstr "帐户过期"
+
+#: ufrmpropertyaccount.lrj:$.strings.[5].value
+msgctxt "tfrmpropertyaccount.label_options.caption"
+msgid "Account options :"
+msgstr "帐户选项："
+
+#: ufrmpropertyaccount.lrj:$.strings.[0].value
+msgctxt "tfrmpropertyaccount.label_userlogonname.caption"
+msgid "User logon name :"
+msgstr "用户登录名："
+
+#: ufrmpropertyaccount.lrj:$.strings.[2].value
+msgctxt "tfrmpropertyaccount.label_usersamaccountname.caption"
+msgid "User logon name (pre-Windows 2000) :"
+msgstr "用户登录名（Windows 2000 以前版本）："
+
+#: ufrmpropertyaccount.lrj:$.strings.[19].value
+msgctxt "tfrmpropertyaccount.radiobutton_endof.caption"
+msgid "End of :"
+msgstr "结束于："
+
+#: ufrmpropertyaccount.lrj:$.strings.[18].value
+msgctxt "tfrmpropertyaccount.radiobutton_never.caption"
+msgid "Never"
+msgstr "永不过期"
+
+#: ufrmpropertyaddress.lrj:$.strings.[11].value
+msgctxt "tfrmpropertyaddress.combobox_countrycode.hint"
+msgid "The country/region in which the user is located"
+msgstr "用户所在的国家/地区"
+
+#: ufrmpropertyaddress.lrj:$.strings.[8].value
+msgctxt "tfrmpropertyaddress.edit_city.hint"
+msgid "Represents the name of a locality, such as a town or city"
+msgstr "表示地区名称，例如城镇或城市"
+
+#: ufrmpropertyaddress.lrj:$.strings.[10].value
+msgctxt "tfrmpropertyaddress.edit_postalcode.hint"
+msgid "The postal or zip code for mail delivery"
+msgstr "用于邮件投递的邮政编码"
+
+#: ufrmpropertyaddress.lrj:$.strings.[7].value
+msgctxt "tfrmpropertyaddress.edit_postofficebox.hint"
+msgid "The post office box number for this object"
+msgstr "此对象的邮政信箱号码"
+
+#: ufrmpropertyaddress.lrj:$.strings.[9].value
+msgctxt "tfrmpropertyaddress.edit_state.hint"
+msgid "The name of a state or province"
+msgstr "州或省的名称"
+
+#: ufrmpropertyaddress.lrj:$.strings.[2].value
+msgctxt "tfrmpropertyaddress.label_city.caption"
+msgid "City :"
+msgstr "城市："
+
+#: ufrmpropertyaddress.lrj:$.strings.[5].value
+msgctxt "tfrmpropertyaddress.label_countrycode.caption"
+msgid "Country :"
+msgstr "国家/地区："
+
+#: ufrmpropertyaddress.lrj:$.strings.[4].value
+msgctxt "tfrmpropertyaddress.label_postalcode.caption"
+msgid "ZIP/Postal Code :"
+msgstr "邮政编码："
+
+#: ufrmpropertyaddress.lrj:$.strings.[1].value
+msgctxt "tfrmpropertyaddress.label_postofficebox.caption"
+msgid "P.O Box :"
+msgstr "邮政信箱："
+
+#: ufrmpropertyaddress.lrj:$.strings.[3].value
+msgctxt "tfrmpropertyaddress.label_state.caption"
+msgid "State/province :"
+msgstr "州/省："
+
+#: ufrmpropertyaddress.lrj:$.strings.[0].value
+msgctxt "tfrmpropertyaddress.label_street.caption"
+msgid "Street :"
+msgstr "街道："
+
+#: ufrmpropertyaddress.lrj:$.strings.[6].value
+msgctxt "tfrmpropertyaddress.memo_street.hint"
+msgid "A street address"
+msgstr "街道地址"
+
+#: ufrmpropertyattributes.lrj:$.strings.[4].value
+msgctxt "tfrmpropertyattributes.action_filter.caption"
+msgid "Filter"
+msgstr "筛选"
+
+#: ufrmpropertyattributes.lrj:$.strings.[5].value
+msgctxt "tfrmpropertyattributes.action_modify.caption"
+msgid "Modify"
+msgstr "修改"
+
+#: ufrmpropertyattributes.lrj:$.strings.[3].value
+msgctxt "tfrmpropertyattributes.bitbtn_filter.caption"
+msgid "Filter"
+msgstr "筛选"
+
+#: ufrmpropertyattributes.lrj:$.strings.[0].value
+msgctxt "tfrmpropertyattributes.label_attributes.caption"
+msgid "Attributes :"
+msgstr "属性："
+
+#: ufrmpropertyattributes.lrj:$.strings.[1].value
+msgctxt "tfrmpropertyattributes.list_attributes.header.columns[0].text"
+msgid "Attribute"
+msgstr "属性"
+
+#: ufrmpropertyattributes.lrj:$.strings.[2].value
+msgctxt "tfrmpropertyattributes.list_attributes.header.columns[1].text"
+msgid "value"
+msgstr "值"
+
+#: ufrmpropertyattributes.lrj:$.strings.[6].value
+msgctxt "tfrmpropertyattributes.menuitem1.caption"
+msgid "Show only attributes that have values"
+msgstr "仅显示有值的属性"
+
+#: ufrmpropertyattributes.lrj:$.strings.[7].value
+msgctxt "tfrmpropertyattributes.menuitem2.caption"
+msgid "Show only writable attributes"
+msgstr "仅显示可写属性"
+
+#: ufrmpropertyattributes.lrj:$.strings.[8].value
+msgctxt "tfrmpropertyattributes.menuitem3.caption"
+msgid "Show attributes:"
+msgstr "显示属性："
+
+#: ufrmpropertyattributes.lrj:$.strings.[9].value
+msgctxt "tfrmpropertyattributes.menuitem4.caption"
+msgid "  Mandatory"
+msgstr "  必需"
+
+#: ufrmpropertyattributes.lrj:$.strings.[10].value
+msgctxt "tfrmpropertyattributes.menuitem5.caption"
+msgid "  Optional"
+msgstr "  可选"
+
+#: ufrmpropertyattributes.lrj:$.strings.[11].value
+msgctxt "tfrmpropertyattributes.menuitem6.caption"
+msgid "Show read-only attributes:"
+msgstr "显示只读属性："
+
+#: ufrmpropertyattributes.lrj:$.strings.[12].value
+msgctxt "tfrmpropertyattributes.menuitem7.caption"
+msgid "Constructed"
+msgstr "构造属性"
+
+#: ufrmpropertyattributes.lrj:$.strings.[13].value
+msgctxt "tfrmpropertyattributes.menuitem8.caption"
+msgid "Backlinks"
+msgstr "反向链接"
+
+#: ufrmpropertyattributes.lrj:$.strings.[14].value
+msgctxt "tfrmpropertyattributes.menuitem9.caption"
+msgid "System-only"
+msgstr "仅系统"
+
+#: ufrmpropertybitlocker.lrj:$.strings.[1].value
+msgctxt "tfrmpropertybitlocker.label_bitclockerdetails.caption"
+msgid "Détails :"
+msgstr "Détails ："
+
+#: ufrmpropertybitlocker.lrj:$.strings.[0].value
+msgctxt "tfrmpropertybitlocker.label_bitlockerpassword.caption"
+msgid "Mot de passe de récupération BitLocker :"
+msgstr "Mot de passe de récupération BitLocker ："
+
+#: ufrmpropertybitlocker.lrj:$.strings.[2].value
+msgctxt "tfrmpropertybitlocker.tisgrid1.header.columns[0].text"
+msgid "Date d'ajout"
+msgstr "添加日期"
+
+#: ufrmpropertybitlocker.lrj:$.strings.[3].value
+msgctxt "tfrmpropertybitlocker.tisgrid1.header.columns[1].text"
+msgid "ID de mdp"
+msgstr "密码 ID"
+
+#: ufrmpropertygeneralcomputer.lrj:$.strings.[6].value
+msgctxt "tfrmpropertygeneralcomputer.edit_dnshostname.hint"
+msgid "Name of computer as registered in DNS."
+msgstr "DNS 中注册的计算机名称。"
+
+#: ufrmpropertygeneralcomputer.lrj:$.strings.[5].value
+msgctxt "tfrmpropertygeneralcomputer.edit_samaccountname.hint"
+msgid ""
+"The logon name used to support clients and servers running earlier versions "
+"of the operating system\r\n"
+"Such as Windows NT 4.0, Windows 95, Windows 98, and LAN Manager"
+msgstr "用于支持早期版本操作系统客户端和服务器的登录名，例如 Windows NT 4.0、Windows 95、Windows 98 和 LAN Manager"
+
+#: ufrmpropertygeneralcomputer.lrj:$.strings.[2].value
+msgctxt "tfrmpropertygeneralcomputer.label_dctype.caption"
+msgid "DC Type:"
+msgstr "域控制器类型："
+
+#: ufrmpropertygeneralcomputer.lrj:$.strings.[4].value
+msgctxt "tfrmpropertygeneralcomputer.label_description.caption"
+msgid "Description:"
+msgstr "描述："
+
+#: ufrmpropertygeneralcomputer.lrj:$.strings.[1].value
+msgctxt "tfrmpropertygeneralcomputer.label_dnshostname.caption"
+msgid "DNS name:"
+msgstr "DNS 名称："
+
+#: ufrmpropertygeneralcomputer.lrj:$.strings.[0].value
+msgctxt "tfrmpropertygeneralcomputer.label_samaccountname.caption"
+msgid "Computer name (pre-Windows 2000):"
+msgstr "计算机名（Windows 2000 以前版本）："
+
+#: ufrmpropertygeneralcomputer.lrj:$.strings.[3].value
+msgctxt "tfrmpropertygeneralcomputer.label_site.caption"
+msgid "Site:"
+msgstr "Site："
+
+#: ufrmpropertygeneraldefault.lrj:$.strings.[0].value
+msgctxt "tfrmpropertygeneraldefault.label_description.caption"
+msgid "Description:"
+msgstr "描述："
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[4].value
+msgctxt "tfrmpropertygeneralgroup.edit_mail.hint"
+msgid "The group's E-mail address"
+msgstr "组的电子邮件地址"
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[1].value
+msgctxt "tfrmpropertygeneralgroup.edit_samaccountname.hint"
+msgid ""
+"The logon name used to support clients and servers running earlier versions "
+"of the operating system\r\n"
+"Such as Windows NT 4.0, Windows 95, Windows 98, and LAN Manager"
+msgstr "用于支持早期版本操作系统客户端和服务器的登录名，例如 Windows NT 4.0、Windows 95、Windows 98 和 LAN Manager"
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[2].value
+msgctxt "tfrmpropertygeneralgroup.label_description.caption"
+msgid "Description :"
+msgstr "描述："
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[5].value
+msgctxt "tfrmpropertygeneralgroup.label_info.caption"
+msgid "Notes :"
+msgstr "备注："
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[3].value
+msgctxt "tfrmpropertygeneralgroup.label_mail.caption"
+msgid "E-mail :"
+msgstr "电子邮件："
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[0].value
+msgctxt "tfrmpropertygeneralgroup.label_samaccountname.caption"
+msgid "Group Name (pre-windows 2000) :"
+msgstr "组名（Windows 2000 以前版本）："
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[6].value
+msgctxt "tfrmpropertygeneralgroup.memo_info.hint"
+msgid "The group's comments"
+msgstr "组备注"
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[10].value
+msgctxt "tfrmpropertygeneralgroup.radiogroup_scope.caption"
+msgid "Group scope"
+msgstr "组作用域"
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[7].value
+msgctxt "tfrmpropertygeneralgroup.radiogroup_type.caption"
+msgid "Group type"
+msgstr "组类型"
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[9].value
+msgctxt "tfrmpropertygeneralgroup.rb_distribution.caption"
+msgid "Distribution"
+msgstr "通讯组"
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[12].value
+msgctxt "tfrmpropertygeneralgroup.rb_global.caption"
+msgid "Global"
+msgstr "全局"
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[11].value
+msgctxt "tfrmpropertygeneralgroup.rb_local.caption"
+msgid "Domain local"
+msgstr "域本地"
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[8].value
+msgctxt "tfrmpropertygeneralgroup.rb_security.caption"
+msgid "Security"
+msgstr "安全"
+
+#: ufrmpropertygeneralgroup.lrj:$.strings.[13].value
+msgctxt "tfrmpropertygeneralgroup.rb_universal.caption"
+msgid "Universal"
+msgstr "通用"
+
+#: ufrmpropertygeneralou.lrj:$.strings.[10].value
+msgctxt "tfrmpropertygeneralou.combobox_co.hint"
+msgid "The country/region in which the user is located"
+msgstr "用户所在的国家/地区"
+
+#: ufrmpropertygeneralou.lrj:$.strings.[7].value
+msgctxt "tfrmpropertygeneralou.edit_l.hint"
+msgid "Represents the name of a locality, such as a town or city"
+msgstr "表示地区名称，例如城镇或城市"
+
+#: ufrmpropertygeneralou.lrj:$.strings.[9].value
+msgctxt "tfrmpropertygeneralou.edit_postalcode.hint"
+msgid "The postal or zip code for mail delivery"
+msgstr "用于邮件投递的邮政编码"
+
+#: ufrmpropertygeneralou.lrj:$.strings.[8].value
+msgctxt "tfrmpropertygeneralou.edit_st.hint"
+msgid "The name of a state or province"
+msgstr "州或省的名称"
+
+#: ufrmpropertygeneralou.lrj:$.strings.[2].value
+msgctxt "tfrmpropertygeneralou.label_city.caption"
+msgid "City:"
+msgstr "City："
+
+#: ufrmpropertygeneralou.lrj:$.strings.[5].value
+msgctxt "tfrmpropertygeneralou.label_country.caption"
+msgid "Country/region:"
+msgstr "国家/地区："
+
+#: ufrmpropertygeneralou.lrj:$.strings.[0].value
+msgctxt "tfrmpropertygeneralou.label_description.caption"
+msgid "Description:"
+msgstr "描述："
+
+#: ufrmpropertygeneralou.lrj:$.strings.[3].value
+msgctxt "tfrmpropertygeneralou.label_state.caption"
+msgid "State/province:"
+msgstr "State/province："
+
+#: ufrmpropertygeneralou.lrj:$.strings.[1].value
+msgctxt "tfrmpropertygeneralou.label_street.caption"
+msgid "Street:"
+msgstr "Street："
+
+#: ufrmpropertygeneralou.lrj:$.strings.[4].value
+msgctxt "tfrmpropertygeneralou.label_zip.caption"
+msgid "Zip/Postal Code:"
+msgstr "Zip/Postal Code："
+
+#: ufrmpropertygeneralou.lrj:$.strings.[6].value
+msgctxt "tfrmpropertygeneralou.memo_street.hint"
+msgid "A street address"
+msgstr "街道地址"
+
+#: ufrmpropertygeneralsite.lrj:$.strings.[0].value
+msgctxt "tfrmpropertygeneralsite.label_description.caption"
+msgid "Description:"
+msgstr "描述："
+
+#: ufrmpropertygeneralsite.lrj:$.strings.[1].value
+msgctxt "tfrmpropertygeneralsite.label_subnet.caption"
+msgid "Subnets:"
+msgstr "Subnets："
+
+#: ufrmpropertygeneralsubnet.lrj:$.strings.[0].value
+msgctxt "tfrmpropertygeneralsubnet.label_description.caption"
+msgid "Description:"
+msgstr "描述："
+
+#: ufrmpropertygeneralsubnet.lrj:$.strings.[2].value
+msgctxt "tfrmpropertygeneralsubnet.label_prefix.caption"
+msgid "Prefix"
+msgstr "Prefix"
+
+#: ufrmpropertygeneralsubnet.lrj:$.strings.[1].value
+msgctxt "tfrmpropertygeneralsubnet.label_site.caption"
+msgid "Site:"
+msgstr "Site："
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[17].value
+msgctxt "tfrmpropertygeneraluser.action_homepage.caption"
+msgid "Other..."
+msgstr "其他..."
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[18].value
+msgctxt "tfrmpropertygeneraluser.action_otherphonenumber.caption"
+msgid "Other..."
+msgstr "其他..."
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[9].value
+msgctxt "tfrmpropertygeneraluser.edit_displayname.hint"
+msgid "The person's preferred name to be used when beeing displayed"
+msgstr "显示时使用的首选名称"
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[6].value
+msgctxt "tfrmpropertygeneraluser.edit_givenname.hint"
+msgid "The person's First Name"
+msgstr "此人的名字"
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[15].value
+msgctxt "tfrmpropertygeneraluser.edit_homepage.hint"
+msgid "A web page that is the primary landing page of a website"
+msgstr "网站的主页地址"
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[7].value
+msgctxt "tfrmpropertygeneraluser.edit_initials.hint"
+msgid "The person's initals"
+msgstr "此人的姓名首字母"
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[16].value
+msgctxt "tfrmpropertygeneraluser.edit_mail.hint"
+msgid "The person's E-mail address"
+msgstr "联系人的电子邮件地址"
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[10].value
+msgctxt "tfrmpropertygeneraluser.edit_physicaldeliveryofficename.hint"
+msgid "The person's office location in the user's place of business"
+msgstr "用户工作地点中的办公室位置"
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[8].value
+msgctxt "tfrmpropertygeneraluser.edit_surname.hint"
+msgid "The person's family name or last name"
+msgstr "此人的姓氏"
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[14].value
+msgctxt "tfrmpropertygeneraluser.edit_telephonenumber.hint"
+msgid "The person's phone number"
+msgstr "此人的电话号码"
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[4].value
+msgctxt "tfrmpropertygeneraluser.label_description.caption"
+msgid "Description :"
+msgstr "描述："
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[5].value
+msgctxt "tfrmpropertygeneraluser.label_desktopprofile.caption"
+msgid "Desktop :"
+msgstr "办公室："
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[3].value
+msgctxt "tfrmpropertygeneraluser.label_displayname.caption"
+msgid "Full name :"
+msgstr "全名："
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[0].value
+msgctxt "tfrmpropertygeneraluser.label_givenname.caption"
+msgid "Name :"
+msgstr "名称："
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[13].value
+msgctxt "tfrmpropertygeneraluser.label_homepage.caption"
+msgid "Web page :"
+msgstr "网页："
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[1].value
+msgctxt "tfrmpropertygeneraluser.label_initials.caption"
+msgid "Initials :"
+msgstr "缩写："
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[12].value
+msgctxt "tfrmpropertygeneraluser.label_mail.caption"
+msgid "Email adress :"
+msgstr "Email adress ："
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[2].value
+msgctxt "tfrmpropertygeneraluser.label_surname.caption"
+msgid "Last name :"
+msgstr "姓："
+
+#: ufrmpropertygeneraluser.lrj:$.strings.[11].value
+msgctxt "tfrmpropertygeneraluser.label_telephonenumber.caption"
+msgid "Phone Number :"
+msgstr "电话号码："
+
+#: ufrmpropertygeneralvolume.lrj:$.strings.[4].value
+msgctxt "tfrmpropertygeneralvolume.bitbtn_keywords.caption"
+msgid "Keywords..."
+msgstr "关键字..."
+
+#: ufrmpropertygeneralvolume.lrj:$.strings.[3].value
+msgctxt "tfrmpropertygeneralvolume.bitbtn_keywords.hint"
+msgid "A list of keywords that can be used to locate a given connection point"
+msgstr "可用于定位指定连接点的关键字列表"
+
+#: ufrmpropertygeneralvolume.lrj:$.strings.[2].value
+msgctxt "tfrmpropertygeneralvolume.edit_uncname.hint"
+msgid "The universal naming convention name for shared volumes and printers"
+msgstr "共享卷和打印机的通用命名约定名称"
+
+#: ufrmpropertygeneralvolume.lrj:$.strings.[0].value
+msgctxt "tfrmpropertygeneralvolume.label_description.caption"
+msgid "Description:"
+msgstr "描述："
+
+#: ufrmpropertygeneralvolume.lrj:$.strings.[1].value
+msgctxt "tfrmpropertygeneralvolume.label_uncname.caption"
+msgid "UNC name: (Example: \\\\server\\share)"
+msgstr "UNC 名称：（例如：\\\\server\\share）"
+
+#: ufrmpropertylaps.lrj:$.strings.[7].value
+msgctxt "tfrmpropertylaps.action_copypassword.caption"
+msgid "Copy password"
+msgstr "复制密码"
+
+#: ufrmpropertylaps.lrj:$.strings.[6].value
+msgctxt "tfrmpropertylaps.action_expirenow.caption"
+msgid "Expire now"
+msgstr "立即过期"
+
+#: ufrmpropertylaps.lrj:$.strings.[8].value
+msgctxt "tfrmpropertylaps.action_showpassword.caption"
+msgid "Show password"
+msgstr "显示密码"
+
+#: ufrmpropertylaps.lrj:$.strings.[3].value
+msgctxt "tfrmpropertylaps.datetimepicker_newexpiration.textfornulldate"
+msgid "NULL"
+msgstr "NULL"
+
+#: ufrmpropertylaps.lrj:$.strings.[0].value
+msgctxt "tfrmpropertylaps.groupbox1.caption"
+msgid "Solution du mot de passe de l'administrateur local"
+msgstr "本地管理员密码解决方案"
+
+#: ufrmpropertylaps.lrj:$.strings.[1].value
+msgctxt "tfrmpropertylaps.label_currentexpiration.caption"
+msgid "Expiration actuelle du mot de passe LAPS :"
+msgstr "Expiration actuelle du mot de passe LAPS ："
+
+#: ufrmpropertylaps.lrj:$.strings.[4].value
+msgctxt "tfrmpropertylaps.label_localadminaccountname.caption"
+msgid "Nom du compte d'administrateur local LAPS :"
+msgstr "Nom du compte d'administrateur local LAPS ："
+
+#: ufrmpropertylaps.lrj:$.strings.[5].value
+msgctxt "tfrmpropertylaps.label_localadminaccountpassword.caption"
+msgid "Mot de passe du compte d'administrateur local LAPS :"
+msgstr "Mot de passe du compte d'administrateur local LAPS ："
+
+#: ufrmpropertylaps.lrj:$.strings.[2].value
+msgctxt "tfrmpropertylaps.label_newexpiration.caption"
+msgid "Définir l'expiration du nouveau mot de passe LAPS :"
+msgstr "Définir l'expiration du nouveau mot de passe LAPS ："
+
+#: ufrmpropertylocation.lrj:$.strings.[1].value
+msgctxt "tfrmpropertylocation.edit_location.hint"
+msgid "The user's location, such as office number"
+msgstr "用户的位置，例如办公室号码"
+
+#: ufrmpropertylocation.lrj:$.strings.[0].value
+msgctxt "tfrmpropertylocation.label_location.caption"
+msgid "Location:"
+msgstr "Location："
+
+#: ufrmpropertymanagedby.lrj:$.strings.[8].value
+msgctxt "tfrmpropertymanagedby.action_change.caption"
+msgid "Change"
+msgstr "更改"
+
+#: ufrmpropertymanagedby.lrj:$.strings.[10].value
+msgctxt "tfrmpropertymanagedby.action_clear.caption"
+msgid "Clear"
+msgstr "清除"
+
+#: ufrmpropertymanagedby.lrj:$.strings.[11].value
+msgctxt "tfrmpropertymanagedby.action_manage.caption"
+msgid "Manager can update membership list"
+msgstr "管理者可以更新成员列表"
+
+#: ufrmpropertymanagedby.lrj:$.strings.[9].value
+msgctxt "tfrmpropertymanagedby.action_property.caption"
+msgid "Property"
+msgstr "属性"
+
+#: ufrmpropertymanagedby.lrj:$.strings.[1].value
+msgctxt "tfrmpropertymanagedby.labe_office.caption"
+msgid "Office:"
+msgstr "Office："
+
+#: ufrmpropertymanagedby.lrj:$.strings.[3].value
+msgctxt "tfrmpropertymanagedby.label_city.caption"
+msgid "City:"
+msgstr "City："
+
+#: ufrmpropertymanagedby.lrj:$.strings.[5].value
+msgctxt "tfrmpropertymanagedby.label_countryregion.caption"
+msgid "Country/region:"
+msgstr "国家/地区："
+
+#: ufrmpropertymanagedby.lrj:$.strings.[7].value
+msgctxt "tfrmpropertymanagedby.label_faxnumber.caption"
+msgid "Fax number:"
+msgstr "Fax number："
+
+#: ufrmpropertymanagedby.lrj:$.strings.[0].value
+msgctxt "tfrmpropertymanagedby.label_managedby.caption"
+msgid "Name:"
+msgstr "名称："
+
+#: ufrmpropertymanagedby.lrj:$.strings.[4].value
+msgctxt "tfrmpropertymanagedby.label_stateprovince.caption"
+msgid "State/province:"
+msgstr "State/province："
+
+#: ufrmpropertymanagedby.lrj:$.strings.[2].value
+msgctxt "tfrmpropertymanagedby.label_streetaddress.caption"
+msgid "Street:"
+msgstr "Street："
+
+#: ufrmpropertymanagedby.lrj:$.strings.[6].value
+msgctxt "tfrmpropertymanagedby.label_telephonenumber.caption"
+msgid "Telephone number:"
+msgstr "Telephone number："
+
+#: ufrmpropertymember.lrj:$.strings.[3].value
+msgctxt "tfrmpropertymember.action_add.caption"
+msgid "Add..."
+msgstr "添加..."
+
+#: ufrmpropertymember.lrj:$.strings.[4].value
+msgctxt "tfrmpropertymember.action_delete.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: ufrmpropertymember.lrj:$.strings.[0].value
+msgctxt "tfrmpropertymember.label_members.caption"
+msgid "Members:"
+msgstr "Members："
+
+#: ufrmpropertymember.lrj:$.strings.[1].value
+msgctxt "tfrmpropertymember.tisgrid_members.header.columns[0].text"
+msgid "name"
+msgstr "名称"
+
+#: ufrmpropertymember.lrj:$.strings.[2].value
+msgctxt "tfrmpropertymember.tisgrid_members.header.columns[1].text"
+msgid "Active Directory Domain Services Folder"
+msgstr "Active Directory 域服务文件夹"
+
+#: ufrmpropertymemberof.lrj:$.strings.[6].value
+msgctxt "tfrmpropertymemberof.action_add.caption"
+msgid "Add"
+msgstr "添加"
+
+#: ufrmpropertymemberof.lrj:$.strings.[7].value
+msgctxt "tfrmpropertymemberof.action_delete.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: ufrmpropertymemberof.lrj:$.strings.[8].value
+msgctxt "tfrmpropertymemberof.action_primarygroup.caption"
+msgid "Define primary group"
+msgstr "定义主要组"
+
+#: ufrmpropertymemberof.lrj:$.strings.[1].value
+msgctxt "tfrmpropertymemberof.grid_memberof.header.columns[0].text"
+msgid "Name"
+msgstr "名称"
+
+#: ufrmpropertymemberof.lrj:$.strings.[2].value
+msgctxt "tfrmpropertymemberof.grid_memberof.header.columns[1].text"
+msgid "Active Directory's Services Folder"
+msgstr "Active Directory 服务文件夹"
+
+#: ufrmpropertymemberof.lrj:$.strings.[5].value
+msgctxt "tfrmpropertymemberof.label_defineprimarygroup.caption"
+msgid ""
+"It is useless to modify the primary goup, unless you're using Macintosh or "
+"other POSIX compliant apps."
+msgstr "除非使用 Macintosh 或其他兼容 POSIX 的应用，否则修改主要组没有意义。"
+
+#: ufrmpropertymemberof.lrj:$.strings.[3].value
+msgctxt "tfrmpropertymemberof.label_mof_noprimarygroup.caption"
+msgid ""
+"This list  shows only the current domain's groups and the groups handled in "
+"the Global catalog, such as unviversals groups."
+msgstr "此列表仅显示当前域中的组，以及全局编录中处理的组，例如通用组。"
+
+#: ufrmpropertymemberof.lrj:$.strings.[0].value
+msgctxt "tfrmpropertymemberof.label_mof_title.caption"
+msgid "Member of :"
+msgstr "隶属于："
+
+#: ufrmpropertymemberof.lrj:$.strings.[4].value
+msgctxt "tfrmpropertymemberof.label_primarygroupkey.caption"
+msgid "Primary group :"
+msgstr "主要组："
+
+#: ufrmpropertyobject.lrj:$.strings.[7].value
+msgctxt "tfrmpropertyobject.action_protection.caption"
+msgid "Protect object from accidental deletion"
+msgstr "防止对象被意外删除"
+
+#: ufrmpropertyobject.lrj:$.strings.[0].value
+msgctxt "tfrmpropertyobject.label_canonicalname.caption"
+msgid "Objects's canonical name"
+msgstr "对象规范名称"
+
+#: ufrmpropertyobject.lrj:$.strings.[1].value
+msgctxt "tfrmpropertyobject.label_objectclass.caption"
+msgid "Object's Class :"
+msgstr "对象类："
+
+#: ufrmpropertyobject.lrj:$.strings.[5].value
+msgctxt "tfrmpropertyobject.label_usnactual.caption"
+msgid "Actual :"
+msgstr "当前："
+
+#: ufrmpropertyobject.lrj:$.strings.[6].value
+msgctxt "tfrmpropertyobject.label_usnoriginal.caption"
+msgid "Original :"
+msgstr "原始："
+
+#: ufrmpropertyobject.lrj:$.strings.[4].value
+msgctxt "tfrmpropertyobject.label_usnupdate.caption"
+msgid "Amount of sequential updates (USN):"
+msgstr "序列更新号 (USN)："
+
+#: ufrmpropertyobject.lrj:$.strings.[3].value
+msgctxt "tfrmpropertyobject.label_whenchanged.caption"
+msgid "Modified :"
+msgstr "修改时间："
+
+#: ufrmpropertyobject.lrj:$.strings.[2].value
+msgctxt "tfrmpropertyobject.label_whencreated.caption"
+msgid "Created :"
+msgstr "创建时间："
+
+#: ufrmpropertyoperatingsystem.lrj:$.strings.[3].value
+msgctxt "tfrmpropertyoperatingsystem.edit_operatingsystem.hint"
+msgid "The Operating System name, for example, Windows Vista Enterprise"
+msgstr "操作系统名称，例如 Windows Vista Enterprise"
+
+#: ufrmpropertyoperatingsystem.lrj:$.strings.[5].value
+msgctxt "tfrmpropertyoperatingsystem.edit_operatingsystemservicepack.hint"
+msgid "The operating system service pack ID (for example, SP3)"
+msgstr "操作系统 Service Pack ID（例如 SP3）"
+
+#: ufrmpropertyoperatingsystem.lrj:$.strings.[4].value
+msgctxt "tfrmpropertyoperatingsystem.edit_operatingsystemversion.hint"
+msgid "The operating system version, for example, 4.0"
+msgstr "操作系统版本，例如 4.0"
+
+#: ufrmpropertyoperatingsystem.lrj:$.strings.[0].value
+msgctxt "tfrmpropertyoperatingsystem.label_operatingsystem.caption"
+msgid "Name:"
+msgstr "名称："
+
+#: ufrmpropertyoperatingsystem.lrj:$.strings.[2].value
+msgctxt "tfrmpropertyoperatingsystem.label_operatingsystemservicepack.caption"
+msgid "Service Pack:"
+msgstr "Service Pack："
+
+#: ufrmpropertyoperatingsystem.lrj:$.strings.[1].value
+msgctxt "tfrmpropertyoperatingsystem.label_operatingsystemversion.caption"
+msgid "Version:"
+msgstr "Version："
+
+#: ufrmpropertyorganization.lrj:$.strings.[10].value
+msgctxt "tfrmpropertyorganization.action_change.caption"
+msgid "Change"
+msgstr "更改"
+
+#: ufrmpropertyorganization.lrj:$.strings.[12].value
+msgctxt "tfrmpropertyorganization.action_clear.caption"
+msgid "Clear"
+msgstr "清除"
+
+#: ufrmpropertyorganization.lrj:$.strings.[11].value
+msgctxt "tfrmpropertyorganization.action_properties.caption"
+msgid "Properties"
+msgstr "属性"
+
+#: ufrmpropertyorganization.lrj:$.strings.[7].value
+msgctxt "tfrmpropertyorganization.edit_company.hint"
+msgid "The user's company name"
+msgstr "用户的公司名称"
+
+#: ufrmpropertyorganization.lrj:$.strings.[6].value
+msgctxt "tfrmpropertyorganization.edit_department.hint"
+msgid "Contains the name for the department in which the user works"
+msgstr "包含用户所在部门的名称"
+
+#: ufrmpropertyorganization.lrj:$.strings.[5].value
+msgctxt "tfrmpropertyorganization.edit_title.hint"
+msgid ""
+"Contains the user's job title\r\n"
+"This property is commonly used to indicate the formal job title\r\n"
+"Such as Senior Programmer, rather than occupational class, such as programmer"
+msgstr "包含用户的职务。此属性通常用于表示正式职位，例如“高级程序员”，而不是“程序员”这样的职业类别。"
+
+#: ufrmpropertyorganization.lrj:$.strings.[0].value
+msgctxt "tfrmpropertyorganization.groupbox_manager.caption"
+msgid "Manager :"
+msgstr "Manager ："
+
+#: ufrmpropertyorganization.lrj:$.strings.[4].value
+msgctxt "tfrmpropertyorganization.label_company.caption"
+msgid "Company :"
+msgstr "Company ："
+
+#: ufrmpropertyorganization.lrj:$.strings.[3].value
+msgctxt "tfrmpropertyorganization.label_department.caption"
+msgid "Departement :"
+msgstr "Departement ："
+
+#: ufrmpropertyorganization.lrj:$.strings.[8].value
+msgctxt "tfrmpropertyorganization.label_directreports.caption"
+msgid "Direct reports / Subordinates :"
+msgstr "Direct reports / Subordinates ："
+
+#: ufrmpropertyorganization.lrj:$.strings.[1].value
+msgctxt "tfrmpropertyorganization.label_manager.caption"
+msgid "Name :"
+msgstr "名称："
+
+#: ufrmpropertyorganization.lrj:$.strings.[2].value
+msgctxt "tfrmpropertyorganization.label_title.caption"
+msgid "Job Title :"
+msgstr "Job Title ："
+
+#: ufrmpropertyorganization.lrj:$.strings.[9].value
+msgctxt "tfrmpropertyorganization.tisgrid_directreports.header.columns[0].text"
+msgid "name"
+msgstr "名称"
+
+#: ufrmpropertyprofile.lrj:$.strings.[9].value
+msgctxt "tfrmpropertyprofile.combobox_connectto.hint"
+msgid ""
+"Specifies the drive letter to which to map the UNC path specified by "
+"homeDirectory"
+msgstr "指定要映射到 homeDirectory 指定的 UNC 路径的驱动器号"
+
+#: ufrmpropertyprofile.lrj:$.strings.[11].value
+msgctxt "tfrmpropertyprofile.edit_connectto.hint"
+msgid ""
+"The home directory for the account\r\n"
+"HomeDirectory must be a UNC path\r\n"
+"(for example, \\\\**servername\\**path)"
+msgstr "帐户的主目录。HomeDirectory 必须是 UNC 路径，例如 \\\\servername\\path。"
+
+#: ufrmpropertyprofile.lrj:$.strings.[7].value
+msgctxt "tfrmpropertyprofile.edit_homedirectory.hint"
+msgid ""
+"The home directory for the account\r\n"
+"If homeDrive is set and specifies a drive letter, homeDirectory must be a "
+"UNC path\r\n"
+"Otherwise, homeDirectory is a fully qualified local path including the drive "
+"letter\r\n"
+"(for example, DriveLetter**:\\Directory\\**Folder)"
+msgstr "帐户的主目录。HomeDirectory 必须是 UNC 路径，例如 \\\\servername\\path。"
+
+#: ufrmpropertyprofile.lrj:$.strings.[2].value
+msgctxt "tfrmpropertyprofile.edit_profilepath.hint"
+msgid "Specifies a path to the user's profile"
+msgstr "指定用户配置文件路径"
+
+#: ufrmpropertyprofile.lrj:$.strings.[4].value
+msgctxt "tfrmpropertyprofile.edit_scriptpath.hint"
+msgid "The path for the user's logon script"
+msgstr "用户登录脚本路径"
+
+#: ufrmpropertyprofile.lrj:$.strings.[5].value
+msgctxt "tfrmpropertyprofile.groupbox_homefolder.caption"
+msgid "Home folder"
+msgstr "主文件夹"
+
+#: ufrmpropertyprofile.lrj:$.strings.[0].value
+msgctxt "tfrmpropertyprofile.groupbox_userprofile.caption"
+msgid "User profile"
+msgstr "用户配置文件"
+
+#: ufrmpropertyprofile.lrj:$.strings.[10].value
+msgctxt "tfrmpropertyprofile.label_connectto.caption"
+msgid "To :"
+msgstr "To ："
+
+#: ufrmpropertyprofile.lrj:$.strings.[1].value
+msgctxt "tfrmpropertyprofile.label_profilepath.caption"
+msgid "Profile path :"
+msgstr "Profile path ："
+
+#: ufrmpropertyprofile.lrj:$.strings.[3].value
+msgctxt "tfrmpropertyprofile.label_scriptpath.caption"
+msgid "Logon script path :"
+msgstr "Logon script path ："
+
+#: ufrmpropertyprofile.lrj:$.strings.[8].value
+msgctxt "tfrmpropertyprofile.radiobutton_connectto.caption"
+msgid "Connect :"
+msgstr "Connect ："
+
+#: ufrmpropertyprofile.lrj:$.strings.[6].value
+msgctxt "tfrmpropertyprofile.radiobutton_homedirectory.caption"
+msgid "Local path :"
+msgstr "Local path ："
+
+#: ufrmpropertypublishedcertificates.lrj:$.strings.[6].value
+msgctxt "tfrmpropertypublishedcertificates.action_add.caption"
+msgid "Add from File"
+msgstr "从文件添加..."
+
+#: ufrmpropertypublishedcertificates.lrj:$.strings.[8].value
+msgctxt "tfrmpropertypublishedcertificates.action_copy.caption"
+msgid "Copy to File"
+msgstr "复制到文件"
+
+#: ufrmpropertypublishedcertificates.lrj:$.strings.[7].value
+msgctxt "tfrmpropertypublishedcertificates.action_remove.caption"
+msgid "Remove"
+msgstr "移除"
+
+#: ufrmpropertypublishedcertificates.lrj:$.strings.[5].value
+msgctxt "tfrmpropertypublishedcertificates.action_view.caption"
+msgid "View Certificate"
+msgstr "查看证书"
+
+#: ufrmpropertypublishedcertificates.lrj:$.strings.[0].value
+msgctxt "tfrmpropertypublishedcertificates.label_listx509.caption"
+msgid "List of X509 certificates published for the user account"
+msgstr "为此用户帐户发布的 X.509 证书列表"
+
+#: ufrmpropertypublishedcertificates.lrj:$.strings.[1].value
+msgctxt ""
+"tfrmpropertypublishedcertificates.tisgrid_listx509.header.columns[0].text"
+msgid "Issued To"
+msgstr "颁发给"
+
+#: ufrmpropertypublishedcertificates.lrj:$.strings.[2].value
+msgctxt ""
+"tfrmpropertypublishedcertificates.tisgrid_listx509.header.columns[1].text"
+msgid "Issued By"
+msgstr "颁发者"
+
+#: ufrmpropertypublishedcertificates.lrj:$.strings.[3].value
+msgctxt ""
+"tfrmpropertypublishedcertificates.tisgrid_listx509.header.columns[2].text"
+msgid "Intended Purposes"
+msgstr "预期用途"
+
+#: ufrmpropertypublishedcertificates.lrj:$.strings.[4].value
+msgctxt ""
+"tfrmpropertypublishedcertificates.tisgrid_listx509.header.columns[3].text"
+msgid "Expiration Date"
+msgstr "到期日期"
+
+#: ufrmpropertysecurity.lrj:$.strings.[4].value
+msgctxt "tfrmpropertysecurity.action_add.caption"
+msgid "Add"
+msgstr "添加"
+
+#: ufrmpropertysecurity.lrj:$.strings.[6].value
+msgctxt "tfrmpropertysecurity.action_advanced.caption"
+msgid "Advanced"
+msgstr "高级"
+
+#: ufrmpropertysecurity.lrj:$.strings.[5].value
+msgctxt "tfrmpropertysecurity.action_delete.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: ufrmpropertysecurity.lrj:$.strings.[1].value
+msgctxt "tfrmpropertysecurity.tisgrid_securitylistright.header.columns[0].text"
+msgid "Permissions for"
+msgstr "权限对象"
+
+#: ufrmpropertysecurity.lrj:$.strings.[2].value
+msgctxt "tfrmpropertysecurity.tisgrid_securitylistright.header.columns[1].text"
+msgid "Allow"
+msgstr "允许"
+
+#: ufrmpropertysecurity.lrj:$.strings.[3].value
+msgctxt "tfrmpropertysecurity.tisgrid_securitylistright.header.columns[2].text"
+msgid "Deny"
+msgstr "拒绝"
+
+#: ufrmpropertysecurity.lrj:$.strings.[0].value
+msgctxt "tfrmpropertysecurity.tisgrid_securitylistuser.header.columns[0].text"
+msgid "Group or user names"
+msgstr "组或用户名"
+
+#: ufrmpropertytelephone.lrj:$.strings.[14].value
+msgctxt "tfrmpropertytelephone.bitbtn_otherfacsimiletelephonenumber.caption"
+msgid "Other..."
+msgstr "其他..."
+
+#: ufrmpropertytelephone.lrj:$.strings.[11].value
+msgctxt "tfrmpropertytelephone.bitbtn_otherhomephone.caption"
+msgid "Other..."
+msgstr "其他..."
+
+#: ufrmpropertytelephone.lrj:$.strings.[15].value
+msgctxt "tfrmpropertytelephone.bitbtn_otheripphone.caption"
+msgid "Other..."
+msgstr "其他..."
+
+#: ufrmpropertytelephone.lrj:$.strings.[13].value
+msgctxt "tfrmpropertytelephone.bitbtn_othermobile.caption"
+msgid "Other..."
+msgstr "其他..."
+
+#: ufrmpropertytelephone.lrj:$.strings.[12].value
+msgctxt "tfrmpropertytelephone.bitbtn_otherpager.caption"
+msgid "Other..."
+msgstr "其他..."
+
+#: ufrmpropertytelephone.lrj:$.strings.[9].value
+msgctxt "tfrmpropertytelephone.edit_facsimiletelephonenumber.hint"
+msgid "The user's main fax number"
+msgstr "用户的主传真号码"
+
+#: ufrmpropertytelephone.lrj:$.strings.[6].value
+msgctxt "tfrmpropertytelephone.edit_homephone.hint"
+msgid "The user's main home phone number"
+msgstr "用户的主要家庭电话号码"
+
+#: ufrmpropertytelephone.lrj:$.strings.[10].value
+msgctxt "tfrmpropertytelephone.edit_ipphone.hint"
+msgid "The TCP/IP address for the phone. Used by Telephony"
+msgstr "电话的 TCP/IP 地址，供电话服务使用"
+
+#: ufrmpropertytelephone.lrj:$.strings.[8].value
+msgctxt "tfrmpropertytelephone.edit_mobile.hint"
+msgid "The user's main mobile phone number"
+msgstr "用户的主要手机号码"
+
+#: ufrmpropertytelephone.lrj:$.strings.[7].value
+msgctxt "tfrmpropertytelephone.edit_pager.hint"
+msgid "The user's main pager number"
+msgstr "用户的主要寻呼机号码"
+
+#: ufrmpropertytelephone.lrj:$.strings.[0].value
+msgctxt "tfrmpropertytelephone.groupbox_numbers.caption"
+msgid "Telephone numbers"
+msgstr "电话号码"
+
+#: ufrmpropertytelephone.lrj:$.strings.[4].value
+msgctxt "tfrmpropertytelephone.label_facsimiletelephonenumber.caption"
+msgid "Fax :"
+msgstr "Fax ："
+
+#: ufrmpropertytelephone.lrj:$.strings.[1].value
+msgctxt "tfrmpropertytelephone.label_homephone.caption"
+msgid "Home :"
+msgstr "Home ："
+
+#: ufrmpropertytelephone.lrj:$.strings.[16].value
+msgctxt "tfrmpropertytelephone.label_info.caption"
+msgid "Notes :"
+msgstr "备注："
+
+#: ufrmpropertytelephone.lrj:$.strings.[5].value
+msgctxt "tfrmpropertytelephone.label_ipphone.caption"
+msgid "IP phone :"
+msgstr "IP phone ："
+
+#: ufrmpropertytelephone.lrj:$.strings.[3].value
+msgctxt "tfrmpropertytelephone.label_mobile.caption"
+msgid "Mobile :"
+msgstr "Mobile ："
+
+#: ufrmpropertytelephone.lrj:$.strings.[2].value
+msgctxt "tfrmpropertytelephone.label_pager.caption"
+msgid "Pager :"
+msgstr "Pager ："
+
+#: ufrmpropertytelephone.lrj:$.strings.[17].value
+msgctxt "tfrmpropertytelephone.memo_info.hint"
+msgid "The group/user comments"
+msgstr "组/用户备注"
+
+#: ufrmrsat.lrj:$.strings.[6].value
+msgctxt "tfrmrsat.action_advancedfeatures.caption"
+msgid "Advanced Features"
+msgstr "高级功能"
+
+#: ufrmrsat.lrj:$.strings.[1].value
+msgctxt "tfrmrsat.action_ldapconnect.caption"
+msgid "Connect"
+msgstr "Connect"
+
+#: ufrmrsat.lrj:$.strings.[2].value
+msgctxt "tfrmrsat.action_ldapconnect.hint"
+msgid "Open a connection to ldap server"
+msgstr "打开到 LDAP 服务器的连接"
+
+#: ufrmrsat.lrj:$.strings.[3].value
+msgctxt "tfrmrsat.action_ldapdisconnect.caption"
+msgid "Disconnect"
+msgstr "Disconnect"
+
+#: ufrmrsat.lrj:$.strings.[4].value
+msgctxt "tfrmrsat.action_ldapoptions.caption"
+msgid "Connection Options"
+msgstr "连接选项"
+
+#: ufrmrsat.lrj:$.strings.[0].value
+msgctxt "tfrmrsat.action_options.caption"
+msgid "Options"
+msgstr "选项"
+
+#: ufrmrsat.lrj:$.strings.[5].value
+msgctxt "tfrmrsat.action_properties.caption"
+msgid "Properties"
+msgstr "属性"
+
+#: ufrmrsatoptions.lrj:$.strings.[3].value
+#, fuzzy
+#| msgctxt "tfrmrsatoptions.combobox3.text"
+#| msgid "False"
+msgctxt "tfrmrsatoption.combobox3.text"
+msgid "False"
+msgstr "否"
+
+#: ufrmrsatoptions.lrj:$.strings.[0].value
+#, fuzzy
+#| msgctxt "tfrmrsatoptions.label1.caption"
+#| msgid "Theme"
+msgctxt "tfrmrsatoption.label1.caption"
+msgid "Theme"
+msgstr "主题"
+
+#: ufrmrsatoptions.lrj:$.strings.[1].value
+#, fuzzy
+#| msgctxt "tfrmrsatoptions.label2.caption"
+#| msgid "Lang"
+msgctxt "tfrmrsatoption.label2.caption"
+msgid "Lang"
+msgstr "语言"
+
+#: ufrmrsatoptions.lrj:$.strings.[2].value
+#, fuzzy
+#| msgctxt "tfrmrsatoptions.label3.caption"
+#| msgid "AdvancedView"
+msgctxt "tfrmrsatoption.label3.caption"
+msgid "AdvancedView"
+msgstr "高级视图"
+
+#: uvisaddaces.lrj:$.strings.[32].value
+msgctxt "tvisaddaces.action_add.caption"
+msgid "Add"
+msgstr "添加"
+
+#: uvisaddaces.lrj:$.strings.[35].value
+msgctxt "tvisaddaces.action_clear.caption"
+msgid "Clear"
+msgstr "清除"
+
+#: uvisaddaces.lrj:$.strings.[33].value
+msgctxt "tvisaddaces.action_delete.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: uvisaddaces.lrj:$.strings.[34].value
+msgctxt "tvisaddaces.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvisaddaces.lrj:$.strings.[36].value
+msgctxt "tvisaddaces.action_replace.caption"
+msgid "Replace"
+msgstr "Replace"
+
+#: uvisaddaces.lrj:$.strings.[31].value
+msgctxt "tvisaddaces.bitbtn_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisaddaces.lrj:$.strings.[3].value
+msgctxt "tvisaddaces.checkbox_cc.caption"
+msgid "Create Child"
+msgstr "创建子对象"
+
+#: uvisaddaces.lrj:$.strings.[18].value
+msgctxt "tvisaddaces.checkbox_ci.caption"
+msgid "Container Inherited"
+msgstr "容器继承"
+
+#: uvisaddaces.lrj:$.strings.[11].value
+msgctxt "tvisaddaces.checkbox_cr.caption"
+msgid "Control Access"
+msgstr "控制访问"
+
+#: uvisaddaces.lrj:$.strings.[4].value
+msgctxt "tvisaddaces.checkbox_dc.caption"
+msgid "Delete Child"
+msgstr "删除子对象"
+
+#: uvisaddaces.lrj:$.strings.[9].value
+msgctxt "tvisaddaces.checkbox_dt.caption"
+msgid "Delete Tree"
+msgstr "删除树"
+
+#: uvisaddaces.lrj:$.strings.[19].value
+msgctxt "tvisaddaces.checkbox_io.caption"
+msgid "Inherit Only"
+msgstr "仅继承"
+
+#: uvisaddaces.lrj:$.strings.[5].value
+msgctxt "tvisaddaces.checkbox_lc.caption"
+msgid "List Children"
+msgstr "列出子对象"
+
+#: uvisaddaces.lrj:$.strings.[10].value
+msgctxt "tvisaddaces.checkbox_lo.caption"
+msgid "List Object"
+msgstr "列出对象"
+
+#: uvisaddaces.lrj:$.strings.[20].value
+msgctxt "tvisaddaces.checkbox_np.caption"
+msgid "No Propagate"
+msgstr "不传播"
+
+#: uvisaddaces.lrj:$.strings.[17].value
+msgctxt "tvisaddaces.checkbox_oi.caption"
+msgid "Object Inherited"
+msgstr "对象继承"
+
+#: uvisaddaces.lrj:$.strings.[13].value
+msgctxt "tvisaddaces.checkbox_rc.caption"
+msgid "Read Control"
+msgstr "读取控制"
+
+#: uvisaddaces.lrj:$.strings.[7].value
+msgctxt "tvisaddaces.checkbox_rp.caption"
+msgid "Read Property"
+msgstr "读取属性"
+
+#: uvisaddaces.lrj:$.strings.[12].value
+msgctxt "tvisaddaces.checkbox_sd.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: uvisaddaces.lrj:$.strings.[6].value
+msgctxt "tvisaddaces.checkbox_sw.caption"
+msgid "Self Write"
+msgstr "自写入"
+
+#: uvisaddaces.lrj:$.strings.[14].value
+msgctxt "tvisaddaces.checkbox_wd.caption"
+msgid "Write Dac"
+msgstr "写入 DACL"
+
+#: uvisaddaces.lrj:$.strings.[15].value
+msgctxt "tvisaddaces.checkbox_wo.caption"
+msgid "Write Owner"
+msgstr "写入所有者"
+
+#: uvisaddaces.lrj:$.strings.[8].value
+msgctxt "tvisaddaces.checkbox_wp.caption"
+msgid "Write Property"
+msgstr "写入属性"
+
+#: uvisaddaces.lrj:$.strings.[2].value
+msgctxt "tvisaddaces.checkgroup_access.caption"
+msgid "Access"
+msgstr "Access"
+
+#: uvisaddaces.lrj:$.strings.[16].value
+msgctxt "tvisaddaces.checkgroup_inheritance.caption"
+msgid "Inheritance"
+msgstr "Inheritance"
+
+#: uvisaddaces.lrj:$.strings.[22].value
+msgctxt "tvisaddaces.label_inheritance.caption"
+msgid "Inheritance:"
+msgstr "Inheritance："
+
+#: uvisaddaces.lrj:$.strings.[21].value
+msgctxt "tvisaddaces.label_property.caption"
+msgid "Target Property :"
+msgstr "Target Property ："
+
+#: uvisaddaces.lrj:$.strings.[0].value
+msgctxt "tvisaddaces.label_title.caption"
+msgid "Create and add new Rights (ACEs) :"
+msgstr "创建并添加新的权限 (ACE)："
+
+#: uvisaddaces.lrj:$.strings.[1].value
+msgctxt "tvisaddaces.label_trustee.caption"
+msgid "Trustee :"
+msgstr "Trustee ："
+
+#: uvisaddaces.lrj:$.strings.[23].value
+msgctxt "tvisaddaces.radiobutton_allow.caption"
+msgid "Allow"
+msgstr "允许"
+
+#: uvisaddaces.lrj:$.strings.[24].value
+msgctxt "tvisaddaces.radiobutton_deny.caption"
+msgid "Deny"
+msgstr "拒绝"
+
+#: uvisaddaces.lrj:$.strings.[25].value
+msgctxt "tvisaddaces.tisgrid1.header.columns[0].text"
+msgid "Type"
+msgstr "类型"
+
+#: uvisaddaces.lrj:$.strings.[26].value
+msgctxt "tvisaddaces.tisgrid1.header.columns[1].text"
+msgid "Trustee"
+msgstr "Trustee"
+
+#: uvisaddaces.lrj:$.strings.[27].value
+msgctxt "tvisaddaces.tisgrid1.header.columns[2].text"
+msgid "Access"
+msgstr "Access"
+
+#: uvisaddaces.lrj:$.strings.[28].value
+msgctxt "tvisaddaces.tisgrid1.header.columns[3].text"
+msgid "Target Property"
+msgstr "目标属性"
+
+#: uvisaddaces.lrj:$.strings.[29].value
+msgctxt "tvisaddaces.tisgrid1.header.columns[4].text"
+msgid "Applies to"
+msgstr "应用于"
+
+#: uvisaddaces.lrj:$.strings.[30].value
+msgctxt "tvisaddaces.tisgrid1.header.columns[5].text"
+msgid "Inherit to"
+msgstr "继承到"
+
+#: uvisadvancedsecurity.lrj:$.strings.[44].value
+msgctxt "tvisadvancedsecurity.action_addace.caption"
+msgid "Add"
+msgstr "添加"
+
+#: uvisadvancedsecurity.lrj:$.strings.[49].value
+msgctxt "tvisadvancedsecurity.action_apply.caption"
+msgid "Apply"
+msgstr "应用"
+
+#: uvisadvancedsecurity.lrj:$.strings.[48].value
+msgctxt "tvisadvancedsecurity.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisadvancedsecurity.lrj:$.strings.[45].value
+msgctxt "tvisadvancedsecurity.action_deleteace.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: uvisadvancedsecurity.lrj:$.strings.[46].value
+msgctxt "tvisadvancedsecurity.action_editace.caption"
+msgid "Edit"
+msgstr "编辑"
+
+#: uvisadvancedsecurity.lrj:$.strings.[47].value
+msgctxt "tvisadvancedsecurity.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvisadvancedsecurity.lrj:$.strings.[50].value
+msgctxt "tvisadvancedsecurity.action_restore.caption"
+msgid "Restore default"
+msgstr "恢复默认值"
+
+#: uvisadvancedsecurity.lrj:$.strings.[0].value
+msgctxt "tvisadvancedsecurity.caption"
+msgid "Advanced Security Settings"
+msgstr "高级安全设置"
+
+#: uvisadvancedsecurity.lrj:$.strings.[20].value
+msgctxt "tvisadvancedsecurity.checkbox_dc.caption"
+msgid "DACL Computed Inheritance Required"
+msgstr "需要计算 DACL 继承"
+
+#: uvisadvancedsecurity.lrj:$.strings.[19].value
+msgctxt "tvisadvancedsecurity.checkbox_dc.hint"
+msgid "DC"
+msgstr "DC"
+
+#: uvisadvancedsecurity.lrj:$.strings.[30].value
+msgctxt "tvisadvancedsecurity.checkbox_dd.caption"
+msgid "DACL Defaulted"
+msgstr "DACL 默认"
+
+#: uvisadvancedsecurity.lrj:$.strings.[29].value
+msgctxt "tvisadvancedsecurity.checkbox_dd.hint"
+msgid "DD"
+msgstr "DD"
+
+#: uvisadvancedsecurity.lrj:$.strings.[16].value
+msgctxt "tvisadvancedsecurity.checkbox_di.caption"
+msgid "DACL Auto-inherited"
+msgstr "DACL 自动继承"
+
+#: uvisadvancedsecurity.lrj:$.strings.[15].value
+msgctxt "tvisadvancedsecurity.checkbox_di.hint"
+msgid "DI"
+msgstr "DI"
+
+#: uvisadvancedsecurity.lrj:$.strings.[32].value
+msgctxt "tvisadvancedsecurity.checkbox_dp.caption"
+msgid "DACL Present"
+msgstr "存在 DACL"
+
+#: uvisadvancedsecurity.lrj:$.strings.[31].value
+msgctxt "tvisadvancedsecurity.checkbox_dp.hint"
+msgid "DP"
+msgstr "DP"
+
+#: uvisadvancedsecurity.lrj:$.strings.[24].value
+msgctxt "tvisadvancedsecurity.checkbox_dt.caption"
+msgid "DACL Trusted"
+msgstr "DACL 受信任"
+
+#: uvisadvancedsecurity.lrj:$.strings.[23].value
+msgctxt "tvisadvancedsecurity.checkbox_dt.hint"
+msgid "DT"
+msgstr "DT"
+
+#: uvisadvancedsecurity.lrj:$.strings.[34].value
+msgctxt "tvisadvancedsecurity.checkbox_gd.caption"
+msgid "Group Defaulted"
+msgstr "组默认"
+
+#: uvisadvancedsecurity.lrj:$.strings.[33].value
+msgctxt "tvisadvancedsecurity.checkbox_gd.hint"
+msgid "GD"
+msgstr "GD"
+
+#: uvisadvancedsecurity.lrj:$.strings.[36].value
+msgctxt "tvisadvancedsecurity.checkbox_od.caption"
+msgid "Owner Defaulted"
+msgstr "所有者默认"
+
+#: uvisadvancedsecurity.lrj:$.strings.[35].value
+msgctxt "tvisadvancedsecurity.checkbox_od.hint"
+msgid "OD"
+msgstr "OD"
+
+#: uvisadvancedsecurity.lrj:$.strings.[12].value
+msgctxt "tvisadvancedsecurity.checkbox_pd.caption"
+msgid "DACL Protected"
+msgstr "DACL 受保护"
+
+#: uvisadvancedsecurity.lrj:$.strings.[11].value
+msgctxt "tvisadvancedsecurity.checkbox_pd.hint"
+msgid "PD"
+msgstr "PD"
+
+#: uvisadvancedsecurity.lrj:$.strings.[10].value
+msgctxt "tvisadvancedsecurity.checkbox_ps.caption"
+msgid "SACL Protected"
+msgstr "SACL 受保护"
+
+#: uvisadvancedsecurity.lrj:$.strings.[9].value
+msgctxt "tvisadvancedsecurity.checkbox_ps.hint"
+msgid "PS"
+msgstr "PS"
+
+#: uvisadvancedsecurity.lrj:$.strings.[3].value
+msgctxt "tvisadvancedsecurity.checkbox_raw.caption"
+msgid "View raw data"
+msgstr "查看原始数据"
+
+#: uvisadvancedsecurity.lrj:$.strings.[8].value
+msgctxt "tvisadvancedsecurity.checkbox_rm.caption"
+msgid "Control Valid"
+msgstr "控制有效"
+
+#: uvisadvancedsecurity.lrj:$.strings.[7].value
+msgctxt "tvisadvancedsecurity.checkbox_rm.hint"
+msgid "RM"
+msgstr "RM"
+
+#: uvisadvancedsecurity.lrj:$.strings.[18].value
+msgctxt "tvisadvancedsecurity.checkbox_sc.caption"
+msgid "SACL Computed Inheritance Required"
+msgstr "需要计算 SACL 继承"
+
+#: uvisadvancedsecurity.lrj:$.strings.[17].value
+msgctxt "tvisadvancedsecurity.checkbox_sc.hint"
+msgid "SC"
+msgstr "SC"
+
+#: uvisadvancedsecurity.lrj:$.strings.[26].value
+msgctxt "tvisadvancedsecurity.checkbox_sd.caption"
+msgid "SACL Defaulted"
+msgstr "SACL 默认"
+
+#: uvisadvancedsecurity.lrj:$.strings.[25].value
+msgctxt "tvisadvancedsecurity.checkbox_sd.hint"
+msgid "SD"
+msgstr "SD"
+
+#: uvisadvancedsecurity.lrj:$.strings.[14].value
+msgctxt "tvisadvancedsecurity.checkbox_si.caption"
+msgid "SACL Auto-inherited"
+msgstr "SACL 自动继承"
+
+#: uvisadvancedsecurity.lrj:$.strings.[13].value
+msgctxt "tvisadvancedsecurity.checkbox_si.hint"
+msgid "SI"
+msgstr "SI"
+
+#: uvisadvancedsecurity.lrj:$.strings.[28].value
+msgctxt "tvisadvancedsecurity.checkbox_sp.caption"
+msgid "SACL Present"
+msgstr "存在 SACL"
+
+#: uvisadvancedsecurity.lrj:$.strings.[27].value
+msgctxt "tvisadvancedsecurity.checkbox_sp.hint"
+msgid "SP"
+msgstr "SP"
+
+#: uvisadvancedsecurity.lrj:$.strings.[6].value
+msgctxt "tvisadvancedsecurity.checkbox_sr.caption"
+msgid "Self-Relative"
+msgstr "Self-Relative"
+
+#: uvisadvancedsecurity.lrj:$.strings.[5].value
+msgctxt "tvisadvancedsecurity.checkbox_sr.hint"
+msgid "SR"
+msgstr "SR"
+
+#: uvisadvancedsecurity.lrj:$.strings.[22].value
+msgctxt "tvisadvancedsecurity.checkbox_ss.caption"
+msgid "Server Security"
+msgstr "服务器安全"
+
+#: uvisadvancedsecurity.lrj:$.strings.[21].value
+msgctxt "tvisadvancedsecurity.checkbox_ss.hint"
+msgid "SS"
+msgstr "SS"
+
+#: uvisadvancedsecurity.lrj:$.strings.[4].value
+msgctxt "tvisadvancedsecurity.checkgroup_aclflags.caption"
+msgid "ACL Flags"
+msgstr "ACL 标志"
+
+#: uvisadvancedsecurity.lrj:$.strings.[2].value
+msgctxt "tvisadvancedsecurity.label_group.caption"
+msgid "Group:"
+msgstr "Group："
+
+#: uvisadvancedsecurity.lrj:$.strings.[1].value
+msgctxt "tvisadvancedsecurity.label_owner.caption"
+msgid "Owner:"
+msgstr "Owner："
+
+#: uvisadvancedsecurity.lrj:$.strings.[37].value
+msgctxt "tvisadvancedsecurity.tisgrid_acl.header.columns[0].text"
+msgid "Type"
+msgstr "类型"
+
+#: uvisadvancedsecurity.lrj:$.strings.[38].value
+msgctxt "tvisadvancedsecurity.tisgrid_acl.header.columns[1].text"
+msgid "Trustee"
+msgstr "Trustee"
+
+#: uvisadvancedsecurity.lrj:$.strings.[39].value
+msgctxt "tvisadvancedsecurity.tisgrid_acl.header.columns[2].text"
+msgid "Access"
+msgstr "Access"
+
+#: uvisadvancedsecurity.lrj:$.strings.[40].value
+msgctxt "tvisadvancedsecurity.tisgrid_acl.header.columns[3].text"
+msgid "Target property"
+msgstr "目标属性"
+
+#: uvisadvancedsecurity.lrj:$.strings.[41].value
+msgctxt "tvisadvancedsecurity.tisgrid_acl.header.columns[4].text"
+msgid "Applies to"
+msgstr "应用于"
+
+#: uvisadvancedsecurity.lrj:$.strings.[42].value
+msgctxt "tvisadvancedsecurity.tisgrid_acl.header.columns[5].text"
+msgid "Inherit to"
+msgstr "继承到"
+
+#: uvisadvancedsecurity.lrj:$.strings.[43].value
+msgctxt "tvisadvancedsecurity.tisgrid_acl.header.columns[6].text"
+msgid "Inherited from"
+msgstr "继承自"
+
+#: uvisattributeeditor.lrj:$.strings.[11].value
+msgctxt "tvisattributeeditor.action_add.caption"
+msgid "Add"
+msgstr "添加"
+
+#: uvisattributeeditor.lrj:$.strings.[10].value
+msgctxt "tvisattributeeditor.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisattributeeditor.lrj:$.strings.[12].value
+msgctxt "tvisattributeeditor.action_delete.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: uvisattributeeditor.lrj:$.strings.[14].value
+msgctxt "tvisattributeeditor.action_down.caption"
+msgid "Move down"
+msgstr "下移"
+
+#: uvisattributeeditor.lrj:$.strings.[9].value
+msgctxt "tvisattributeeditor.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvisattributeeditor.lrj:$.strings.[13].value
+msgctxt "tvisattributeeditor.action_up.caption"
+msgid "Move up"
+msgstr "上移"
+
+#: uvisattributeeditor.lrj:$.strings.[7].value
+msgctxt "tvisattributeeditor.datetimepicker1.textfornulldate"
+msgid "NULL"
+msgstr "NULL"
+
+#: uvisattributeeditor.lrj:$.strings.[4].value
+msgctxt "tvisattributeeditor.label1.caption"
+msgid "Values:"
+msgstr "Values："
+
+#: uvisattributeeditor.lrj:$.strings.[6].value
+msgctxt "tvisattributeeditor.label2.caption"
+msgid "Date:"
+msgstr "Date："
+
+#: uvisattributeeditor.lrj:$.strings.[1].value
+msgctxt "tvisattributeeditor.label_string.caption"
+msgid "Value:"
+msgstr "Value："
+
+#: uvisattributeeditor.lrj:$.strings.[3].value
+msgctxt "tvisattributeeditor.label_stringlist.caption"
+msgid "Value to add:"
+msgstr "要添加的值："
+
+#: uvischangedn.lrj:$.strings.[2].value
+msgctxt "tvischangedn.bitbtn_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvischangedn.lrj:$.strings.[1].value
+msgctxt "tvischangedn.bitbtn_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvischangedn.lrj:$.strings.[0].value
+msgctxt "tvischangedn.caption"
+msgid "Change DN"
+msgstr "更改 DN"
+
+#: uvischangedomaincontroller.lrj:$.strings.[13].value
+msgctxt "tvischangedomaincontroller.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvischangedomaincontroller.lrj:$.strings.[12].value
+msgctxt "tvischangedomaincontroller.bitbtn_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvischangedomaincontroller.lrj:$.strings.[0].value
+msgctxt "tvischangedomaincontroller.caption"
+msgid "Change Directory Server"
+msgstr "更改目录服务器"
+
+#: uvischangedomaincontroller.lrj:$.strings.[11].value
+msgctxt "tvischangedomaincontroller.checkbox1.caption"
+msgid "Save this setting for the current console"
+msgstr "为当前控制台保存此设置"
+
+#: uvischangedomaincontroller.lrj:$.strings.[1].value
+msgctxt "tvischangedomaincontroller.label1.caption"
+msgid "Current Directory Server:"
+msgstr "当前目录服务器："
+
+#: uvischangedomaincontroller.lrj:$.strings.[2].value
+msgctxt "tvischangedomaincontroller.label2.caption"
+msgid "<Empty>"
+msgstr "<空>"
+
+#: uvischangedomaincontroller.lrj:$.strings.[3].value
+msgctxt "tvischangedomaincontroller.label3.caption"
+msgid "Change to:"
+msgstr "更改为："
+
+#: uvischangedomaincontroller.lrj:$.strings.[4].value
+msgctxt "tvischangedomaincontroller.radiobutton1.caption"
+msgid "Any writable Domain Controller"
+msgstr "任意可写域控制器"
+
+#: uvischangedomaincontroller.lrj:$.strings.[5].value
+msgctxt "tvischangedomaincontroller.radiobutton2.caption"
+msgid "This Domain Controller or AD LDS instance"
+msgstr "此域控制器或 AD LDS 实例"
+
+#: uvischangedomaincontroller.lrj:$.strings.[6].value
+msgctxt "tvischangedomaincontroller.tisgrid1.header.columns[0].text"
+msgid "Name"
+msgstr "名称"
+
+#: uvischangedomaincontroller.lrj:$.strings.[7].value
+msgctxt "tvischangedomaincontroller.tisgrid1.header.columns[1].text"
+msgid "Site"
+msgstr "站点"
+
+#: uvischangedomaincontroller.lrj:$.strings.[8].value
+msgctxt "tvischangedomaincontroller.tisgrid1.header.columns[2].text"
+msgid "DC Type"
+msgstr "域控制器类型"
+
+#: uvischangedomaincontroller.lrj:$.strings.[9].value
+msgctxt "tvischangedomaincontroller.tisgrid1.header.columns[3].text"
+msgid "DC Version"
+msgstr "DC 版本"
+
+#: uvischangedomaincontroller.lrj:$.strings.[10].value
+msgctxt "tvischangedomaincontroller.tisgrid1.header.columns[4].text"
+msgid "Status"
+msgstr "状态"
+
+#: uvischangepartition.lrj:$.strings.[1].value
+msgctxt "tvischangepartition.bitbtn1.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvischangepartition.lrj:$.strings.[2].value
+msgctxt "tvischangepartition.bitbtn2.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvischangepartition.lrj:$.strings.[0].value
+msgctxt "tvischangepartition.caption"
+msgid "Change partition"
+msgstr "更改分区"
+
+#: uvisconnectiondetails.lrj:$.strings.[11].value
+msgctxt "tvisconnectiondetails.bitbtn1.caption"
+msgid "Hide/Show"
+msgstr "隐藏/显示"
+
+#: uvisconnectiondetails.lrj:$.strings.[0].value
+msgctxt "tvisconnectiondetails.caption"
+msgid "Connection details"
+msgstr "连接详细信息"
+
+#: uvisconnectiondetails.lrj:$.strings.[18].value
+msgctxt "tvisconnectiondetails.label1.caption"
+msgid "Server informations (available from RootDSE Object)"
+msgstr "服务器信息（可从 RootDSE 对象获取）"
+
+#: uvisconnectiondetails.lrj:$.strings.[10].value
+msgctxt "tvisconnectiondetails.label2.caption"
+msgid "Ldap error:"
+msgstr "Ldap error："
+
+#: uvisconnectiondetails.lrj:$.strings.[6].value
+msgctxt "tvisconnectiondetails.label_allowunsafepasswordbind.caption"
+msgid "Allow unsafe password bind"
+msgstr "允许不安全的密码绑定"
+
+#: uvisconnectiondetails.lrj:$.strings.[9].value
+msgctxt "tvisconnectiondetails.label_autobind.caption"
+msgid "Auto bind"
+msgstr "自动绑定"
+
+#: uvisconnectiondetails.lrj:$.strings.[8].value
+msgctxt "tvisconnectiondetails.label_autoreconnect.caption"
+msgid "Auto reconnect"
+msgstr "自动重新连接"
+
+#: uvisconnectiondetails.lrj:$.strings.[12].value
+msgctxt "tvisconnectiondetails.label_domain.caption"
+msgid "Domain"
+msgstr "域"
+
+#: uvisconnectiondetails.lrj:$.strings.[13].value
+msgctxt "tvisconnectiondetails.label_domaincontroller.caption"
+msgid "Domain Controller"
+msgstr "域控制器"
+
+#: uvisconnectiondetails.lrj:$.strings.[7].value
+msgctxt "tvisconnectiondetails.label_kerberosdisablechannelbinding.caption"
+msgid "Kerberos disable channel binding"
+msgstr "Kerberos 禁用通道绑定"
+
+#: uvisconnectiondetails.lrj:$.strings.[4].value
+msgctxt "tvisconnectiondetails.label_kerberosspn.caption"
+msgid "KerberosSPN"
+msgstr "KerberosSPN"
+
+#: uvisconnectiondetails.lrj:$.strings.[2].value
+msgctxt "tvisconnectiondetails.label_password.caption"
+msgid "Password"
+msgstr "密码"
+
+#: uvisconnectiondetails.lrj:$.strings.[3].value
+msgctxt "tvisconnectiondetails.label_timeout.caption"
+msgid "Timeout"
+msgstr "超时"
+
+#: uvisconnectiondetails.lrj:$.strings.[5].value
+msgctxt "tvisconnectiondetails.label_tls.caption"
+msgid "TLS"
+msgstr "TLS"
+
+#: uvisconnectiondetails.lrj:$.strings.[1].value
+msgctxt "tvisconnectiondetails.label_username.caption"
+msgid "Username"
+msgstr "用户名"
+
+#: uvisconnectiondetails.lrj:$.strings.[15].value
+msgctxt "tvisconnectiondetails.tabsheet_advanced.caption"
+msgid "Advanced"
+msgstr "高级"
+
+#: uvisconnectiondetails.lrj:$.strings.[14].value
+msgctxt "tvisconnectiondetails.tabsheet_formatted.caption"
+msgid "Formatted"
+msgstr "Formatted"
+
+#: uvisconnectiondetails.lrj:$.strings.[16].value
+msgctxt "tvisconnectiondetails.tisgrid1.header.columns[0].text"
+msgid "Name"
+msgstr "名称"
+
+#: uvisconnectiondetails.lrj:$.strings.[17].value
+msgctxt "tvisconnectiondetails.tisgrid1.header.columns[1].text"
+msgid "Value"
+msgstr "值"
+
+#: uvisconnectoptions.lrj:$.strings.[17].value
+msgctxt "tvisconnectoptions.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisconnectoptions.lrj:$.strings.[15].value
+msgctxt "tvisconnectoptions.action_check.caption"
+msgid "Check"
+msgstr "Check"
+
+#: uvisconnectoptions.lrj:$.strings.[16].value
+msgctxt "tvisconnectoptions.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvisconnectoptions.lrj:$.strings.[0].value
+msgctxt "tvisconnectoptions.caption"
+msgid "Connection Options"
+msgstr "连接选项"
+
+#: uvisconnectoptions.lrj:$.strings.[10].value
+msgctxt "tvisconnectoptions.cbignorecerterrors.caption"
+msgid "Ignore certificate errors"
+msgstr "忽略证书错误"
+
+#: uvisconnectoptions.lrj:$.strings.[14].value
+msgctxt "tvisconnectoptions.checkbox_anonyme.caption"
+msgid "Anonymous Connection"
+msgstr "匿名连接"
+
+#: uvisconnectoptions.lrj:$.strings.[9].value
+msgctxt "tvisconnectoptions.checkbox_sasl.caption"
+msgid "SASL"
+msgstr "SASL"
+
+#: uvisconnectoptions.lrj:$.strings.[6].value
+msgctxt "tvisconnectoptions.checkbox_tls.caption"
+msgid "TLS"
+msgstr "TLS"
+
+#: uvisconnectoptions.lrj:$.strings.[11].value
+msgctxt "tvisconnectoptions.group_account.caption"
+msgid "Account :"
+msgstr "Account ："
+
+#: uvisconnectoptions.lrj:$.strings.[1].value
+msgctxt "tvisconnectoptions.group_connection.caption"
+msgid "Connection :"
+msgstr "Connection ："
+
+#: uvisconnectoptions.lrj:$.strings.[5].value
+msgctxt "tvisconnectoptions.label_dc.caption"
+msgid "Domain Controller"
+msgstr "域控制器"
+
+#: uvisconnectoptions.lrj:$.strings.[13].value
+msgctxt "tvisconnectoptions.label_password.caption"
+msgid "Password :"
+msgstr "密码："
+
+#: uvisconnectoptions.lrj:$.strings.[3].value
+msgctxt "tvisconnectoptions.label_port.caption"
+msgid "Port :"
+msgstr "Port ："
+
+#: uvisconnectoptions.lrj:$.strings.[2].value
+msgctxt "tvisconnectoptions.label_targethost.caption"
+msgid "Domain :"
+msgstr "Domain ："
+
+#: uvisconnectoptions.lrj:$.strings.[12].value
+msgctxt "tvisconnectoptions.label_user.caption"
+msgid "User :"
+msgstr "User ："
+
+#: uvisconnectoptions.lrj:$.strings.[8].value
+msgctxt "tvisconnectoptions.radiobutton_gssapi.caption"
+msgid "GSS-API"
+msgstr "GSS-API"
+
+#: uvisconnectoptions.lrj:$.strings.[7].value
+msgctxt "tvisconnectoptions.radiobutton_simpleauth.caption"
+msgid "Simple Authentication"
+msgstr "简单身份验证"
+
+#: uvisdelegatecontrol.lrj:$.strings.[32].value
+msgctxt "tvisdelegatecontrol.action_add.caption"
+msgid "Add..."
+msgstr "添加..."
+
+#: uvisdelegatecontrol.lrj:$.strings.[29].value
+msgctxt "tvisdelegatecontrol.action_back.caption"
+msgid "< Back"
+msgstr "< 上一步"
+
+#: uvisdelegatecontrol.lrj:$.strings.[31].value
+msgctxt "tvisdelegatecontrol.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisdelegatecontrol.lrj:$.strings.[30].value
+msgctxt "tvisdelegatecontrol.action_next.caption"
+msgid "Next >"
+msgstr "下一步 >"
+
+#: uvisdelegatecontrol.lrj:$.strings.[33].value
+msgctxt "tvisdelegatecontrol.action_remove.caption"
+msgid "Remove"
+msgstr "移除"
+
+#: uvisdelegatecontrol.lrj:$.strings.[28].value
+msgctxt "tvisdelegatecontrol.btn_finish.caption"
+msgid "Finish"
+msgstr "完成"
+
+#: uvisdelegatecontrol.lrj:$.strings.[0].value
+msgctxt "tvisdelegatecontrol.caption"
+msgid "Delegation of Control Wizard"
+msgstr "控制委派向导"
+
+#: uvisdelegatecontrol.lrj:$.strings.[19].value
+msgctxt "tvisdelegatecontrol.checkbox1.caption"
+msgid "Create selected objects in this folder"
+msgstr "在此文件夹中创建选定对象"
+
+#: uvisdelegatecontrol.lrj:$.strings.[20].value
+msgctxt "tvisdelegatecontrol.checkbox2.caption"
+msgid "Delete selected objects in this folder"
+msgstr "删除此文件夹中的选定对象"
+
+#: uvisdelegatecontrol.lrj:$.strings.[24].value
+msgctxt "tvisdelegatecontrol.checkbox3.caption"
+msgid "General"
+msgstr "常规"
+
+#: uvisdelegatecontrol.lrj:$.strings.[25].value
+msgctxt "tvisdelegatecontrol.checkbox4.caption"
+msgid "Property-specific"
+msgstr "Property-specific"
+
+#: uvisdelegatecontrol.lrj:$.strings.[26].value
+msgctxt "tvisdelegatecontrol.checkbox5.caption"
+msgid "Creation/deletion of specific child objects"
+msgstr "创建/删除特定子对象"
+
+#: uvisdelegatecontrol.lrj:$.strings.[1].value
+msgctxt "tvisdelegatecontrol.label1.caption"
+msgid "Welcome to the Delegation of Control Wizard"
+msgstr "欢迎使用控制委派向导"
+
+#: uvisdelegatecontrol.lrj:$.strings.[12].value
+msgctxt "tvisdelegatecontrol.label10.caption"
+msgid "You have successfully completed the Delegation of Control wizard."
+msgstr "你已成功完成控制委派向导。"
+
+#: uvisdelegatecontrol.lrj:$.strings.[13].value
+msgctxt "tvisdelegatecontrol.label11.caption"
+msgid "To close this wizard, click Finish."
+msgstr "若要关闭此向导，请单击“完成”。"
+
+#: uvisdelegatecontrol.lrj:$.strings.[14].value
+msgctxt "tvisdelegatecontrol.label12.caption"
+msgid "Active Directory Object Type"
+msgstr "Active Directory 对象类型"
+
+#: uvisdelegatecontrol.lrj:$.strings.[15].value
+msgctxt "tvisdelegatecontrol.label13.caption"
+msgid "Indicate the scope of the task you want to delegate."
+msgstr "指定要委派任务的范围。"
+
+#: uvisdelegatecontrol.lrj:$.strings.[16].value
+msgctxt "tvisdelegatecontrol.label14.caption"
+msgid "Delegate control of:"
+msgstr "委派控制对象："
+
+#: uvisdelegatecontrol.lrj:$.strings.[21].value
+msgctxt "tvisdelegatecontrol.label15.caption"
+msgid "Permissions"
+msgstr "Permissions"
+
+#: uvisdelegatecontrol.lrj:$.strings.[22].value
+msgctxt "tvisdelegatecontrol.label16.caption"
+msgid "Select the permissions you want to delegate."
+msgstr "选择要委派的权限。"
+
+#: uvisdelegatecontrol.lrj:$.strings.[23].value
+msgctxt "tvisdelegatecontrol.label17.caption"
+msgid "Show these permissions:"
+msgstr "显示这些权限："
+
+#: uvisdelegatecontrol.lrj:$.strings.[27].value
+msgctxt "tvisdelegatecontrol.label18.caption"
+msgid "Permissions:"
+msgstr "Permissions："
+
+#: uvisdelegatecontrol.lrj:$.strings.[2].value
+msgctxt "tvisdelegatecontrol.label2.caption"
+msgid ""
+"This wizard helps you delegate control of Active Directory objects. You can "
+"grant users permission to manage users, groups, computers, organizational "
+"units, and other objects stored in Active Directory Domain Services."
+msgstr "此向导帮助你委派 Active Directory 对象的控制权。你可以授予用户管理 Active Directory 域服务中用户、组、计算机、组织单位和其他对象的权限。"
+
+#: uvisdelegatecontrol.lrj:$.strings.[3].value
+msgctxt "tvisdelegatecontrol.label3.caption"
+msgid "To continue, click Next."
+msgstr "要继续，请点击“下一步”。"
+
+#: uvisdelegatecontrol.lrj:$.strings.[6].value
+msgctxt "tvisdelegatecontrol.label4.caption"
+msgid "Selected users and groups:"
+msgstr "选定的用户和组："
+
+#: uvisdelegatecontrol.lrj:$.strings.[4].value
+msgctxt "tvisdelegatecontrol.label5.caption"
+msgid "Users and Groups"
+msgstr "用户和组"
+
+#: uvisdelegatecontrol.lrj:$.strings.[5].value
+msgctxt "tvisdelegatecontrol.label6.caption"
+msgid ""
+"Select one or more users or groups to whom you want to delegate control."
+msgstr "选择一个或多个要委派控制权的用户或组。"
+
+#: uvisdelegatecontrol.lrj:$.strings.[7].value
+msgctxt "tvisdelegatecontrol.label7.caption"
+msgid "Tasks to Delegate"
+msgstr "要委派的任务"
+
+#: uvisdelegatecontrol.lrj:$.strings.[8].value
+msgctxt "tvisdelegatecontrol.label8.caption"
+msgid "You can select common tasks or customize your own."
+msgstr "可以选择常用任务或自定义任务。"
+
+#: uvisdelegatecontrol.lrj:$.strings.[11].value
+msgctxt "tvisdelegatecontrol.label9.caption"
+msgid "Completing the Delegation of Control Wizard"
+msgstr "正在完成控制委派向导"
+
+#: uvisdelegatecontrol.lrj:$.strings.[9].value
+msgctxt "tvisdelegatecontrol.radiobutton1.caption"
+msgid "Delegate the following common tasks:"
+msgstr "Delegate the following common tasks："
+
+#: uvisdelegatecontrol.lrj:$.strings.[10].value
+msgctxt "tvisdelegatecontrol.radiobutton2.caption"
+msgid "Create a custom task to delegate"
+msgstr "创建要委派的自定义任务"
+
+#: uvisdelegatecontrol.lrj:$.strings.[17].value
+msgctxt "tvisdelegatecontrol.radiobutton3.caption"
+msgid ""
+"This folder, existing objects in this folder, and creation of new objects in "
+"this folder"
+msgstr "此文件夹、此文件夹中的现有对象，以及在此文件夹中创建的新对象"
+
+#: uvisdelegatecontrol.lrj:$.strings.[18].value
+msgctxt "tvisdelegatecontrol.radiobutton4.caption"
+msgid "Only the following objects in the folder:"
+msgstr "仅此文件夹中的以下对象："
+
+#: uvislistother.lrj:$.strings.[4].value
+msgctxt "tvislistother.action_add.caption"
+msgid "Add"
+msgstr "添加"
+
+#: uvislistother.lrj:$.strings.[5].value
+msgctxt "tvislistother.action_edit.caption"
+msgid "Edit"
+msgstr "编辑"
+
+#: uvislistother.lrj:$.strings.[7].value
+msgctxt "tvislistother.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvislistother.lrj:$.strings.[6].value
+msgctxt "tvislistother.action_remove.caption"
+msgid "Remove"
+msgstr "移除"
+
+#: uvislistother.lrj:$.strings.[3].value
+msgctxt "tvislistother.btn_bottomcancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvislistother.lrj:$.strings.[0].value
+msgctxt "tvislistother.caption"
+msgid "(Other)"
+msgstr "(其他)"
+
+#: uvislistother.lrj:$.strings.[2].value
+msgctxt "tvislistother.label_current.caption"
+msgid "Current values :"
+msgstr "当前值："
+
+#: uvislistother.lrj:$.strings.[1].value
+msgctxt "tvislistother.label_newvalue.caption"
+msgid "New value :"
+msgstr "新值："
+
+#: uvislogonhours.lrj:$.strings.[30].value
+msgctxt "tvislogonhours.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvislogonhours.lrj:$.strings.[27].value
+msgctxt "tvislogonhours.btn_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvislogonhours.lrj:$.strings.[0].value
+msgctxt "tvislogonhours.caption"
+msgid "Logon Hours"
+msgstr "登录时间"
+
+#: uvislogonhours.lrj:$.strings.[1].value
+msgctxt "tvislogonhours.label_title.caption"
+msgid "Select the allowed logon period in UTC "
+msgstr "选择允许登录的 UTC 时间段 "
+
+#: uvislogonhours.lrj:$.strings.[28].value
+msgctxt "tvislogonhours.radiobutton_allowed.caption"
+msgid "Logon Allowed"
+msgstr "允许登录"
+
+#: uvislogonhours.lrj:$.strings.[29].value
+msgctxt "tvislogonhours.radiobutton_denied.caption"
+msgid "Logon Denied"
+msgstr "拒绝登录"
+
+#: uvislogonworkstation.lrj:$.strings.[7].value
+msgctxt "tvislogonworkstation.action_add.caption"
+msgid "Add"
+msgstr "添加"
+
+#: uvislogonworkstation.lrj:$.strings.[8].value
+msgctxt "tvislogonworkstation.action_edit.caption"
+msgid "Edit"
+msgstr "编辑"
+
+#: uvislogonworkstation.lrj:$.strings.[10].value
+msgctxt "tvislogonworkstation.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvislogonworkstation.lrj:$.strings.[9].value
+msgctxt "tvislogonworkstation.action_remove.caption"
+msgid "Remove"
+msgstr "移除"
+
+#: uvislogonworkstation.lrj:$.strings.[6].value
+msgctxt "tvislogonworkstation.btn_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvislogonworkstation.lrj:$.strings.[0].value
+msgctxt "tvislogonworkstation.caption"
+msgid "Logon Workstations"
+msgstr "登录工作站"
+
+#: uvislogonworkstation.lrj:$.strings.[1].value
+msgctxt "tvislogonworkstation.label_info.caption"
+msgid ""
+"In Computer name, type the computer''s NetBIOS or Domain Name system (DNS) "
+"name."
+msgstr "在“计算机名”中输入计算机的 NetBIOS 名称或域名系统 (DNS) 名称。"
+
+#: uvislogonworkstation.lrj:$.strings.[5].value
+msgctxt "tvislogonworkstation.label_name.caption"
+msgid "Computer name :"
+msgstr "Computer name ："
+
+#: uvislogonworkstation.lrj:$.strings.[2].value
+msgctxt "tvislogonworkstation.label_title.caption"
+msgid "This user can logon to :"
+msgstr "此用户可以登录到："
+
+#: uvislogonworkstation.lrj:$.strings.[4].value
+msgctxt "tvislogonworkstation.radiobutton_all.caption"
+msgid "All computers"
+msgstr "所有计算机"
+
+#: uvislogonworkstation.lrj:$.strings.[3].value
+msgctxt "tvislogonworkstation.radiobutton_following.caption"
+msgid "The following computers"
+msgstr "以下计算机"
+
+#: uvisnewobject.lrj:$.strings.[1].value
+msgctxt "tvisnewobject.btn_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisnewobject.lrj:$.strings.[0].value
+msgctxt "tvisnewobject.label_dn.caption"
+msgid "Create in :"
+msgstr "Create in ："
+
+#: uvisnewquery.lrj:$.strings.[6].value
+msgctxt "tvisnewquery.action_ok.caption"
+msgid "Action_OK"
+msgstr "Action_OK"
+
+#: uvisnewquery.lrj:$.strings.[0].value
+msgctxt "tvisnewquery.caption"
+msgid "VisNewQuery"
+msgstr "VisNewQuery"
+
+#: uvisnewquery.lrj:$.strings.[4].value
+msgctxt "tvisnewquery.checkbox_includesubcontainers.caption"
+msgid "Include subcontainers"
+msgstr "包含子容器"
+
+#: uvisnewquery.lrj:$.strings.[2].value
+msgctxt "tvisnewquery.label_description.caption"
+msgid "Description:"
+msgstr "描述："
+
+#: uvisnewquery.lrj:$.strings.[1].value
+msgctxt "tvisnewquery.label_name.caption"
+msgid "Name:"
+msgstr "名称："
+
+#: uvisnewquery.lrj:$.strings.[3].value
+msgctxt "tvisnewquery.label_queryroot.caption"
+msgid "Query root:"
+msgstr "Query root："
+
+#: uvisnewquery.lrj:$.strings.[5].value
+msgctxt "tvisnewquery.label_querystring.caption"
+msgid "Query string:"
+msgstr "Query string："
+
+#: uvisnewresourcerecord.lrj:$.strings.[42].value
+msgctxt "tvisnewresourcerecord.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisnewresourcerecord.lrj:$.strings.[43].value
+msgctxt "tvisnewresourcerecord.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvisnewresourcerecord.lrj:$.strings.[5].value
+msgctxt "tvisnewresourcerecord.bitbtn_cnamefqdntarget.caption"
+msgid "Browse"
+msgstr "Browse"
+
+#: uvisnewresourcerecord.lrj:$.strings.[28].value
+msgctxt "tvisnewresourcerecord.bitbtn_mxbrowse.caption"
+msgid "Browse"
+msgstr "Browse"
+
+#: uvisnewresourcerecord.lrj:$.strings.[21].value
+msgctxt "tvisnewresourcerecord.bitbtn_ptrbrowse.caption"
+msgid "Browse"
+msgstr "Browse"
+
+#: uvisnewresourcerecord.lrj:$.strings.[0].value
+msgctxt "tvisnewresourcerecord.caption"
+msgid "New Record Resource"
+msgstr "新建资源记录"
+
+#: uvisnewresourcerecord.lrj:$.strings.[32].value
+msgctxt "tvisnewresourcerecord.label1.caption"
+msgid "Domain:"
+msgstr "域："
+
+#: uvisnewresourcerecord.lrj:$.strings.[33].value
+msgctxt "tvisnewresourcerecord.label2.caption"
+msgid "Service:"
+msgstr "允许任何经过身份验证的用户更新同名的所有 DNS 记录。此设置仅适用于新名称的 DNS 记录。"
+
+#: uvisnewresourcerecord.lrj:$.strings.[34].value
+msgctxt "tvisnewresourcerecord.label3.caption"
+msgid "Protocol:"
+msgstr "协议："
+
+#: uvisnewresourcerecord.lrj:$.strings.[35].value
+msgctxt "tvisnewresourcerecord.label4.caption"
+msgid "Priority:"
+msgstr "允许任何经过身份验证的用户更新同名的所有 DNS 记录。此设置仅适用于新名称的 DNS 记录。"
+
+#: uvisnewresourcerecord.lrj:$.strings.[36].value
+msgctxt "tvisnewresourcerecord.label5.caption"
+msgid "Weight:"
+msgstr "Weight："
+
+#: uvisnewresourcerecord.lrj:$.strings.[37].value
+msgctxt "tvisnewresourcerecord.label6.caption"
+msgid "Port number:"
+msgstr "Port number："
+
+#: uvisnewresourcerecord.lrj:$.strings.[38].value
+msgctxt "tvisnewresourcerecord.label7.caption"
+msgid "Host offering this service:"
+msgstr "允许任何经过身份验证的用户更新同名的所有 DNS 记录。此设置仅适用于新名称的 DNS 记录。"
+
+#: uvisnewresourcerecord.lrj:$.strings.[39].value
+msgctxt "tvisnewresourcerecord.label8.caption"
+msgid ""
+"Allow any authenticated user to update all DNS records with the same nam. "
+"This setting applies only to DNS records for a new name."
+msgstr "允许任何经过身份验证的用户更新同名的所有 DNS 记录。此设置仅适用于新名称的 DNS 记录。"
+
+#: uvisnewresourcerecord.lrj:$.strings.[16].value
+msgctxt "tvisnewresourcerecord.label_aallow.caption"
+msgid ""
+"Allow any authenticated user to update all DNS records with the same name. "
+"This setting applies only to DNS records for a new name."
+msgstr "允许任何经过身份验证的用户更新同名的所有 DNS 记录。此设置仅适用于新名称的 DNS 记录。"
+
+#: uvisnewresourcerecord.lrj:$.strings.[14].value
+msgctxt "tvisnewresourcerecord.label_adelete.caption"
+msgid "Delete this record when it becomes stale"
+msgstr "当此记录过期时删除"
+
+#: uvisnewresourcerecord.lrj:$.strings.[11].value
+msgctxt "tvisnewresourcerecord.label_afqdn.caption"
+msgid "Fully qualified domain name (FQDN):"
+msgstr "完全限定域名 (FQDN)："
+
+#: uvisnewresourcerecord.lrj:$.strings.[10].value
+msgctxt "tvisnewresourcerecord.label_ahost.caption"
+msgid "Host (uses parent domain if left blank):"
+msgstr "主机（留空则使用父域）："
+
+#: uvisnewresourcerecord.lrj:$.strings.[12].value
+msgctxt "tvisnewresourcerecord.label_aipaddress.caption"
+msgid "IP address:"
+msgstr "IP 地址："
+
+#: uvisnewresourcerecord.lrj:$.strings.[13].value
+msgctxt "tvisnewresourcerecord.label_aptr.caption"
+msgid "Update associated pointer (PTR) record"
+msgstr "Update associated pointer (PTR) 记录"
+
+#: uvisnewresourcerecord.lrj:$.strings.[15].value
+msgctxt "tvisnewresourcerecord.label_atimestamp.caption"
+msgid "Record time stamp:"
+msgstr "Record time stamp："
+
+#: uvisnewresourcerecord.lrj:$.strings.[2].value
+msgctxt "tvisnewresourcerecord.label_cnamealias.caption"
+msgid "Alias name (uses parent domain if left blank):"
+msgstr "别名（留空则使用父域）："
+
+#: uvisnewresourcerecord.lrj:$.strings.[8].value
+msgctxt "tvisnewresourcerecord.label_cnameallow.caption"
+msgid ""
+"Allow any authenticated user to update all DNS records with the same name. "
+"This setting applies only to DNS records for a new name."
+msgstr "允许任何经过身份验证的用户更新同名的所有 DNS 记录。此设置仅适用于新名称的 DNS 记录。"
+
+#: uvisnewresourcerecord.lrj:$.strings.[7].value
+msgctxt "tvisnewresourcerecord.label_cnamedelete.caption"
+msgid "Delete this record when it becomes stale"
+msgstr "当此记录过期时删除"
+
+#: uvisnewresourcerecord.lrj:$.strings.[3].value
+msgctxt "tvisnewresourcerecord.label_cnamefqdn.caption"
+msgid "Fully qualified domain name (FQDN):"
+msgstr "完全限定域名 (FQDN)："
+
+#: uvisnewresourcerecord.lrj:$.strings.[4].value
+msgctxt "tvisnewresourcerecord.label_cnamefqdntarget.caption"
+msgid "Fully qualified domain name (FQDN) for target host:"
+msgstr "目标主机的完全限定域名 (FQDN)："
+
+#: uvisnewresourcerecord.lrj:$.strings.[6].value
+msgctxt "tvisnewresourcerecord.label_cnametimestamp.caption"
+msgid "Record time stamp:"
+msgstr "Record time stamp："
+
+#: uvisnewresourcerecord.lrj:$.strings.[25].value
+msgctxt "tvisnewresourcerecord.label_mxdefault.caption"
+msgid ""
+"By default. DNS uses the parent domain name when creating a Mail Exchange "
+"record. You can specify a host or child name, but in most deployements, the "
+"above field is left blank."
+msgstr "默认情况下，DNS 在创建邮件交换器记录时使用父域名。你可以指定主机名或子域名，但在大多数部署中，上面的字段会留空。"
+
+#: uvisnewresourcerecord.lrj:$.strings.[26].value
+msgctxt "tvisnewresourcerecord.label_mxfqdn.caption"
+msgid "Fully qualified domain name (FQDN):"
+msgstr "完全限定域名 (FQDN)："
+
+#: uvisnewresourcerecord.lrj:$.strings.[24].value
+msgctxt "tvisnewresourcerecord.label_mxhost.caption"
+msgid "Host or child domain:"
+msgstr "主机或子域："
+
+#: uvisnewresourcerecord.lrj:$.strings.[27].value
+msgctxt "tvisnewresourcerecord.label_mxmailserver.caption"
+msgid "Fully qualified domain name (FQDN) of mail server:"
+msgstr "邮件服务器的完全限定域名 (FQDN)："
+
+#: uvisnewresourcerecord.lrj:$.strings.[29].value
+msgctxt "tvisnewresourcerecord.label_mxpriority.caption"
+msgid "Mail server priority:"
+msgstr "邮件服务器优先级："
+
+#: uvisnewresourcerecord.lrj:$.strings.[22].value
+msgctxt "tvisnewresourcerecord.label_ptrallowany.caption"
+msgid ""
+"Allow any authenticated user to update all DNS records with the same name. "
+"This setting applies only to DNS records for a new name."
+msgstr "允许任何经过身份验证的用户更新同名的所有 DNS 记录。此设置仅适用于新名称的 DNS 记录。"
+
+#: uvisnewresourcerecord.lrj:$.strings.[19].value
+msgctxt "tvisnewresourcerecord.label_ptrfqdn.caption"
+msgid "Fully qualified domain name (FQDN):"
+msgstr "完全限定域名 (FQDN)："
+
+#: uvisnewresourcerecord.lrj:$.strings.[18].value
+msgctxt "tvisnewresourcerecord.label_ptrhost.caption"
+msgid "Host IP Address:"
+msgstr "Host IP Address："
+
+#: uvisnewresourcerecord.lrj:$.strings.[20].value
+msgctxt "tvisnewresourcerecord.label_ptrhostname.caption"
+msgid "Host name:"
+msgstr "Host name："
+
+#: uvisnewresourcerecord.lrj:$.strings.[9].value
+msgctxt "tvisnewresourcerecord.ts_a.caption"
+msgid "Host (A)"
+msgstr "主机 (A)"
+
+#: uvisnewresourcerecord.lrj:$.strings.[1].value
+msgctxt "tvisnewresourcerecord.ts_cname.caption"
+msgid "Alias (CNAME)"
+msgstr "别名（CNAME）"
+
+#: uvisnewresourcerecord.lrj:$.strings.[23].value
+msgctxt "tvisnewresourcerecord.ts_mx.caption"
+msgid "Mail Exchanger (MX)"
+msgstr "邮件交换器（MX）"
+
+#: uvisnewresourcerecord.lrj:$.strings.[17].value
+msgctxt "tvisnewresourcerecord.ts_ptr.caption"
+msgid "Pointer (PTR)"
+msgstr "指针（PTR）"
+
+#: uvisnewresourcerecord.lrj:$.strings.[31].value
+msgctxt "tvisnewresourcerecord.ts_srv.caption"
+msgid "Service Location (SRV)"
+msgstr "服务位置（SRV）"
+
+#: uvisnewzonewizard.lrj:$.strings.[61].value
+msgctxt "tvisnewzonewizard.action_backdynamiczone.caption"
+msgid "Back"
+msgstr "返回"
+
+#: uvisnewzonewizard.lrj:$.strings.[62].value
+msgctxt "tvisnewzonewizard.action_backfinish.caption"
+msgid "Back"
+msgstr "返回"
+
+#: uvisnewzonewizard.lrj:$.strings.[63].value
+msgctxt "tvisnewzonewizard.action_backwizard.caption"
+msgid "Back"
+msgstr "返回"
+
+#: uvisnewzonewizard.lrj:$.strings.[60].value
+msgctxt "tvisnewzonewizard.action_backzonefile.caption"
+msgid "Back"
+msgstr "返回"
+
+#: uvisnewzonewizard.lrj:$.strings.[59].value
+msgctxt "tvisnewzonewizard.action_backzonename.caption"
+msgid "Back"
+msgstr "返回"
+
+#: uvisnewzonewizard.lrj:$.strings.[58].value
+msgctxt "tvisnewzonewizard.action_backzonereplicationscope.caption"
+msgid "Back"
+msgstr "返回"
+
+#: uvisnewzonewizard.lrj:$.strings.[57].value
+msgctxt "tvisnewzonewizard.action_backzonetype.caption"
+msgid "Back"
+msgstr "返回"
+
+#: uvisnewzonewizard.lrj:$.strings.[49].value
+msgctxt "tvisnewzonewizard.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisnewzonewizard.lrj:$.strings.[55].value
+msgctxt "tvisnewzonewizard.action_nextdynamiczone.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: uvisnewzonewizard.lrj:$.strings.[56].value
+msgctxt "tvisnewzonewizard.action_nextfinish.caption"
+msgid "Finish"
+msgstr "完成"
+
+#: uvisnewzonewizard.lrj:$.strings.[50].value
+msgctxt "tvisnewzonewizard.action_nextwizard.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: uvisnewzonewizard.lrj:$.strings.[54].value
+msgctxt "tvisnewzonewizard.action_nextzonefile.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: uvisnewzonewizard.lrj:$.strings.[53].value
+msgctxt "tvisnewzonewizard.action_nextzonename.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: uvisnewzonewizard.lrj:$.strings.[52].value
+msgctxt "tvisnewzonewizard.action_nextzonereplicationscope.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: uvisnewzonewizard.lrj:$.strings.[51].value
+msgctxt "tvisnewzonewizard.action_nextzonetype.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: uvisnewzonewizard.lrj:$.strings.[1].value
+msgctxt "tvisnewzonewizard.bitbtn_back.caption"
+msgid "Back"
+msgstr "返回"
+
+#: uvisnewzonewizard.lrj:$.strings.[2].value
+msgctxt "tvisnewzonewizard.bitbtn_next.caption"
+msgid "Next"
+msgstr "下一步"
+
+#: uvisnewzonewizard.lrj:$.strings.[0].value
+msgctxt "tvisnewzonewizard.caption"
+msgid "New Zone Wizard"
+msgstr "新建区域向导"
+
+#: uvisnewzonewizard.lrj:$.strings.[3].value
+msgctxt "tvisnewzonewizard.label1.caption"
+msgid "Welcome to the New Zone Wizard"
+msgstr "欢迎使用新建区域向导"
+
+#: uvisnewzonewizard.lrj:$.strings.[15].value
+msgctxt "tvisnewzonewizard.label10.caption"
+msgid ""
+"Create a copy of a zone containing inly Name Server (NS), Start of Authority "
+"(SOA), and possibly glue Host (A) records. A server containing a stub zone "
+"is not authoritative for that zone."
+msgstr "创建一个仅包含名称服务器 (NS)、起始授权机构 (SOA)，以及可能的粘附主机 (A) 记录的区域副本。包含存根区域的服务器并不是该区域的权威服务器。"
+
+#: uvisnewzonewizard.lrj:$.strings.[16].value
+msgctxt "tvisnewzonewizard.label11.caption"
+msgid ""
+"Store the zone in Active Directory (available only if DNS server is a "
+"writeable domain controller)"
+msgstr "将区域存储在 Active Directory 中（仅当 DNS 服务器是可写域控制器时可用）"
+
+#: uvisnewzonewizard.lrj:$.strings.[17].value
+msgctxt "tvisnewzonewizard.label12.caption"
+msgid "Active Directory Zone Replication Scope"
+msgstr "Active Directory 区域复制范围"
+
+#: uvisnewzonewizard.lrj:$.strings.[18].value
+msgctxt "tvisnewzonewizard.label13.caption"
+msgid ""
+"You can select how you want DNS data replicated throughout your network."
+msgstr "你可以选择 DNS 数据在整个网络中的复制方式。"
+
+#: uvisnewzonewizard.lrj:$.strings.[19].value
+msgctxt "tvisnewzonewizard.label14.caption"
+msgid "Select how you want zone data replicated:"
+msgstr "选择区域数据的复制方式："
+
+#: uvisnewzonewizard.lrj:$.strings.[20].value
+msgctxt "tvisnewzonewizard.label15.caption"
+msgid "To all DNS servers running on domain controllers in this forest:"
+msgstr "到此林中域控制器上运行的所有 DNS 服务器："
+
+#: uvisnewzonewizard.lrj:$.strings.[21].value
+msgctxt "tvisnewzonewizard.label16.caption"
+msgid "To all DNS servers running on domain controllers in this domain:"
+msgstr "到此域中域控制器上运行的所有 DNS 服务器："
+
+#: uvisnewzonewizard.lrj:$.strings.[22].value
+msgctxt "tvisnewzonewizard.label17.caption"
+msgid ""
+"To all domain controllers in this domain (for Windows 2000 compatibility):"
+msgstr "复制到此域中的所有域控制器（用于 Windows 2000 兼容性）："
+
+#: uvisnewzonewizard.lrj:$.strings.[23].value
+msgctxt "tvisnewzonewizard.label18.caption"
+msgid ""
+"To all domain controllers specified in the scoper of this directory "
+"partition:"
+msgstr "到此目录分区范围中指定的所有域控制器："
+
+#: uvisnewzonewizard.lrj:$.strings.[24].value
+msgctxt "tvisnewzonewizard.label19.caption"
+msgid "Zone Name"
+msgstr "区域名称"
+
+#: uvisnewzonewizard.lrj:$.strings.[4].value
+msgctxt "tvisnewzonewizard.label2.caption"
+msgid "This wizard helps you create a new zone for your DNS server."
+msgstr "此向导帮助你为 DNS 服务器创建新区。"
+
+#: uvisnewzonewizard.lrj:$.strings.[25].value
+msgctxt "tvisnewzonewizard.label20.caption"
+msgid "What is the name of the new zone?"
+msgstr "新区的名称是什么？"
+
+#: uvisnewzonewizard.lrj:$.strings.[26].value
+msgctxt "tvisnewzonewizard.label21.caption"
+msgid ""
+"The zone name specifies the portion of the DNS namespace for which this "
+"server is autoritative. It might be your organization's domain name (for "
+"example, example.com) or a portion of the domain name (for example, newzone."
+"example.com). The zone name is not the name of the DNS server."
+msgstr "区域名称指定 DNS 命名空间中由该服务器负责的部分。它可以是组织的域名（例如 example.com），也可以是域名的一部分（例如 newzone.example.com）。区域名称不是 DNS 服务器的名称。"
+
+#: uvisnewzonewizard.lrj:$.strings.[27].value
+msgctxt "tvisnewzonewizard.label22.caption"
+msgid "Zone name:"
+msgstr "Zone name："
+
+#: uvisnewzonewizard.lrj:$.strings.[28].value
+msgctxt "tvisnewzonewizard.label23.caption"
+msgid "Zone File"
+msgstr "区域文件"
+
+#: uvisnewzonewizard.lrj:$.strings.[29].value
+msgctxt "tvisnewzonewizard.label24.caption"
+msgid ""
+"You can create a new zone file or use a file copied from another DNS server."
+msgstr "你可以创建新的区域文件，或使用从另一台 DNS 服务器复制的文件。"
+
+#: uvisnewzonewizard.lrj:$.strings.[30].value
+msgctxt "tvisnewzonewizard.label25.caption"
+msgid ""
+"Do you want to create a new zone file or use an existing file that you have "
+"copied from another DNS server?"
+msgstr "要创建新的区域文件，还是使用已从另一台 DNS 服务器复制的现有文件？"
+
+#: uvisnewzonewizard.lrj:$.strings.[31].value
+msgctxt "tvisnewzonewizard.label26.caption"
+msgid ""
+"To use this existing file, ensure that it has been copied to the folder "
+"%SystemRoot%\\system32\\dns on this server, and then click Next."
+msgstr "要使用现有文件，请确保它已复制到此服务器的 %SystemRoot%\\system32\\dns 文件夹，然后单击“下一步”。"
+
+#: uvisnewzonewizard.lrj:$.strings.[32].value
+msgctxt "tvisnewzonewizard.label27.caption"
+msgid "Create a new file with this file name:"
+msgstr "使用此文件名创建新文件："
+
+#: uvisnewzonewizard.lrj:$.strings.[33].value
+msgctxt "tvisnewzonewizard.label28.caption"
+msgid "Use this existing file:"
+msgstr "Use this existing file："
+
+#: uvisnewzonewizard.lrj:$.strings.[34].value
+msgctxt "tvisnewzonewizard.label29.caption"
+msgid ""
+"You can specify that this DNS zone accepts secure, nonsecure, or no dynamic "
+"updates."
+msgstr "你可以指定此 DNS 区域接受安全动态更新、非安全动态更新，或不接受动态更新。"
+
+#: uvisnewzonewizard.lrj:$.strings.[5].value
+msgctxt "tvisnewzonewizard.label3.caption"
+msgid ""
+"A zone translates DNS names to related data, such as IP addresses or network "
+"services."
+msgstr "区域将 DNS 名称转换为相关数据，例如 IP 地址或网络服务。"
+
+#: uvisnewzonewizard.lrj:$.strings.[35].value
+msgctxt "tvisnewzonewizard.label30.caption"
+msgid "Dynamic Update"
+msgstr "动态更新"
+
+#: uvisnewzonewizard.lrj:$.strings.[36].value
+msgctxt "tvisnewzonewizard.label31.caption"
+msgid ""
+"Dynamic updates enable DNS client computers to register and dynamically "
+"update their resource records with a DNS server whenever changes occur."
+msgstr "动态更新允许 DNS 客户端计算机在发生更改时向 DNS 服务器注册并动态更新其资源记录。"
+
+#: uvisnewzonewizard.lrj:$.strings.[37].value
+msgctxt "tvisnewzonewizard.label32.caption"
+msgid "Select the type of dynamic updates you want to allow:"
+msgstr "选择允许的动态更新类型："
+
+#: uvisnewzonewizard.lrj:$.strings.[38].value
+msgctxt "tvisnewzonewizard.label33.caption"
+msgid "Allow only secure dynamic updates (recommanded for Active Directory)"
+msgstr "仅允许安全动态更新（推荐用于 Active Directory）"
+
+#: uvisnewzonewizard.lrj:$.strings.[39].value
+msgctxt "tvisnewzonewizard.label34.caption"
+msgid "This option is available only for Active Directory-integrated zones."
+msgstr "此选项仅适用于 Active Directory 集成区域。"
+
+#: uvisnewzonewizard.lrj:$.strings.[40].value
+msgctxt "tvisnewzonewizard.label35.caption"
+msgid "Allow both nonsecure and secure dynamic updates"
+msgstr "同时允许非安全和安全的动态更新"
+
+#: uvisnewzonewizard.lrj:$.strings.[41].value
+msgctxt "tvisnewzonewizard.label36.caption"
+msgid "Dynamic updates of resource records are accepted from any client."
+msgstr "接受来自任何客户端的资源记录动态更新。"
+
+#: uvisnewzonewizard.lrj:$.strings.[42].value
+msgctxt "tvisnewzonewizard.label37.caption"
+msgid ""
+"This option is a significant security vulnerability because updates can be "
+"accepted from untrusted sources."
+msgstr "此选项存在重大安全风险，因为它会接受来自不受信任来源的更新。"
+
+#: uvisnewzonewizard.lrj:$.strings.[43].value
+msgctxt "tvisnewzonewizard.label38.caption"
+msgid "Do not allow dynamic updates"
+msgstr "不允许动态更新"
+
+#: uvisnewzonewizard.lrj:$.strings.[44].value
+msgctxt "tvisnewzonewizard.label39.caption"
+msgid ""
+"Dynamic updates of resource records are not accepted by this zone. You must "
+"update these records manually."
+msgstr "此区域不接受资源记录的动态更新。必须手动更新这些记录。"
+
+#: uvisnewzonewizard.lrj:$.strings.[6].value
+msgctxt "tvisnewzonewizard.label4.caption"
+msgid "To continue, click Next."
+msgstr "创建一个仅包含名称服务器 (NS)、起始授权机构 (SOA)，以及可能的粘附主机 (A) 记录的区域副本。包含存根区域的服务器并不是该区域的权威服务器。"
+
+#: uvisnewzonewizard.lrj:$.strings.[45].value
+msgctxt "tvisnewzonewizard.label40.caption"
+msgid "Completing the New Zone Wizard"
+msgstr "正在完成新建区域向导"
+
+#: uvisnewzonewizard.lrj:$.strings.[46].value
+msgctxt "tvisnewzonewizard.label41.caption"
+msgid ""
+"You have successfully completed the New Zone Wizard. You specified the "
+"following settings:"
+msgstr "你已成功完成新建区域向导。你指定了以下设置："
+
+#: uvisnewzonewizard.lrj:$.strings.[47].value
+msgctxt "tvisnewzonewizard.label42.caption"
+msgid ""
+"Note: You should now add records to the zone or ensure that records are "
+"updated dynamically. You can then verify name resolution using nslookup."
+msgstr "注意：现在应向区域添加记录，或确保记录可动态更新。然后可以使用 nslookup 验证名称解析。"
+
+#: uvisnewzonewizard.lrj:$.strings.[48].value
+msgctxt "tvisnewzonewizard.label43.caption"
+msgid "To close this wizard and create the new zone, click Finish."
+msgstr "要关闭此向导并创建新区，请点击“完成”。"
+
+#: uvisnewzonewizard.lrj:$.strings.[7].value
+msgctxt "tvisnewzonewizard.label5.caption"
+msgid "Zone Type"
+msgstr "区域类型"
+
+#: uvisnewzonewizard.lrj:$.strings.[8].value
+msgctxt "tvisnewzonewizard.label6.caption"
+msgid "The DNS server supports various types of zones and storage."
+msgstr "DNS 服务器支持多种区域类型和存储方式。"
+
+#: uvisnewzonewizard.lrj:$.strings.[9].value
+msgctxt "tvisnewzonewizard.label7.caption"
+msgid "Select the type of zone you want to create:"
+msgstr "选择要创建的区域类型："
+
+#: uvisnewzonewizard.lrj:$.strings.[13].value
+msgctxt "tvisnewzonewizard.label8.caption"
+msgid "Creates a copy of a zone that can be updated directly on this server."
+msgstr "创建可直接在此服务器上更新的区域副本。"
+
+#: uvisnewzonewizard.lrj:$.strings.[14].value
+msgctxt "tvisnewzonewizard.label9.caption"
+msgid ""
+"Create a copy of a zone that exists on another server. This option helps "
+"balance the processing load of primary servers and provides fault tolerance."
+msgstr "创建另一个服务器上现有区域的副本。此选项有助于平衡主服务器的处理负载并提供容错能力。"
+
+#: uvisnewzonewizard.lrj:$.strings.[10].value
+msgctxt "tvisnewzonewizard.radiobutton1.caption"
+msgid "Primary zone"
+msgstr "主要区域"
+
+#: uvisnewzonewizard.lrj:$.strings.[11].value
+msgctxt "tvisnewzonewizard.radiobutton2.caption"
+msgid "Secondary zone"
+msgstr "辅助区域"
+
+#: uvisnewzonewizard.lrj:$.strings.[12].value
+msgctxt "tvisnewzonewizard.radiobutton3.caption"
+msgid "Stub zone"
+msgstr "存根区域"
+
+#: uomniselect.lrj:$.strings.[6].value
+msgctxt "tvisomniselect.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uomniselect.lrj:$.strings.[5].value
+msgctxt "tvisomniselect.button_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uomniselect.lrj:$.strings.[4].value
+msgctxt "tvisomniselect.label_search.caption"
+msgid "Search :"
+msgstr "搜索："
+
+#: uomniselect.lrj:$.strings.[1].value
+msgctxt "tvisomniselect.tisgrid_items.header.columns[0].text"
+msgid "Name"
+msgstr "名称"
+
+#: uomniselect.lrj:$.strings.[2].value
+msgctxt "tvisomniselect.tisgrid_items.header.columns[1].text"
+msgid "Description"
+msgstr "描述"
+
+#: uomniselect.lrj:$.strings.[3].value
+msgctxt "tvisomniselect.tisgrid_items.header.columns[2].text"
+msgid "Folder"
+msgstr "文件夹"
+
+#: uomniselect.lrj:$.strings.[0].value
+msgctxt "tvisomniselect.toolbutton_attributeslist.caption"
+msgid "Search selection"
+msgstr "搜索选择"
+
+#: uvisoperationmasters.lrj:$.strings.[7].value
+msgctxt "tvisoperationmasters.action_domainnamingmaster.caption"
+msgid "Change..."
+msgstr "更改..."
+
+#: uvisoperationmasters.lrj:$.strings.[10].value
+msgctxt "tvisoperationmasters.action_infrastructuremaster.caption"
+msgid "Change..."
+msgstr "更改..."
+
+#: uvisoperationmasters.lrj:$.strings.[8].value
+msgctxt "tvisoperationmasters.action_pdc.caption"
+msgid "Change..."
+msgstr "更改..."
+
+#: uvisoperationmasters.lrj:$.strings.[9].value
+msgctxt "tvisoperationmasters.action_rid.caption"
+msgid "Change..."
+msgstr "更改..."
+
+#: uvisoperationmasters.lrj:$.strings.[6].value
+msgctxt "tvisoperationmasters.action_schemamaster.caption"
+msgid "Change..."
+msgstr "更改..."
+
+#: uvisoperationmasters.lrj:$.strings.[0].value
+msgctxt "tvisoperationmasters.caption"
+msgid "Operations Masters"
+msgstr "操作主机"
+
+#: uvisoperationmasters.lrj:$.strings.[2].value
+msgctxt "tvisoperationmasters.label_domainnamingmaster.caption"
+msgid "Domain naming master"
+msgstr "域命名主机"
+
+#: uvisoperationmasters.lrj:$.strings.[5].value
+msgctxt "tvisoperationmasters.label_infrastructuremaster.caption"
+msgid "Infrastructure master"
+msgstr "基础结构主机"
+
+#: uvisoperationmasters.lrj:$.strings.[3].value
+msgctxt "tvisoperationmasters.label_pdc.caption"
+msgid "PDC"
+msgstr "PDC"
+
+#: uvisoperationmasters.lrj:$.strings.[4].value
+msgctxt "tvisoperationmasters.label_rid.caption"
+msgid "RID"
+msgstr "RID"
+
+#: uvisoperationmasters.lrj:$.strings.[1].value
+msgctxt "tvisoperationmasters.label_schemamaster.caption"
+msgid "Schema master"
+msgstr "架构主机"
+
+#: uvisoptions.lrj:$.strings.[4].value
+msgctxt "tvisoptions.action_apply.caption"
+msgid "Apply"
+msgstr "应用"
+
+#: uvisoptions.lrj:$.strings.[3].value
+msgctxt "tvisoptions.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisoptions.lrj:$.strings.[2].value
+msgctxt "tvisoptions.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvisoptions.lrj:$.strings.[1].value
+msgctxt "tvisoptions.btn_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisoptions.lrj:$.strings.[0].value
+msgctxt "tvisoptions.caption"
+msgid "Options"
+msgstr "选项"
+
+#: uvisproperties.lrj:$.strings.[0].value
+msgctxt "tvisproperties.action_apply.caption"
+msgid "Apply"
+msgstr "应用"
+
+#: uvisproperties.lrj:$.strings.[21].value
+msgctxt "tvisproperties.action_attributesbacklinks.caption"
+msgid "Backlinks"
+msgstr "反向链接"
+
+#: uvisproperties.lrj:$.strings.[20].value
+msgctxt "tvisproperties.action_attributesconstructed.caption"
+msgid "Constructed"
+msgstr "构造属性"
+
+#: uvisproperties.lrj:$.strings.[15].value
+msgctxt "tvisproperties.action_attributesfilter.caption"
+msgid "Filter"
+msgstr "筛选"
+
+#: uvisproperties.lrj:$.strings.[18].value
+msgctxt "tvisproperties.action_attributesmandatory.caption"
+msgid "Mandatory"
+msgstr "必需"
+
+#: uvisproperties.lrj:$.strings.[29].value
+msgctxt "tvisproperties.action_attributesmodify.caption"
+msgid "Modify"
+msgstr "修改"
+
+#: uvisproperties.lrj:$.strings.[19].value
+msgctxt "tvisproperties.action_attributesoptional.caption"
+msgid "Optional"
+msgstr "可选"
+
+#: uvisproperties.lrj:$.strings.[16].value
+msgctxt "tvisproperties.action_attributesshowvalues.caption"
+msgid "Show only attributes that have values"
+msgstr "仅显示有值的属性"
+
+#: uvisproperties.lrj:$.strings.[17].value
+msgctxt "tvisproperties.action_attributesshowwritable.caption"
+msgid "Show only writable attributes"
+msgstr "仅显示可写属性"
+
+#: uvisproperties.lrj:$.strings.[22].value
+msgctxt "tvisproperties.action_attributessystemonly.caption"
+msgid "System-only"
+msgstr "仅系统"
+
+#: uvisproperties.lrj:$.strings.[30].value
+msgctxt "tvisproperties.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisproperties.lrj:$.strings.[24].value
+msgctxt "tvisproperties.action_certificatecopy.caption"
+msgid "Copy to File"
+msgstr "复制到文件"
+
+#: uvisproperties.lrj:$.strings.[23].value
+msgctxt "tvisproperties.action_certificateremove.caption"
+msgid "Remove"
+msgstr "移除"
+
+#: uvisproperties.lrj:$.strings.[25].value
+msgctxt "tvisproperties.action_certificateview.caption"
+msgid "View Certificate..."
+msgstr "查看证书..."
+
+#: uvisproperties.lrj:$.strings.[27].value
+msgctxt "tvisproperties.action_lapscopypassword.caption"
+msgid "Copy password"
+msgstr "复制密码"
+
+#: uvisproperties.lrj:$.strings.[26].value
+msgctxt "tvisproperties.action_lapsexpirenow.caption"
+msgid "Expire now"
+msgstr "立即过期"
+
+#: uvisproperties.lrj:$.strings.[28].value
+msgctxt "tvisproperties.action_lapsshowpassword.caption"
+msgid "Show password"
+msgstr "显示密码"
+
+#: uvisproperties.lrj:$.strings.[4].value
+msgctxt "tvisproperties.action_managedbychange.caption"
+msgid "Change"
+msgstr "更改"
+
+#: uvisproperties.lrj:$.strings.[7].value
+msgctxt "tvisproperties.action_managedbycheckbox.caption"
+msgid "Manager can update membership list"
+msgstr "管理者可以更新成员列表"
+
+#: uvisproperties.lrj:$.strings.[6].value
+msgctxt "tvisproperties.action_managedbyclear.caption"
+msgid "Clear"
+msgstr "清除"
+
+#: uvisproperties.lrj:$.strings.[5].value
+msgctxt "tvisproperties.action_managedbyproperties.caption"
+msgid "Properties"
+msgstr "属性"
+
+#: uvisproperties.lrj:$.strings.[2].value
+msgctxt "tvisproperties.action_memberofadd.caption"
+msgid "Add"
+msgstr "添加"
+
+#: uvisproperties.lrj:$.strings.[3].value
+msgctxt "tvisproperties.action_memberofdelete.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: uvisproperties.lrj:$.strings.[8].value
+msgctxt "tvisproperties.action_membersadd.caption"
+msgid "Add..."
+msgstr "添加..."
+
+#: uvisproperties.lrj:$.strings.[9].value
+msgctxt "tvisproperties.action_membersdelete.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: uvisproperties.lrj:$.strings.[1].value
+msgctxt "tvisproperties.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvisproperties.lrj:$.strings.[14].value
+msgctxt "tvisproperties.action_organizationclear.caption"
+msgid "Clear"
+msgstr "清除"
+
+#: uvisproperties.lrj:$.strings.[13].value
+msgctxt "tvisproperties.action_organizationproperties.caption"
+msgid "Properties"
+msgstr "属性"
+
+#: uvisproperties.lrj:$.strings.[11].value
+msgctxt "tvisproperties.action_securityadduser.caption"
+msgid "Add"
+msgstr "添加"
+
+#: uvisproperties.lrj:$.strings.[10].value
+msgctxt "tvisproperties.action_securityadvanced.caption"
+msgid "Advanced"
+msgstr "高级"
+
+#: uvisproperties.lrj:$.strings.[12].value
+msgctxt "tvisproperties.action_securitydeleteuser.caption"
+msgid "Delete"
+msgstr "删除"
+
+#: uvissearch.lrj:$.strings.[29].value
+msgctxt "tvissearch.action_advadd.caption"
+msgid "Add condition"
+msgstr "添加条件"
+
+#: uvissearch.lrj:$.strings.[30].value
+msgctxt "tvissearch.action_advdel.caption"
+msgid "Delete condition"
+msgstr "删除条件"
+
+#: uvissearch.lrj:$.strings.[24].value
+msgctxt "tvissearch.action_changedn.caption"
+msgid "Change"
+msgstr "更改"
+
+#: uvissearch.lrj:$.strings.[28].value
+msgctxt "tvissearch.action_properties.caption"
+msgid "Properties"
+msgstr "属性"
+
+#: uvissearch.lrj:$.strings.[23].value
+msgctxt "tvissearch.action_search.caption"
+msgid "Search"
+msgstr "搜索"
+
+#: uvissearch.lrj:$.strings.[25].value
+msgctxt "tvissearch.action_searchfrom.caption"
+msgid "Search from"
+msgstr "搜索位置"
+
+#: uvissearch.lrj:$.strings.[26].value
+msgctxt "tvissearch.action_searchnew.caption"
+msgid "Search New"
+msgstr "新建搜索"
+
+#: uvissearch.lrj:$.strings.[27].value
+msgctxt "tvissearch.action_showinview.caption"
+msgid "Show in view"
+msgstr "在视图中显示"
+
+#: uvissearch.lrj:$.strings.[0].value
+msgctxt "tvissearch.caption"
+msgid "Search"
+msgstr "搜索"
+
+#: uvissearch.lrj:$.strings.[5].value
+msgctxt "tvissearch.combobox_advcondition.text"
+msgid "Start with"
+msgstr "开头为"
+
+#: uvissearch.lrj:$.strings.[3].value
+msgctxt "tvissearch.label_basicvalue.caption"
+msgid "Search a name:"
+msgstr "搜索名称："
+
+#: uvissearch.lrj:$.strings.[12].value
+msgctxt "tvissearch.label_expfilter.caption"
+msgid "Search using Ldap filter:"
+msgstr "使用 LDAP 筛选器搜索："
+
+#: uvissearch.lrj:$.strings.[17].value
+msgctxt "tvissearch.label_pagecount.caption"
+msgid "Page count"
+msgstr "页数"
+
+#: uvissearch.lrj:$.strings.[15].value
+msgctxt "tvissearch.label_pagesize.caption"
+msgid "Page size"
+msgstr "页面大小"
+
+#: uvissearch.lrj:$.strings.[1].value
+msgctxt "tvissearch.label_path.caption"
+msgid "Path:"
+msgstr "路径："
+
+#: uvissearch.lrj:$.strings.[22].value
+msgctxt "tvissearch.label_resultcount.caption"
+msgid "Total : 0 elements"
+msgstr "总计：0 个元素"
+
+#: uvissearch.lrj:$.strings.[14].value
+msgctxt "tvissearch.label_searchscope.caption"
+msgid "Search Scope"
+msgstr "搜索范围"
+
+#: uvissearch.lrj:$.strings.[6].value
+msgctxt "tvissearch.radiobutton_allcondition.caption"
+msgid "All conditions"
+msgstr "所有条件"
+
+#: uvissearch.lrj:$.strings.[7].value
+msgctxt "tvissearch.radiobutton_onecondition.caption"
+msgid "At least one condition"
+msgstr "至少一个条件"
+
+#: uvissearch.lrj:$.strings.[4].value
+msgctxt "tvissearch.tabsheet_advanced.caption"
+msgid "Advanced"
+msgstr "高级"
+
+#: uvissearch.lrj:$.strings.[2].value
+msgctxt "tvissearch.tabsheet_basic.caption"
+msgid "Basic"
+msgstr "基本"
+
+#: uvissearch.lrj:$.strings.[11].value
+msgctxt "tvissearch.tabsheet_expert.caption"
+msgid "Expert"
+msgstr "专家"
+
+#: uvissearch.lrj:$.strings.[13].value
+msgctxt "tvissearch.tabsheet_options.caption"
+msgid "Options"
+msgstr "选项"
+
+#: uvissearch.lrj:$.strings.[8].value
+msgctxt "tvissearch.tisgrid_advdetails.header.columns[0].text"
+msgid "Key"
+msgstr "键"
+
+#: uvissearch.lrj:$.strings.[9].value
+msgctxt "tvissearch.tisgrid_advdetails.header.columns[1].text"
+msgid "Condition"
+msgstr "条件"
+
+#: uvissearch.lrj:$.strings.[10].value
+msgctxt "tvissearch.tisgrid_advdetails.header.columns[2].text"
+msgid "Value"
+msgstr "值"
+
+#: uvissearch.lrj:$.strings.[19].value
+msgctxt "tvissearch.tisgrid_result.header.columns[0].text"
+msgid "Name"
+msgstr "名称"
+
+#: uvissearch.lrj:$.strings.[20].value
+msgctxt "tvissearch.tisgrid_result.header.columns[1].text"
+msgid "Type"
+msgstr "类型"
+
+#: uvissearch.lrj:$.strings.[21].value
+msgctxt "tvissearch.tisgrid_result.header.columns[2].text"
+msgid "Description"
+msgstr "描述"
+
+#: uvisselectnewrecordtype.lrj:$.strings.[4].value
+msgctxt "tvisselectnewrecordtype.action_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvisselectnewrecordtype.lrj:$.strings.[3].value
+msgctxt "tvisselectnewrecordtype.action_createrecord.caption"
+msgid "Create Record"
+msgstr "创建记录"
+
+#: uvisselectnewrecordtype.lrj:$.strings.[0].value
+msgctxt "tvisselectnewrecordtype.caption"
+msgid "Resource Record Type"
+msgstr "资源记录类型"
+
+#: uvisselectnewrecordtype.lrj:$.strings.[1].value
+msgctxt "tvisselectnewrecordtype.label1.caption"
+msgid "Select a resource record type:"
+msgstr "选择资源记录类型："
+
+#: uvisselectnewrecordtype.lrj:$.strings.[2].value
+msgctxt "tvisselectnewrecordtype.label2.caption"
+msgid "Description:"
+msgstr "描述："
+
+#: uvistaskmove.lrj:$.strings.[4].value
+msgctxt "tvistaskmove.action_ok.caption"
+msgid "OK"
+msgstr "确定"
+
+#: uvistaskmove.lrj:$.strings.[3].value
+msgctxt "tvistaskmove.btn_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvistaskmove.lrj:$.strings.[0].value
+msgctxt "tvistaskmove.caption"
+msgid "Move"
+msgstr "移动"
+
+#: uvistaskmove.lrj:$.strings.[1].value
+msgctxt "tvistaskmove.label_dn.caption"
+msgid "Object location :"
+msgstr "对象位置："
+
+#: uvistaskmove.lrj:$.strings.[2].value
+msgctxt "tvistaskmove.label_rdn.caption"
+msgid "Name :"
+msgstr "名称："
+
+#: uvistaskresetpassword.lrj:$.strings.[8].value
+msgctxt "tvistaskresetpassword.btn_cancel.caption"
+msgid "Cancel"
+msgstr "取消"
+
+#: uvistaskresetpassword.lrj:$.strings.[7].value
+msgctxt "tvistaskresetpassword.btn_ok.caption"
+msgid "Ok"
+msgstr "确定"
+
+#: uvistaskresetpassword.lrj:$.strings.[0].value
+msgctxt "tvistaskresetpassword.caption"
+msgid "Reset Password"
+msgstr "重置密码"
+
+#: uvistaskresetpassword.lrj:$.strings.[3].value
+msgctxt "tvistaskresetpassword.checkbox_change.caption"
+msgid "User must change password at next logon"
+msgstr "用户下次登录时必须更改密码"
+
+#: uvistaskresetpassword.lrj:$.strings.[5].value
+msgctxt "tvistaskresetpassword.checkbox_unlock.caption"
+msgid "Unlock the user's account"
+msgstr "解锁用户帐户"
+
+#: uvistaskresetpassword.lrj:$.strings.[2].value
+msgctxt "tvistaskresetpassword.label_confirmpassword.caption"
+msgid "Confirm Password :"
+msgstr "确认密码："
+
+#: uvistaskresetpassword.lrj:$.strings.[4].value
+msgctxt "tvistaskresetpassword.label_effect.caption"
+msgid ""
+"The user must logoff and then logon again for the change to take effect."
+msgstr "用户必须注销并重新登录后，更改才会生效。"
+
+#: uvistaskresetpassword.lrj:$.strings.[1].value
+msgctxt "tvistaskresetpassword.label_newpassword.caption"
+msgid "New Password :"
+msgstr "新密码："
+
+#: uvistaskresetpassword.lrj:$.strings.[6].value
+msgctxt "tvistaskresetpassword.label_status.caption"
+msgid "Account Lockout Status on this Domain Controller : "
+msgstr "Account Lockout Status on this Domain Controller ："
+
+# Tab captions set in uvisproperties.pas resourcestrings
+#: uvisproperties.rspropertytabgeneral
+msgid "General"
+msgstr "常规"
+
+#: uvisproperties.rspropertytabaddress
+msgid "Address"
+msgstr "地址"
+
+#: uvisproperties.rspropertytabaccount
+msgid "Account"
+msgstr "帐户"
+
+#: uvisproperties.rspropertytabprofile
+msgid "Profile"
+msgstr "配置文件"
+
+#: uvisproperties.rspropertytabtelephone
+msgid "Telephone"
+msgstr "电话"
+
+#: uvisproperties.rspropertytaborganization
+msgid "Organization"
+msgstr "组织"
+
+#: uvisproperties.rspropertytabpublishedcertificates
+msgid "Published Certificates"
+msgstr "已发布的证书"
+
+#: uvisproperties.rspropertytabmemberof
+msgid "Member Of"
+msgstr "隶属于"
+
+#: uvisproperties.rspropertytabmember
+msgid "Member"
+msgstr "成员"
+
+#: uvisproperties.rspropertytabmanagedby
+msgid "Managed By"
+msgstr "管理者"
+
+#: uvisproperties.rspropertytaboperatingsystem
+msgid "Operating System"
+msgstr "操作系统"
+
+#: uvisproperties.rspropertytablaps
+msgid "LAPS"
+msgstr "LAPS"
+
+#: uvisproperties.rspropertytabbitlocker
+msgid "BitLocker"
+msgstr "BitLocker"
+
+#: uvisproperties.rspropertytablocation
+msgid "Location"
+msgstr "位置"
+
+#: uvisproperties.rspropertytabobject
+msgid "Object"
+msgstr "对象"
+
+#: uvisproperties.rspropertytabsecurity
+msgid "Security"
+msgstr "安全"
+
+#: uvisproperties.rspropertytabattributes
+msgid "Attributes"
+msgstr "属性"
+
+#: uvisproperties.rspropertytabunixattributes
+msgid "UNIX Attributes"
+msgstr "UNIX 属性"
+
+#: uvisproperties.rspropertytabntauthcertificates
+msgid "NTAuthCertificates"
+msgstr "NTAuth 证书"
+
+#: uvisproperties.rspropertytabconnections
+msgid "Connections"
+msgstr "连接"
+
+#: ufrmmoduleaduc.rsaducrootnode
+msgid "Active Directory Users and Computers"
+msgstr "Active Directory 用户和计算机"
+
+#: ufrmmoduleaduc.rsaducsavedquerynode
+msgid "Saved Query"
+msgstr "保存的查询"
+
+#: ucommon.rsaccountunlocked
+msgid "Account Unlock"
+msgstr "帐户解锁"
+
+#: ucommon.rsaccountunlockedmessage
+msgid "Account has been unlocked successfully."
+msgstr "帐户已成功解锁。"
+
+#: ucommon.rsacecreatefailure
+msgid "Failed to create ACE for object % in ACL."
+msgstr "无法在 ACL 中为对象 % 创建 ACE。"
+
+#: ufrmpropertyunixattributes.lrj:$.strings.[0].value
+msgctxt "tfrmpropertyunixattributes.label1.caption"
+msgid "NIS Domain:"
+msgstr "NIS 域："
+
+#: ufrmpropertyunixattributes.lrj:$.strings.[1].value
+msgctxt "tfrmpropertyunixattributes.label_uid.caption"
+msgid "UID:"
+msgstr "UID："
+
+#: ufrmpropertyunixattributes.lrj:$.strings.[2].value
+msgctxt "tfrmpropertyunixattributes.label_loginshell.caption"
+msgid "Login Shell:"
+msgstr "登录 Shell："
+
+#: ufrmpropertyunixattributes.lrj:$.strings.[3].value
+msgctxt "tfrmpropertyunixattributes.label_homedirectory.caption"
+msgid "Home Directory:"
+msgstr "主目录："
+
+#: ufrmpropertyunixattributes.lrj:$.strings.[4].value
+msgctxt "tfrmpropertyunixattributes.label_primarygroup.caption"
+msgid "Primary group name/GID:"
+msgstr "主要组名称/GID："
+
+#: ufrmpropertyunixattributes.lrj:$.strings.[5].value
+msgctxt "tfrmpropertyunixattributes.label_gid.caption"
+msgid "GID (Group ID):"
+msgstr "GID（组 ID）："
+
+#: ufrmpropertyunixattributes.lrj:$.strings.[6].value
+msgctxt "tfrmpropertyunixattributes.label_infouser.caption"
+msgid "To enable access to this user for UNIX clients, you will have to specify the NIS domain this user belongs to."
+msgstr "要允许 UNIX 客户端访问此用户，需要指定该用户所属的 NIS 域。"
+
+#: ufrmpropertyunixattributes.lrj:$.strings.[7].value
+msgctxt "tfrmpropertyunixattributes.label_infogroup.caption"
+msgid "To enable access to this group for UNIX clients, you will have to specify the NIS domain this group belongs to."
+msgstr "要允许 UNIX 客户端访问此组，需要指定该组所属的 NIS 域。"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.userlogonname"
+msgid "User logon name: %"
+msgstr "用户登录名：%"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.thepasswordneverexpires"
+msgid "The Password never expires."
+msgstr "密码永不过期。"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.passwordhasbeenresetsuccessfully"
+msgid "Password has been reset successfully."
+msgstr "密码已成功重置。"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.thenewandconfirmpasswordsmustmatchpleaseretypethem"
+msgid "The New and Confirm passwords must match. Please re-type them."
+msgstr "新密码和确认密码必须一致。请重新输入。"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.baseobject"
+msgid "Base object"
+msgstr "基准对象"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.singlelevel"
+msgid "Single level"
+msgstr "单级"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.wholesubtree"
+msgid "Whole subtree"
+msgstr "整个子树"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.deletechild"
+msgid "Delete child"
+msgstr "删除子对象"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.deletetree"
+msgid "Delete Tree"
+msgstr "删除树"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.deleteagroupuser"
+msgid "Delete a group user"
+msgstr "删除组用户"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.deleteobject"
+msgid "Delete object"
+msgstr "删除对象"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectcomputer"
+msgid "New object - Computer"
+msgstr "新建对象 - 计算机"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectcontact"
+msgid "New object - Contact"
+msgstr "新建对象 - 联系人"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectgroup"
+msgid "New object - Group"
+msgstr "新建对象 - 组"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectinetorgperson"
+msgid "New object - Inet Org. Person"
+msgstr "新建对象 - InetOrgPerson"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectou"
+msgid "New object - OU"
+msgstr "新建对象 - 组织单位"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectprinter"
+msgid "New object - Printer"
+msgstr "新建对象 - 打印机"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectserver"
+msgid "New object - Server"
+msgstr "新建对象 - 服务器"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectsharedfolder"
+msgid "New object - Shared Folder"
+msgstr "新建对象 - 共享文件夹"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectsite"
+msgid "New object - Site"
+msgstr "新建对象 - 站点"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectsubnet"
+msgid "New object - Subnet"
+msgstr "新建对象 - 子网"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.newobjectuser"
+msgid "New object - User"
+msgstr "新建对象 - 用户"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.builtindomain"
+msgid "builtinDomain"
+msgstr "内置域"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.computer"
+msgid "computer"
+msgstr "计算机"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.contact"
+msgid "contact"
+msgstr "联系人"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.container"
+msgid "container"
+msgstr "容器"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.domaindns"
+msgid "domainDNS"
+msgstr "域 DNS"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.group"
+msgid "group"
+msgstr "组"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.grouppolicycontainer"
+msgid "groupPolicyContainer"
+msgstr "组策略容器"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.infrastructureupdate"
+msgid "infrastructureUpdate"
+msgstr "基础结构更新"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.lostandfound"
+msgid "lostAndFound"
+msgstr "丢失和找到"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.ntdsdsa"
+msgid "nTDSDSA"
+msgstr "NTDS 设置"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.organizationalunit"
+msgid "organizationalUnit"
+msgstr "组织单位"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.printqueue"
+msgid "printQueue"
+msgstr "打印队列"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.server"
+msgid "server"
+msgstr "服务器"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.site"
+msgid "site"
+msgstr "站点"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.subnet"
+msgid "subnet"
+msgstr "子网"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.user"
+msgid "user"
+msgstr "用户"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.volume"
+msgid "volume"
+msgstr "卷"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.defaultcontainerforupgradedcomputeraccounts"
+msgid "Default container for upgraded computer accounts"
+msgstr "升级后的计算机帐户的默认容器"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.defaultcontainerfordomaincontrollers"
+msgid "Default container for domain controllers"
+msgstr "域控制器的默认容器"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.defaultcontainerforsecurityidentifierssidsassociatedwithobjectsfromexternaltrusteddomains"
+msgid "Default container for security identifiers (SIDs) associated with objects from external, trusted domains"
+msgstr "与外部受信任域对象关联的安全标识符 (SID) 的默认容器"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.defaultcontainerfororphanedobjects"
+msgid "Default container for orphaned objects"
+msgstr "孤立对象的默认容器"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.defaultcontainerformanagedserviceaccounts"
+msgid "Default container for managed service accounts"
+msgstr "托管服务帐户的默认容器"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.defaultlocationforstorageofapplicationdata"
+msgid "Default location for storage of application data."
+msgstr "应用程序数据的默认存储位置。"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.builtinsystemsettings"
+msgid "Builtin system settings"
+msgstr "内置系统设置"
+
+
+
+
+
+#: ufrmmoduleaduc.lfm:$.ActionList_ADUC.Action_FindBitLockerRecoveryPassword.Caption
+msgctxt "tfrmmoduleaduc.action_findbitlockerrecoverypassword.caption"
+msgid "Find BitLocker Recovery Password..."
+msgstr "查找 BitLocker 恢复密码..."
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rsfindbitlockerrecoverypassword"
+msgid "Find BitLocker Recovery Password"
+msgstr "查找 BitLocker 恢复密码"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rsrecoverypasswordid"
+msgid "Recovery Password ID:"
+msgstr "恢复密码 ID："
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rsrecoverypasswordidhint"
+msgid "Enter the first 8 characters or the full recovery password ID."
+msgstr "输入恢复密码 ID 的前 8 位或完整 ID。"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rssearchbitlockerrecovery"
+msgid "Search"
+msgstr "搜索"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rscopypassword"
+msgid "Copy password"
+msgstr "复制密码"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rsopencomputer"
+msgid "Open Computer"
+msgstr "打开计算机"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rscomputer"
+msgid "Computer"
+msgstr "计算机"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rsrecoveryid"
+msgid "Recovery ID"
+msgstr "恢复 ID"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rsdateadded"
+msgid "Date Added"
+msgstr "添加日期"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rsrecoverypassword"
+msgid "Recovery Password"
+msgstr "恢复密码"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rsnobitlockerrecoveryfound"
+msgid "No BitLocker recovery password was found for the specified ID."
+msgstr "未找到指定 ID 对应的 BitLocker 恢复密码。"
+
+#: uvisbitlockerrecoverysearch.pas
+msgctxt "uvisbitlockerrecoverysearch.rsenterrecoveryid"
+msgid "Enter a recovery password ID."
+msgstr "请输入恢复密码 ID。"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassbuiltindomain"
+msgid "builtinDomain"
+msgstr "内置域"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclasscomputer"
+msgid "computer"
+msgstr "计算机"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclasscontact"
+msgid "contact"
+msgstr "联系人"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclasscontainer"
+msgid "container"
+msgstr "容器"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassdomaindns"
+msgid "domainDNS"
+msgstr "域 DNS"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassgroup"
+msgid "group"
+msgstr "组"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassgrouppolicycontainer"
+msgid "groupPolicyContainer"
+msgstr "组策略容器"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassinfrastructureupdate"
+msgid "infrastructureUpdate"
+msgstr "基础结构更新"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclasslostandfound"
+msgid "lostAndFound"
+msgstr "丢失与找到"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassntdsdsa"
+msgid "nTDSDSA"
+msgstr "NTDS 设置"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassorganizationalunit"
+msgid "organizationalUnit"
+msgstr "组织单位"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassprintqueue"
+msgid "printQueue"
+msgstr "打印队列"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassserver"
+msgid "server"
+msgstr "服务器"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclasssite"
+msgid "site"
+msgstr "站点"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclasssubnet"
+msgid "subnet"
+msgstr "子网"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassuser"
+msgid "user"
+msgstr "用户"
+
+#: uvissearch.pas
+msgctxt "uvissearch.rssearchobjectclassvolume"
+msgid "volume"
+msgstr "卷"
+
+#: ufrmmoduleaduc.pas
+msgctxt "ufrmmoduleaduc.rsaduccomputeropenfailed"
+msgid "The computer object could not be opened. It may be outside the current view or you may not have permission to read it."
+msgstr "无法打开计算机对象。它可能不在当前视图中，或者你没有读取它的权限。"
+#: ucommon.rsaccountunlocked
+msgid "Account Unlock"
+msgstr "帐户解锁"
+
+#: ucommon.rsaccountunlockedmessage
+msgid "Account has been unlocked successfully."
+msgstr "帐户已成功解锁。"
+
+#: ucommon.rsacecreatefailure
+msgid "Failed to create ACE for object % in ACL."
+msgstr "无法在 ACL 中为对象 % 创建 ACE。"
+
+#: ucommon.rsacenotfound
+msgid "ACE for object % not found in ACL."
+msgstr "在 ACL 中未找到对象 % 的 ACE。"
+
+#: ucommon.rsacepaadparent
+msgid "A Deny Delete-Tree right will be added to the ACL of the parent of this object. Do you wish to continue?"
+msgstr "将在此对象父级的 ACL 中添加“拒绝删除树”权限。是否继续？"
+
+#: ucommon.rsaceparsing
+msgid "Failed to parse ACL."
+msgstr "无法解析 ACL。"
+
+#: ucommon.rsace_flags
+msgid ""
+"Container Inherit (CI)\n"
+"Object Inherit (OI)\n"
+"No Propagate (NP)\n"
+"Inherit Only (E/S)"
+msgstr ""
+"容器继承 (CI)\n"
+"对象继承 (OI)\n"
+"不传播 (NP)\n"
+"仅继承 (E/S)"
+
+#: ucommon.rsace_mask
+msgid ""
+"Full Control\n"
+"List Content\n"
+"Read (WP)\n"
+"Write (RP)\n"
+"Create Child (CC)\n"
+"Delete Child (DC)\n"
+"List Child (LC)\n"
+"List Object (be visible) (LO)\n"
+"Delete (SD)\n"
+"Delete Tree (DT)\n"
+"Read Security (RC)\n"
+"Write Security (WD)\n"
+"Write Owner (WO)\n"
+"Validated Write (SW)\n"
+"Control Access (CR)"
+msgstr ""
+"完全控制\n"
+"列出内容\n"
+"读取 (WP)\n"
+"写入 (RP)\n"
+"创建子对象 (CC)\n"
+"删除子对象 (DC)\n"
+"列出子对象 (LC)\n"
+"列出对象（可见）(LO)\n"
+"删除 (SD)\n"
+"删除树 (DT)\n"
+"读取安全性 (RC)\n"
+"写入安全性 (WD)\n"
+"写入所有者 (WO)\n"
+"验证写入 (SW)\n"
+"控制访问 (CR)"
+
+#: ucommon.rsactiondisableobject
+msgid "Object % has been disabled."
+msgstr "对象 % 已被禁用。"
+
+#: ucommon.rsactionenableobject
+msgid "Object % has been enabled."
+msgstr "对象 % 已被启用。"
+
+#: ucommon.rsaliasdereferencingproblem
+msgid "The server encountered an alias while processing the request and that there was some problem related to that alias."
+msgstr "服务器在处理请求时遇到别名，并且该别名存在相关问题。"
+
+#: ucommon.rsaliasproblem
+msgid "A problem occured while attempting to dereference an alias during search processing."
+msgstr "搜索处理期间尝试解析别名时发生问题。"
+
+#: ucommon.rsallow
+msgid "Allow"
+msgstr "允许"
+
+#: ucommon.rsand
+msgid "% and %"
+msgstr "% 和 %"
+
+#: ucommon.rsanonymousconnection
+msgid "Anonymous Connection"
+msgstr "匿名连接"
+
+#: ucommon.rsattributeorvalueexists
+msgid "Attribute or Value already exists."
+msgstr "属性或值已存在。"
+
+#: ucommon.rsauthmethodnotsupported
+msgid "The server does not allow this kind of auth method."
+msgstr "服务器不允许此类身份验证方式。"
+
+#: ucommon.rsbitlockercomputer
+msgid "Computer: "
+msgstr "计算机："
+
+#: ucommon.rsbitlockerdate
+msgid "Date: "
+msgstr "日期："
+
+#: ucommon.rsbitlockerpasswordid
+msgid "Password ID: "
+msgstr "密码 ID："
+
+#: ucommon.rsbitlockerrecovery
+msgid "BitLocker recovery"
+msgstr "BitLocker 恢复"
+
+#: ucommon.rsbitlockerrecoverypassword
+msgid "Recovery Password: "
+msgstr "恢复密码："
+
+#: ucommon.rschangeoptionrequiredrestart
+msgid "The changes you have made require a console restart. Restart now?"
+msgstr "所做更改需要重启控制台。现在重启吗？"
+
+#: ucommon.rsconfidentialityrequired
+msgid "The server do not allow your operation, cause your connection is not secured enought."
+msgstr "服务器不允许此操作，因为当前连接不够安全。"
+
+#: ucommon.rsconfirmation
+msgid "Confirmation"
+msgstr "确认"
+
+#: ucommon.rsconnectedondomainas
+msgid "You are connected as \"%\"."
+msgstr "你已以“%”身份连接。"
+
+#: ucommon.rsconnectedondomainwithdc
+msgid "The DC of this domain is \"%\"."
+msgstr "此域的域控制器是“%”。"
+
+#: ucommon.rsconnectsuccess
+msgid "Successfully connected to domain controller \"%\""
+msgstr "已成功连接到域控制器“%”。"
+
+#: ucommon.rsconstraintviolation
+msgid "The requests violates some constraint defined within the server."
+msgstr "该请求违反了服务器中定义的某些约束。"
+
+#: ucommon.rsdelegatecontrolfolder
+msgid "You chose to delegate control of objects in the following Active Directory folder:"
+msgstr "你选择委派以下 Active Directory 文件夹中对象的控制权："
+
+#: ucommon.rsdelegatecontrolobjects
+msgid "The groups, users, or computers to which you have given control are:"
+msgstr "你授予控制权的组、用户或计算机为："
+
+#: ucommon.rsdelegatecontroltasks
+msgid "You chose to delegate the following tasks:"
+msgstr "你选择委派以下任务："
+
+#: ucommon.rsdelete
+msgctxt "ucommon.rsdelete"
+msgid "Delete"
+msgstr "删除"
+
+#: ucommon.rsdeleteconfirm
+msgid "Are you sure you want to delete the following object: %"
+msgstr "确定要删除以下对象吗：%"
+
+#: ucommon.rsdeletememberfromgroups
+msgid "Are you sure that you want to delete % from the selected group(s)?"
+msgstr "确定要从选定组中删除 % 吗？"
+
+#: ucommon.rsdeleteobjectconfirmation
+msgid "Do you want to delete the record % from the server?"
+msgstr "要从服务器删除记录 % 吗？"
+
+#: ucommon.rsdeleteobjectsconfirmation
+msgid "Do you want to delete the selected records from the server?"
+msgstr "要从服务器删除选定记录吗？"
+
+#: ucommon.rsdeleteprimarygroup
+msgid "The primary group cannot be deleted. You need to define another if you wish to delete this one."
+msgstr "不能删除主组。如需删除此组，请先指定另一个主组。"
+
+#: ucommon.rsdeleteprofile
+msgid "Do you want to delete the profile %?"
+msgstr "要删除配置文件 % 吗？"
+
+#: ucommon.rsdeny
+msgid "Deny"
+msgstr "拒绝"
+
+#: ucommon.rsdisableaccount
+msgid "Disable Account"
+msgstr "禁用帐户"
+
+#: ucommon.rsdnspropertyzoneagingenabledtime
+msgid "Aging enabled time"
+msgstr "老化启用时间"
+
+#: ucommon.rsdnspropertyzoneagingstate
+msgid "Aging state"
+msgstr "老化状态"
+
+#: ucommon.rsdnspropertyzoneallowupdate
+msgid "Allow Update"
+msgstr "允许更新"
+
+#: ucommon.rsdnspropertyzoneautonsservers
+msgid "Auto NS servers"
+msgstr "自动 NS 服务器"
+
+#: ucommon.rsdnspropertyzoneautonsserversda
+msgid "Auto NS servers DA"
+msgstr "自动 NS 服务器 DA"
+
+#: ucommon.rsdnspropertyzonedcpromoconvert
+msgid "DC promo convert"
+msgstr "DC 提升转换"
+
+#: ucommon.rsdnspropertyzonedeletedfromhostname
+msgid "Deleted from hostname"
+msgstr "从主机名删除"
+
+#: ucommon.rsdnspropertyzonemasterservers
+msgid "Master servers"
+msgstr "主服务器"
+
+#: ucommon.rsdnspropertyzonemasterserversda
+msgid "Master servers DA"
+msgstr "主服务器 DA"
+
+#: ucommon.rsdnspropertyzonenodedbflags
+msgid "Node DB flags"
+msgstr "节点数据库标志"
+
+#: ucommon.rsdnspropertyzonenorefreshinterval
+msgid "No Refresh Interval"
+msgstr "无刷新间隔"
+
+#: ucommon.rsdnspropertyzonerefreshinterval
+msgid "Refresh Interval"
+msgstr "刷新间隔"
+
+#: ucommon.rsdnspropertyzonescavengingservers
+msgid "Scavenging servers"
+msgstr "清理服务器"
+
+#: ucommon.rsdnspropertyzonescavengingserversda
+msgid "Scavenging servers DA"
+msgstr "清理服务器 DA"
+
+#: ucommon.rsdnspropertyzonesecuretime
+msgid "Secure Time"
+msgstr "安全时间"
+
+#: ucommon.rsdnspropertyzonetype
+msgid "Type"
+msgstr "类型"
+
+#: ucommon.rsdnsrecorda
+msgid "Host (A or AAAA)"
+msgstr "主机（A 或 AAAA）"
+
+#: ucommon.rsdnsrecordadescription
+msgid "Host address (A or AAAA) record. Maps a DNS domain name to a 32-bit IP version 4 address (RFC 1035) or a 128-bit IP version 6 address (RFC 1886)."
+msgstr "主机地址（A 或 AAAA）记录。将 DNS 域名映射到 32 位 IPv4 地址（RFC 1035）或 128 位 IPv6 地址（RFC 1886）。"
+
+#: ucommon.rsdnsrecordcname
+msgid "Alias (CNAME)"
+msgstr "别名（CNAME）"
+
+#: ucommon.rsdnsrecordcnamedescription
+msgid "Alias record. Indicates an alternate or alias DNS domain name for a name already specified in other resource record types used in this zone. The record is also known as the canonical name (CNAME) record type. (RFC 1035)"
+msgstr "别名记录。为此区域中已由其他资源记录类型指定的名称提供备用或别名 DNS 域名。该记录也称为规范名称（CNAME）记录类型。（RFC 1035）"
+
+#: ucommon.rsdnsrecordmx
+msgid "Mail Exchanger (MX)"
+msgstr "邮件交换器（MX）"
+
+#: ucommon.rsdnsrecordmxdescription
+msgid "Mail exchanger (MX) record. Provides message routing to a specified mail exchange host that is acting as a mail exchanger for a specified DNS domain name. MX records use a 16-bit integer to indicate host priority in message routing where multiple mail exchange hosts are specified. For each mail exchange host specified in this record type, a corresponding host address (A) type record is needed. (RFC 1035)"
+msgstr "邮件交换器 (MX) 记录。为指定 DNS 域名提供邮件路由。MX 记录使用 16 位整数表示多个邮件交换主机之间的路由优先级。此记录类型中指定的每个邮件交换主机都需要对应的主机地址 (A) 记录。(RFC 1035)"
+
+#: ucommon.rsdnsrecordptr
+msgid "Pointer (PTR)"
+msgstr "指针（PTR）"
+
+#: ucommon.rsdnsrecordptrdescription
+msgid "Pointer (PTR) record. Points to a location in the domain name space. PTR records are typically used in special domains to perform reverse lookups of address-to-name mappings. Each record provides simple data that points to some other location in the domain name space (usually a forward lookup zone). Where PTR records are used, no additional section processing is implied or caused by their presence. (RFC 1035)"
+msgstr "指针 (PTR) 记录。指向域名空间中的某个位置。PTR 记录通常用于特殊域，以执行地址到名称映射的反向查找。每条记录提供指向域名空间中其他位置（通常是正向查找区域）的简单数据。使用 PTR 记录时，不会隐含或触发其他节处理。(RFC 1035)"
+
+#: ucommon.rsdnsrecordsrv
+msgid "Service Location (SRV)"
+msgstr "服务位置（SRV）"
+
+#: ucommon.rsdnsrecordsrvdescription
+msgid "Service (SRV) record. Allows administrators to use several servers for a single DNS domain, to easily move a TCP/IP service from one host to another host with administration, and to designate some service provider hosts as primary servers for a service and other hosts as backups. DNS clients that use a SRV-type query ask for a specific TCP/IP service and protocol mapped to a specific DNS domain and receive the names of any available servers. (RFC 2052)"
+msgstr "服务 (SRV) 记录。允许管理员为单个 DNS 域使用多台服务器，便于将 TCP/IP 服务从一台主机迁移到另一台主机，并可指定某些服务提供主机作为主服务器、其他主机作为备份服务器。使用 SRV 查询的 DNS 客户端会请求映射到特定 DNS 域的 TCP/IP 服务和协议，并获得所有可用服务器的名称。(RFC 2052)"
+
+#: ucommon.rsdnszonedcpromoconvertdomain
+msgid "Domain"
+msgstr "域"
+
+#: ucommon.rsdnszonedcpromoconvertforest
+msgid "Forest"
+msgstr "林"
+
+#: ucommon.rsdnszonedcpromoconvertnone
+msgid "None"
+msgstr "无"
+
+#: ucommon.rsdnszonetypecache
+msgid "Cache"
+msgstr "缓存"
+
+#: ucommon.rsdnszonetypeforwarder
+msgid "Forwarder"
+msgstr "转发器"
+
+#: ucommon.rsdnszonetypeprimary
+msgid "Primary"
+msgstr "主"
+
+#: ucommon.rsdnszonetypesecondary
+msgid "Secondary"
+msgstr "辅助"
+
+#: ucommon.rsdnszonetypesecondarycache
+msgid "Secondary cache"
+msgstr "辅助缓存"
+
+#: ucommon.rsdnszonetypestub
+msgid "Stub"
+msgstr "存根"
+
+#: ucommon.rsdnszoneupdateoff
+msgid "OFF"
+msgstr "关闭"
+
+#: ucommon.rsdnszoneupdatesecure
+msgid "Secure"
+msgstr "安全"
+
+#: ucommon.rsdnszoneupdateunsecure
+msgid "Unsecure"
+msgstr "不安全"
+
+#: ucommon.rsenableaccount
+msgid "Enable Account"
+msgstr "启用帐户"
+
+#: ucommon.rsentryalreadyexists
+msgid "The requested operation would have resulted in an entry with the same DN as an entry that already exists in the server."
+msgstr "请求的操作会产生与服务器中现有条目相同 DN 的条目。"
+
+#: ucommon.rserror
+msgid "Error"
+msgstr "错误"
+
+#: ucommon.rsflagalldescendants
+msgid "all descendants"
+msgstr "所有后代"
+
+#: ucommon.rsflagdirectdesendants
+msgid "direct descendants"
+msgstr "直接后代"
+
+#: ucommon.rsflagthisobject
+msgid "this object"
+msgstr "此对象"
+
+#: ucommon.rsfriday
+msgid "Friday"
+msgstr "星期五"
+
+#: ucommon.rsgeneratekeytab
+msgid "Generate KeyTab"
+msgstr "生成 KeyTab"
+
+#: ucommon.rsgeneratekeytabconfirmation
+msgid "You are about to change the password for the selected object. This will remove the trust relationships with the domain. Continue?"
+msgstr "即将更改选定对象的密码。这会移除其与域的信任关系。是否继续？"
+
+#: ucommon.rsgeneratekeytabfailed
+msgid "Generate KeyTab failed: %"
+msgstr "生成 KeyTab 失败：%"
+
+#: ucommon.rsgeneratekeytabfinished
+msgid "Generate KeyTab finished. Open folder?"
+msgstr "KeyTab 生成完成。打开文件夹吗？"
+
+#: ucommon.rsgeneratekeytabpassword
+msgid "Would you like to generate a random password?"
+msgstr "是否生成随机密码？"
+
+#: ucommon.rsgeneratekeytabpasswordmessage
+msgid "Enter password. Leave empty to generate random password."
+msgstr "输入密码。留空则生成随机密码。"
+
+#: ucommon.rsgeneratekeytabselectfolder
+msgid "Select folder to store KeyTab file"
+msgstr "选择用于保存 KeyTab 文件的文件夹"
+
+#: ucommon.rsgridconfdeleterow
+#, object-pascal-format
+msgid "Confirm the deletion of the %d selected rows?"
+msgstr "确认删除选中的 %d 行吗？"
+
+#: ucommon.rsgriddeleterows
+msgid "Delete selected rows"
+msgstr "删除选中行"
+
+#: ucommon.rshidepassword
+msgid "Hide password"
+msgstr "隐藏密码"
+
+#: ucommon.rsinappropriateauthentication
+msgid "The client attempted to bind in an inappropriate manner that is inappropriate for the target account."
+msgstr "客户端尝试以不适用于目标帐户的方式进行绑定。"
+
+#: ucommon.rsinappropriatematching
+msgid "The matching condition is not supported for this attributeType."
+msgstr "此属性类型不支持该匹配条件。"
+
+#: ucommon.rsinsufficientaccessrights
+msgid "The client requested an operation for which it does not have the necessary access control permissions."
+msgstr "客户端请求执行其不具备必要访问控制权限的操作。"
+
+#: ucommon.rsinvalidattributesyntax
+msgid "Attribute already has a value with a different syntax."
+msgstr "属性已存在使用不同语法的值。"
+
+#: ucommon.rsinvalidcredentials
+msgid "The client attempted to bind with a set of credentials that cannot be used to authenticate. Verify your username and password."
+msgstr "客户端尝试使用无法通过身份验证的凭据进行绑定。请检查用户名和密码。"
+
+#: ucommon.rsinvaliddnsyntax
+msgid "The request included a malformed entry DN."
+msgstr "请求包含格式错误的条目 DN。"
+
+#: ucommon.rsinvalidipformat
+msgid "Invalid IP format"
+msgstr "IP 格式无效"
+
+#: ucommon.rsldapaddfailed
+msgid "Ldap add failed: \"%\""
+msgstr "LDAP 添加失败：“%”"
+
+#: ucommon.rsldapconnectfailed
+msgid "Ldap connect failed: \"%\""
+msgstr "LDAP 连接失败：“%”"
+
+#: ucommon.rsldapdeletefailed
+msgid "Ldap delete failed: \"%\""
+msgstr "LDAP 删除失败：“%”"
+
+#: ucommon.rsldaperror
+msgid "Ldap Error"
+msgstr "LDAP 错误"
+
+#: ucommon.rsldapfailed
+msgid "Ldap failed: \"%\""
+msgstr "LDAP 失败：“%”"
+
+#: ucommon.rsldapmissingtls
+msgid "You try to connect to a Domain Controller without TLS connection. It is highly recommanded to enable TLS with a simple connection."
+msgstr "你正在尝试不使用 TLS 连接到域控制器。强烈建议为简单绑定启用 TLS。"
+
+#: ucommon.rsldapmodifyfailed
+msgid "Ldap modify failed: \"%\""
+msgstr "LDAP 修改失败：“%”"
+
+#: ucommon.rsldapmovewarningmessage
+msgid ""
+"Moving objects in Active Directory Domain Services can prevent your existing system from working the way it was designed. For exemple, moving an organizational unit (OU) can affect the way that group policies are applied to the accounts within the OU.\n"
+"Are you sure you want to move this object?"
+msgstr "确定要移动此对象吗？"
+
+#: ucommon.rsldapsearchfailed
+msgid "Ldap search failed: \"%\""
+msgstr "LDAP 搜索失败：“%”"
+
+#: ucommon.rsldapsuccess
+msgid "Ldap Success"
+msgstr "LDAP 成功"
+
+#: ucommon.rsldapsuccessauthmessage
+msgid "Authentication with user \"%\" has succeeded."
+msgstr "用户“%”身份验证成功。"
+
+#: ucommon.rsldapsuccessconnmessage
+msgid "Connection to domain \"%\" with domain controller \"%\" on port \"%\" can be established."
+msgstr "可以通过端口“%”连接到域“%”的域控制器“%”。"
+
+#: ucommon.rsldaptlsinvalidcert
+msgid "TLS connection is enabled, but the certificate is not recognized. Be carefull."
+msgstr "已启用 TLS 连接，但证书未被识别。请谨慎操作。"
+
+#: ucommon.rsldapwarning
+msgid "Ldap Warning"
+msgstr "LDAP 警告"
+
+#: ucommon.rslockedaccount
+msgid "This account is currently locked out on this Active Directory Domain Controller."
+msgstr "此帐户当前在该 Active Directory 域控制器上被锁定。"
+
+#: ucommon.rsloopdetect
+msgid "The server detected some kind of circular reference in the course of processing an operation."
+msgstr "服务器在处理操作时检测到某种循环引用。"
+
+#: ucommon.rsmoduleadsidisplayname
+msgid "Services and Interfaces"
+msgstr "服务和接口"
+
+#: ucommon.rsmoduleadsiname
+msgid "ServicesAndInterfaces"
+msgstr "ServicesAndInterfaces"
+
+#: ucommon.rsmoduleadssdisplayname
+msgid "Sites and Services"
+msgstr "站点和服务"
+
+#: ucommon.rsmoduleadssname
+msgid "SitesAndServices"
+msgstr "SitesAndServices"
+
+#: ucommon.rsmoduleaducdisplayname
+msgid "Users and Computers"
+msgstr "用户和计算机"
+
+#: ucommon.rsmoduleaducname
+msgid "UsersAndComputers"
+msgstr "UsersAndComputers"
+
+#: ucommon.rsmodulednsdisplayname
+msgid "Domain Name System"
+msgstr "域名系统"
+
+#: ucommon.rsmodulednsname
+msgid "DomainNameSystem"
+msgstr "DomainNameSystem"
+
+#: ucommon.rsmonday
+msgid "Monday"
+msgstr "星期一"
+
+#: ucommon.rsmultistringeditor
+msgid "Multi-valued String Editor"
+msgstr "多值字符串编辑器"
+
+#: ucommon.rsmultitimeeditor
+msgid "Multi-valued Time Editor"
+msgstr "多值时间编辑器"
+
+#: ucommon.rsnamingviolation
+msgid "The requested add or modify DN operation would have resulted in an entry that violates some naming constraint within the server."
+msgstr "请求的添加或修改 DN 操作会导致条目违反服务器中的某些命名约束。"
+
+#: ucommon.rsnewconfirmpassdifferent
+msgid "The New and Confirm passwords must match. Please re-type them."
+msgstr "新密码和确认密码必须一致。请重新输入。"
+
+#: ucommon.rsnewobjectbtnback
+msgid "< Back"
+msgstr "< 上一步"
+
+#: ucommon.rsnewobjectbtnnext
+msgid "Next >"
+msgstr "下一步 >"
+
+#: ucommon.rsnewobjectbtnok
+msgid "OK"
+msgstr "确定"
+
+#: ucommon.rsnewobjectcomputer
+msgid "New object - Computer"
+msgstr "新建对象 - 计算机"
+
+#: ucommon.rsnewobjectcontact
+msgid "New object - Contact"
+msgstr "新建对象 - 联系人"
+
+#: ucommon.rsnewobjectgroup
+msgid "New object - Group"
+msgstr "新建对象 - 组"
+
+#: ucommon.rsnewobjectinetorgperson
+msgid "New object - Inet Org. Person"
+msgstr "新建对象 - InetOrgPerson"
+
+#: ucommon.rsnewobjectmsdnsserversettings
+msgid "New object - msDNS-ServerSettings"
+msgstr "新建对象 - msDNS-ServerSettings"
+
+#: ucommon.rsnewobjectmsdskeycredential
+msgid "New object - msDS-KeyCredential"
+msgstr "新建对象 - msDS-KeyCredential"
+
+#: ucommon.rsnewobjectmsdsresourcepropertylist
+msgid "New object - msDS-ResourcePropertyList"
+msgstr "新建对象 - msDS-ResourcePropertyList"
+
+#: ucommon.rsnewobjectmsdsshadowprincipalcontainer
+msgid "New object - msDS-ShadowPrincipalContainer"
+msgstr "新建对象 - msDS-ShadowPrincipalContainer"
+
+#: ucommon.rsnewobjectmsimagingpsps
+msgid "New object - msImaging-PSPs"
+msgstr "新建对象 - msImaging-PSPs"
+
+#: ucommon.rsnewobjectou
+msgid "New object - OU"
+msgstr "新建对象 - 组织单位"
+
+#: ucommon.rsnewobjectprinter
+msgid "New object - Printer"
+msgstr "新建对象 - 打印机"
+
+#: ucommon.rsnewobjectserver
+msgid "New object - Server"
+msgstr "新建对象 - 服务器"
+
+#: ucommon.rsnewobjectsharedfolder
+msgid "New object - Shared Folder"
+msgstr "新建对象 - 共享文件夹"
+
+#: ucommon.rsnewobjectsite
+msgid "New object - Site"
+msgstr "新建对象 - 站点"
+
+#: ucommon.rsnewobjectsitelink
+msgid "New Object - Site Link"
+msgstr "新建对象 - 站点链接"
+
+#: ucommon.rsnewobjectsubnet
+msgid "New object - Subnet"
+msgstr "新建对象 - 子网"
+
+#: ucommon.rsnewobjectuser
+msgid "New object - User"
+msgstr "新建对象 - 用户"
+
+#: ucommon.rsnewuserchangepassword
+msgid "The user will have to change his password at next logon."
+msgstr "用户下次登录时必须更改密码。"
+
+#: ucommon.rsnewuserdisabled
+msgid "The account is disabled."
+msgstr "该帐户已禁用。"
+
+#: ucommon.rsnewuserfullname
+msgid "Full name: %"
+msgstr "全名：%"
+
+#: ucommon.rsnewuserlogonname
+msgid "User logon name: %"
+msgstr "用户登录名：%"
+
+#: ucommon.rsnewusernochangepassword
+msgid "The user cannot change his password."
+msgstr "用户不能更改自己的密码。"
+
+#: ucommon.rsnewuserpasswordnoexpire
+msgid "The Password never expires."
+msgstr "密码永不过期。"
+
+#: ucommon.rsnosuchattribute
+msgid "The targeted attribute does not exist in the specified entry."
+msgstr "指定条目中不存在目标属性。"
+
+#: ucommon.rsnosuchobject
+msgid "The targeted entry does not exists."
+msgstr "目标条目不存在。"
+
+#: ucommon.rsnotallowedonnonleaf
+msgid "The requested operation is only supported for leaf entries, but the targeted entry has one or more subordinates."
+msgstr "请求的操作仅支持叶条目，但目标条目有一个或多个下级对象。"
+
+#: ucommon.rsnotallowedonrdn
+msgid "The requested modify operation would have resulted in an entry that does not include all of the attributes used in its RDN."
+msgstr "请求的修改操作会导致条目不包含其 RDN 中使用的全部属性。"
+
+#: ucommon.rsnotrequiredtochangepassword
+msgid "The user will not be required to change the password at next logon."
+msgstr "用户下次登录时不需要更改密码。"
+
+#: ucommon.rsobjectclassviolation
+msgid "The requested operation would have resulted in an entry that has an inappropriate set of object classes, or whose attributes violate the constraints associated with its set of object classes."
+msgstr "请求的操作会导致条目具有不合适的对象类集合，或其属性违反对象类集合关联的约束。"
+
+#: ucommon.rsoperationserror
+msgid "Operation occurs in a wrong order."
+msgstr "操作顺序错误。"
+
+#: ucommon.rspasswordshouldneverexpire
+msgid "You specified that the password should never expire."
+msgstr "你已指定密码永不过期。"
+
+#: ucommon.rspreparedjoin
+msgid "Prepare DJOIN"
+msgstr "准备 DJOIN"
+
+#: ucommon.rspreparedjoinconfirmation
+msgid "You are about to change the password for the selected machines. This will remove the trust relationships with the domain. Continue?"
+msgstr "即将更改选定计算机的密码。这会移除其与域的信任关系。是否继续？"
+
+#: ucommon.rspreparedjoinfinished
+msgid "Prepare DJOIN finished. Open folder?"
+msgstr "DJOIN 准备完成。打开文件夹吗？"
+
+#: ucommon.rspreparedjoinselectfolder
+msgid "Select folder to store djoin files"
+msgstr "选择用于保存 djoin 文件的文件夹"
+
+#: ucommon.rsprotocolerror
+msgid "Malformed LDAP message. Unrecognized operation."
+msgstr "LDAP 消息格式错误。无法识别的操作。"
+
+#: ucommon.rsreferral
+msgid "This should not be an error. Client should follow referral. Please try the action on a different server."
+msgstr "这通常不应视为错误。客户端应跟随引用。请在其他服务器上尝试该操作。"
+
+#: ucommon.rsrename
+msgid "Rename"
+msgstr "重命名"
+
+#: ucommon.rsresetpassword
+msgid "Reset Password"
+msgstr "重置密码"
+
+#: ucommon.rsresetpasswordmessage
+msgid "Password has been reset successfully."
+msgstr "密码已成功重置。"
+
+#: ucommon.rsrestarttitle
+msgid "Restart confirmation"
+msgstr "重启确认"
+
+#: ucommon.rssafauditfailure
+msgid "Audit Failure"
+msgstr "审核失败"
+
+#: ucommon.rssafauditsuccess
+msgid "Audit Success"
+msgstr "审核成功"
+
+#: ucommon.rssafcontainerinherit
+msgid "Container Inherit"
+msgstr "容器继承"
+
+#: ucommon.rssafinherited
+msgid "Inherited"
+msgstr "已继承"
+
+#: ucommon.rssafinheritonly
+msgid "Inherit Only"
+msgstr "仅继承"
+
+#: ucommon.rssafnopropagate
+msgid "No Propagate"
+msgstr "不传播"
+
+#: ucommon.rssafobjectinherit
+msgid "Object Inherit"
+msgstr "对象继承"
+
+#: ucommon.rssaslbindinprogress
+msgid "The server is working on a bind request. Try again later."
+msgstr "服务器正在处理绑定请求。请稍后重试。"
+
+#: ucommon.rssaturday
+msgid "Saturday"
+msgstr "星期六"
+
+#: ucommon.rssearchscopebaseobject
+msgid "Base object"
+msgstr "基准对象"
+
+#: ucommon.rssearchscopesinglelevel
+msgid "Single level"
+msgstr "单级"
+
+#: ucommon.rssearchscopewholesubtree
+msgid "Whole subtree"
+msgstr "整个子树"
+
+#: ucommon.rssecaccesscontrolaccess
+msgid "Control Access"
+msgstr "控制访问"
+
+#: ucommon.rssecaccesscreatechild
+msgid "Create child"
+msgstr "创建子对象"
+
+#: ucommon.rssecaccessdelete
+msgctxt "ucommon.rssecaccessdelete"
+msgid "Delete"
+msgstr "删除"
+
+#: ucommon.rssecaccessdeletechild
+msgid "Delete child"
+msgstr "删除子对象"
+
+#: ucommon.rssecaccessdeletetree
+msgid "Delete Tree"
+msgstr "删除树"
+
+#: ucommon.rssecaccessfullcontrol
+msgid "Full control"
+msgstr "完全控制"
+
+#: ucommon.rssecaccessgenericall
+msgid "Generic All"
+msgstr "通用全部权限"
+
+#: ucommon.rssecaccessgenericexecute
+msgid "Generic Execute"
+msgstr "通用执行"
+
+#: ucommon.rssecaccessgenericread
+msgid "Generic Read"
+msgstr "通用读取"
+
+#: ucommon.rssecaccessgenericwrite
+msgid "Generic Write"
+msgstr "通用写入"
+
+#: ucommon.rssecaccesslistchildren
+msgid "List Children"
+msgstr "列出子对象"
+
+#: ucommon.rssecaccesslistcontent
+msgid "List content"
+msgstr "列出内容"
+
+#: ucommon.rssecaccesslistobject
+msgid "List Object"
+msgstr "列出对象"
+
+#: ucommon.rssecaccessreadcontrol
+msgid "Read Control"
+msgstr "读取控制"
+
+#: ucommon.rssecaccessreadprop
+msgid "Read"
+msgstr "Read"
+
+#: ucommon.rssecaccessselfwrite
+msgid "Self Write"
+msgstr "自写入"
+
+#: ucommon.rssecaccesssynchronize
+msgid "Synchronize"
+msgstr "Synchronize"
+
+#: ucommon.rssecaccesswritedac
+msgid "Write Dac"
+msgstr "写入 DACL"
+
+#: ucommon.rssecaccesswriteowner
+msgid "Write Owner"
+msgstr "写入所有者"
+
+#: ucommon.rssecaccesswriteprop
+msgid "Write"
+msgstr "Write"
+
+#: ucommon.rssecuritydescriptorinvalid
+msgid "Fail to read security descriptor"
+msgstr "无法读取安全描述符"
+
+#: ucommon.rsshowpassword
+msgid "Show password"
+msgstr "显示密码"
+
+#: ucommon.rssinglestringeditor
+msgid "Single String Editor"
+msgstr "单值字符串编辑器"
+
+#: ucommon.rssingletimeeditor
+msgid "Single Time Editor"
+msgstr "单值时间编辑器"
+
+#: ucommon.rssizelimitexceeded
+msgid "The result retrieved more objects than the server allowed."
+msgstr "返回的对象数量超过服务器允许的限制。"
+
+#: ucommon.rsstatusbardc
+msgid "DC: %"
+msgstr "DC： %"
+
+#: ucommon.rsstatusbarusername
+msgid "User: %"
+msgstr "User： %"
+
+#: ucommon.rsstrongerauthrequired
+msgid "The server requires the client to authenticate with a stronger authentication."
+msgstr "服务器要求客户端使用更强的身份验证方式。"
+
+#: ucommon.rssunday
+msgid "Sunday"
+msgstr "星期日"
+
+#: ucommon.rsthursday
+msgid "Thursday"
+msgstr "星期四"
+
+#: ucommon.rstimelimitexceeded
+msgid "The request time limit has been reached."
+msgstr "已达到请求时间限制。"
+
+#: ucommon.rstitleadvancedsecurity
+msgctxt "ucommon.rstitleadvancedsecurity"
+msgid "Advanced Security Settings for %"
+msgstr "% 的高级安全设置"
+
+#: ucommon.rstitleconnectorbind
+msgid "Connect or bind error."
+msgstr "连接或绑定错误。"
+
+#: ucommon.rstitleconnectsuccess
+msgid "Successful connection"
+msgstr "连接成功"
+
+#: ucommon.rstitledeletemember
+msgid "Delete a group user"
+msgstr "删除组用户"
+
+#: ucommon.rstitledeleteobject
+msgid "Delete object"
+msgstr "删除对象"
+
+#: ucommon.rstitleinvalidformat
+msgid "Invalid format"
+msgstr "格式无效"
+
+#: ucommon.rstitlenotfound
+msgid "Error not found"
+msgstr "未找到错误"
+
+#: ucommon.rstitleparsing
+msgid "Parsing error"
+msgstr "解析错误"
+
+#: ucommon.rstitlepermissionsfor
+msgid "Permissions for %"
+msgstr "% 的权限"
+
+#: ucommon.rstitleselectgroups
+msgid "Select groups"
+msgstr "选择组"
+
+#: ucommon.rstitleselectnewmanager
+msgid "Select new Manager"
+msgstr "选择新管理者"
+
+#: ucommon.rstitleselectowner
+msgid "Select owner"
+msgstr "选择所有者"
+
+#: ucommon.rstoofewsitesavailableforsitelink
+msgid "Active Directory Sites and Services cannot locate two sites to create a working site link object. You may create a new site link that links only one site, but it will have no effect until it links at least two sites."
+msgstr "Active Directory 站点和服务无法找到两个站点来创建可用的站点链接对象。你可以创建仅链接一个站点的新站点链接，但在至少链接两个站点之前它不会生效。"
+
+#: ucommon.rstuesday
+msgid "Tuesday"
+msgstr "星期二"
+
+#: ucommon.rsuacserver
+msgid "Domain controller"
+msgstr "域控制器"
+
+#: ucommon.rsuacworkstation
+msgid "Workstation or server"
+msgstr "工作站或服务器"
+
+#: ucommon.rsundefinedattributetype
+msgid "The targeted attribute does not exist in the server schema."
+msgstr "目标属性在服务器架构中不存在。"
+
+#: ucommon.rsunsavedchangequit
+msgid ""
+"There are unsaved changes.\n"
+"Are you sure you want to quit?"
+msgstr "存在未保存的更改。确定要退出吗？"
+
+#: ucommon.rsunwillingtoperform
+msgid "The server is not willing to process the requested operation for some reason. This is a fairly generic result code that may be used if the server refuses to process an operation for a reason that is not covered by a more specific result code."
+msgstr "服务器因某种原因不愿处理请求的操作。这是一个较通用的结果代码，通常用于服务器拒绝处理操作且原因不属于更具体结果代码覆盖范围的情况。"
+
+#: ucommon.rsusecurrentcreds
+msgid "Current user credentials"
+msgstr "当前用户凭据"
+
+#: ucommon.rsusermustchangepasswordandcannotchange
+msgid "You cannot check both User must change password at next logon and User cannot change password for the same user."
+msgstr "不能为同一用户同时选择“用户下次登录时必须更改密码”和“用户不能更改密码”。"
+
+#: ucommon.rsvisadvancedsecuritytitle
+#, fuzzy
+msgctxt "ucommon.rsvisadvancedsecuritytitle"
+msgid "Advanced Security Settings for %"
+msgstr "% 的高级安全设置"
+
+#: ucommon.rswarning
+msgid "Warning"
+msgstr "警告"
+
+#: ucommon.rswednesday
+msgid "Wednesday"
+msgstr "星期三"
+
+#: ucommon.rswellknownsidanonymous
+msgid "Anonymous"
+msgstr "匿名"
+
+#: ucommon.rswellknownsidauthenticateduser
+msgid "Authenticated User"
+msgstr "已验证用户"
+
+#: ucommon.rswellknownsidauthenticationauthorityasserted
+msgid "Authentication Authority Asserted"
+msgstr "身份验证机构断言"
+
+#: ucommon.rswellknownsidauthenticationfreshkeyauth
+msgid "Authentication Fresh Key Auth"
+msgstr "身份验证新密钥认证"
+
+#: ucommon.rswellknownsidauthenticationkeypropertyattestation
+msgid "Authentication Key Property Attestation"
+msgstr "身份验证密钥属性证明"
+
+#: ucommon.rswellknownsidauthenticationkeypropertymfa
+msgid "Authentication Key Property Mfa"
+msgstr "身份验证密钥属性 MFA"
+
+#: ucommon.rswellknownsidauthenticationkeytrust
+msgid "Authentication Key Trust"
+msgstr "身份验证密钥信任"
+
+#: ucommon.rswellknownsidauthenticationserviceasserted
+msgid "Authentication Service Asserted"
+msgstr "身份验证服务断言"
+
+#: ucommon.rswellknownsidbatch
+msgid "Batch"
+msgstr "Batch"
+
+#: ucommon.rswellknownsidbuiltinaccesscontrolassistanceoperators
+msgid "Builtin Access Control Assistance Operators"
+msgstr "内置访问控制辅助操作员"
+
+#: ucommon.rswellknownsidbuiltinaccountoperators
+msgid "Builtin Account Operators"
+msgstr "内置帐户操作员"
+
+#: ucommon.rswellknownsidbuiltinadministrators
+msgid "Builtin Administrators"
+msgstr "内置管理员"
+
+#: ucommon.rswellknownsidbuiltinanypackage
+msgid "Builtin Any Package"
+msgstr "内置任意包"
+
+#: ucommon.rswellknownsidbuiltinanyrestrictedpackage
+msgid "Builtin Any Restricted Package"
+msgstr "内置任意受限包"
+
+#: ucommon.rswellknownsidbuiltinauthorizationaccess
+msgid "Builtin Authorization Access"
+msgstr "内置授权访问"
+
+#: ucommon.rswellknownsidbuiltinbackupoperators
+msgid "Builtin Backup Operators"
+msgstr "内置备份操作员"
+
+#: ucommon.rswellknownsidbuiltincacheableprincipalsgroups
+msgid "Builtin Cacheable Principals Groups"
+msgstr "内置可缓存主体组"
+
+#: ucommon.rswellknownsidbuiltincertsvcdcomaccessgroup
+msgid "Builtin Cert Svc DCom Access Group"
+msgstr "内置证书服务 DCOM 访问组"
+
+#: ucommon.rswellknownsidbuiltincryptooperators
+msgid "Builtin Crypto Operators"
+msgstr "内置加密操作员"
+
+#: ucommon.rswellknownsidbuiltindcomusers
+msgid "Builtin Dcom Users"
+msgstr "内置 DCOM 用户"
+
+#: ucommon.rswellknownsidbuiltindefaultsystemmanagedgroup
+msgid "Builtin Default System Managed Group"
+msgstr "内置默认系统托管组"
+
+#: ucommon.rswellknownsidbuiltindeviceowners
+msgid "Builtin Device Owners"
+msgstr "内置设备所有者"
+
+#: ucommon.rswellknownsidbuiltindomain
+msgid "Builtin Domain"
+msgstr "内置域"
+
+#: ucommon.rswellknownsidbuiltineventlogreadersgroup
+msgid "Builtin Event Log Readers Group"
+msgstr "内置事件日志读取器组"
+
+#: ucommon.rswellknownsidbuiltinguests
+msgid "Builtin Guests"
+msgstr "内置来宾"
+
+#: ucommon.rswellknownsidbuiltinhypervadmins
+msgid "Builtin Hyper VAdmins"
+msgstr "内置 Hyper-V 管理员"
+
+#: ucommon.rswellknownsidbuiltinincomingforesttrustbuilders
+msgid "Builtin Incoming Forest Trust Builders"
+msgstr "内置传入林信任创建者"
+
+#: ucommon.rswellknownsidbuiltiniusers
+msgid "Builtin IUsers"
+msgstr "内置 IUsers"
+
+#: ucommon.rswellknownsidbuiltinnetworkconfigurationoperators
+msgid "Builtin Network Configuration Operators"
+msgstr "内置网络配置操作员"
+
+#: ucommon.rswellknownsidbuiltinnoncacheableprincipalsgroups
+msgid "Builtin Non Cacheable Principals Groups"
+msgstr "内置不可缓存主体组"
+
+#: ucommon.rswellknownsidbuiltinperfloggingusers
+msgid "Builtin Perf Logging Users"
+msgstr "内置性能日志用户"
+
+#: ucommon.rswellknownsidbuiltinperfmonitoringusers
+msgid "Builtin Perf Monitoring Users"
+msgstr "内置性能监视用户"
+
+#: ucommon.rswellknownsidbuiltinpowerusers
+msgid "Builtin Power Users"
+msgstr "内置 Power Users"
+
+#: ucommon.rswellknownsidbuiltinprewindows2000compatibleaccess
+msgid "Builtin Pre Windows 200 Compatible Access"
+msgstr "内置 Windows 2000 以前兼容访问"
+
+#: ucommon.rswellknownsidbuiltinprintoperators
+msgid "Builtin Print Operators"
+msgstr "内置打印操作员"
+
+#: ucommon.rswellknownsidbuiltinrasservers
+msgid "Builtin Ras Servers"
+msgstr "内置 RAS 服务器"
+
+#: ucommon.rswellknownsidbuiltinrdsendpointservers
+msgid "Builtin Rds Endpoint Servers"
+msgstr "内置 RDS 终结点服务器"
+
+#: ucommon.rswellknownsidbuiltinrdsmanagementservers
+msgid "Builtin Rds Management Servers"
+msgstr "内置 RDS 管理服务器"
+
+#: ucommon.rswellknownsidbuiltinrdsremoteaccessservers
+msgid "Builtin Rds Remote Access Servers"
+msgstr "内置 RDS 远程访问服务器"
+
+#: ucommon.rswellknownsidbuiltinremotedesktopusers
+msgid "Builtin Remote Desktop Users"
+msgstr "内置远程桌面用户"
+
+#: ucommon.rswellknownsidbuiltinremotemanagementusers
+msgid "Builtin Remote Management Users"
+msgstr "内置远程管理用户"
+
+#: ucommon.rswellknownsidbuiltinreplicator
+msgid "Builtin Replicator"
+msgstr "内置复制器"
+
+#: ucommon.rswellknownsidbuiltinstoragereplicaadmins
+msgid "Builtin Storage Replica Admins"
+msgstr "内置存储副本管理员"
+
+#: ucommon.rswellknownsidbuiltinsystemoperators
+msgid "Builtin System Operators"
+msgstr "内置系统操作员"
+
+#: ucommon.rswellknownsidbuiltinterminalserverlicenseservers
+msgid "Builtin Terminal Server License Servers"
+msgstr "内置终端服务器许可证服务器"
+
+#: ucommon.rswellknownsidbuiltinunknown
+msgid "Builtin Unknown"
+msgstr "内置未知"
+
+#: ucommon.rswellknownsidbuiltinusermodedriver
+msgid "Builtin User Mode Driver"
+msgstr "内置用户模式驱动"
+
+#: ucommon.rswellknownsidbuiltinusers
+msgid "Builtin Users"
+msgstr "内置用户"
+
+#: ucommon.rswellknownsidbuiltinwriterestrictedcode
+msgid "Builtin Write Restricted Code"
+msgstr "内置写入受限代码"
+
+#: ucommon.rswellknownsidcapabilityappointments
+msgid "Capability Appointments"
+msgstr "功能：约会"
+
+#: ucommon.rswellknownsidcapabilitycontacts
+msgid "Capability Contacts"
+msgstr "功能：联系人"
+
+#: ucommon.rswellknownsidcapabilitydocumentslibrary
+msgid "Capability Documents Library"
+msgstr "功能：文档库"
+
+#: ucommon.rswellknownsidcapabilityenterpriseauthentication
+msgid "Capability Enterprise Authentication"
+msgstr "功能：企业身份验证"
+
+#: ucommon.rswellknownsidcapabilityinternetclient
+msgid "Capability Internet Client"
+msgstr "功能：Internet 客户端"
+
+#: ucommon.rswellknownsidcapabilityinternetclientserver
+msgid "Capability Internet Client Server"
+msgstr "功能：Internet 客户端服务器"
+
+#: ucommon.rswellknownsidcapabilitymusiclibrary
+msgid "Capability Music Library"
+msgstr "功能：音乐库"
+
+#: ucommon.rswellknownsidcapabilitypictureslibrary
+msgid "Capability Pictures Library"
+msgstr "功能：图片库"
+
+#: ucommon.rswellknownsidcapabilityprivatenetworkclientserver
+msgid "Capability Private Network Client Server"
+msgstr "功能：专用网络客户端服务器"
+
+#: ucommon.rswellknownsidcapabilityremovablestorage
+msgid "Capability Removable Storage"
+msgstr "可移动存储功能"
+
+#: ucommon.rswellknownsidcapabilitysharedusercertificates
+msgid "Capability Shared User Certificates"
+msgstr "功能：共享用户证书"
+
+#: ucommon.rswellknownsidcapabilityvideoslibrary
+msgid "Capability Videos Library"
+msgstr "功能：视频库"
+
+#: ucommon.rswellknownsidconsolelogon
+msgid "Console Logon"
+msgstr "控制台登录"
+
+#: ucommon.rswellknownsidcreatorgroup
+msgid "Creator Group"
+msgstr "创建者组"
+
+#: ucommon.rswellknownsidcreatorgroupserver
+msgid "Creator Group Server"
+msgstr "创建者组服务器"
+
+#: ucommon.rswellknownsidcreatorowner
+msgid "Creator Owner"
+msgstr "创建者所有者"
+
+#: ucommon.rswellknownsidcreatorownerrights
+msgid "Creator Owner Rights"
+msgstr "创建者所有者权限"
+
+#: ucommon.rswellknownsidcreatorownerserver
+msgid "Creator Owner Server"
+msgstr "创建者所有者服务器"
+
+#: ucommon.rswellknownsiddialup
+msgid "Dialup"
+msgstr "Dialup"
+
+#: ucommon.rswellknownsiddigestauthentication
+msgid "Digest Authentication"
+msgstr "摘要身份验证"
+
+#: ucommon.rswellknownsidenterprisecontrollers
+msgid "Enterprise Controllers"
+msgstr "企业控制器"
+
+#: ucommon.rswellknownsidiisuser
+msgid "Iis User"
+msgstr "IIS 用户"
+
+#: ucommon.rswellknownsidintegrityhigh
+msgid "Integrity High"
+msgstr "完整性级别：高"
+
+#: ucommon.rswellknownsidintegritylow
+msgid "Integrity Low"
+msgstr "完整性级别：低"
+
+#: ucommon.rswellknownsidintegritymedium
+msgid "Integrity Medium"
+msgstr "完整性级别：中"
+
+#: ucommon.rswellknownsidintegritymediumplus
+msgid "Integrity Medium Plus"
+msgstr "完整性级别：中高"
+
+#: ucommon.rswellknownsidintegrityprotectedprocess
+msgid "Integrity Protected Process"
+msgstr "完整性级别：受保护进程"
+
+#: ucommon.rswellknownsidintegritysecureprocess
+msgid "Integrity Secure Process"
+msgstr "完整性级别：安全进程"
+
+#: ucommon.rswellknownsidintegritysystem
+msgid "Integrity System"
+msgstr "完整性级别：系统"
+
+#: ucommon.rswellknownsidintegrityuntrusted
+msgid "Integrity Untrusted"
+msgstr "完整性级别：不受信任"
+
+#: ucommon.rswellknownsidinteractive
+msgid "Interactive"
+msgstr "Interactive"
+
+#: ucommon.rswellknownsidlocal
+msgid "Local"
+msgstr "Local"
+
+#: ucommon.rswellknownsidlocalaccount
+msgid "Local Account"
+msgstr "本地帐户"
+
+#: ucommon.rswellknownsidlocalaccountandadministrator
+msgid "Local Account And Administrator"
+msgstr "本地帐户和管理员"
+
+#: ucommon.rswellknownsidlocalservice
+msgid "Local Service"
+msgstr "本地服务"
+
+#: ucommon.rswellknownsidlocalsystem
+msgid "Local System"
+msgstr "本地系统"
+
+#: ucommon.rswellknownsidnetwork
+msgid "Network"
+msgstr "Network"
+
+#: ucommon.rswellknownsidnetworkservice
+msgid "Network Service"
+msgstr "网络服务"
+
+#: ucommon.rswellknownsidntauthority
+msgid "Nt Authority"
+msgstr "NT AUTHORITY"
+
+#: ucommon.rswellknownsidntlmauthentication
+msgid "Ntlm Authentication"
+msgstr "NTLM 身份验证"
+
+#: ucommon.rswellknownsidproxy
+msgid "Proxy"
+msgstr "Proxy"
+
+#: ucommon.rswellknownsidremotelogonid
+msgid "Remote Logon Id"
+msgstr "远程登录 ID"
+
+#: ucommon.rswellknownsidrestrictedcode
+msgid "Restricted Code"
+msgstr "受限代码"
+
+#: ucommon.rswellknownsidschannelauthentication
+msgid "SChannel Authentication"
+msgstr "SChannel 身份验证"
+
+#: ucommon.rswellknownsidself
+msgid "Self"
+msgstr "Self"
+
+#: ucommon.rswellknownsidservice
+msgid "Service"
+msgstr "Service"
+
+#: ucommon.rswellknownsidterminalserver
+msgid "Terminal Server"
+msgstr "终端服务器"
+
+#: ucommon.rswellknownsidthisorganisation
+msgid "This Organisation"
+msgstr "此组织"
+
+#: ucommon.rswellknownsidworld
+msgid "Everyone"
+msgstr "Everyone"
+
+
+
+
+
+#: zh-localization-pass
+msgid "Include subcontainer"
+msgstr "包含子容器"
+
+#: zh-localization-pass
+msgid "Total : % elements"
+msgstr "总计：% 个对象"
+
+#: zh-localization-pass
+msgid "Show group relation"
+msgstr "显示组关系"
+
+#: zh-localization-pass
+msgid "Disable Enable Account"
+msgstr "禁用/启用帐户"
+
+#: zh-localization-pass
+msgid "Modify GPLink"
+msgstr "修改 GPLink"
+
+#: zh-localization-pass
+msgid "Enable GPO"
+msgstr "启用 GPO"
+
+#: zh-localization-pass
+msgid "Disable GPO"
+msgstr "禁用 GPO"
+
+#: zh-localization-pass
+msgid "Enforce GPO"
+msgstr "强制 GPO"
+
+#: zh-localization-pass
+msgid "Block GPO Inheritance"
+msgstr "阻止 GPO 继承"
+
+#: zh-localization-pass
+msgid "Show object location"
+msgstr "显示对象位置"
+
+#: zh-localization-pass
+msgid "Create KeyTab"
+msgstr "创建 KeyTab"
+
+#: zh-localization-pass
+msgid "Edit columns"
+msgstr "编辑列"
+
+#: zh-localization-pass
+msgid "Unlock account."
+msgstr "解锁帐户。"
+
+#: zh-localization-pass
+msgid "Group relations"
+msgstr "组关系"
+
+#: zh-localization-pass
+msgid "Selected: "
+msgstr "已选择："
+
+#: zh-localization-pass
+msgid "Search:"
+msgstr "搜索："
+
+#: zh-localization-pass
+msgid "Search: "
+msgstr "搜索："
+
+#: zh-localization-pass
+msgid "Show user"
+msgstr "显示用户"
+
+#: zh-localization-pass
+msgid "Hide single node"
+msgstr "隐藏单个节点"
+
+#: zh-localization-pass
+msgid "Circular dependencies"
+msgstr "循环依赖"
+
+#: zh-localization-pass
+msgid "Focus selected group"
+msgstr "定位选中的组"
+
+#: zh-localization-pass
+msgid "Save to PNG"
+msgstr "保存为 PNG"
+
+#: zh-localization-pass
+msgid "Clear focused group"
+msgstr "清除定位的组"
+
+#: zh-localization-pass
+msgid "Save to DOT"
+msgstr "保存为 DOT"
+
+#: zh-localization-pass
+msgid "Focus Selected"
+msgstr "定位选中项"
+
+#: zh-localization-pass
+msgid "View KeyTab"
+msgstr "查看 KeyTab"
+
+#: zh-localization-pass
+msgid "Close"
+msgstr "关闭"
+
+#: zh-localization-pass
+msgid "Filename"
+msgstr "文件名"
+
+#: zh-localization-pass
+msgid "Load from file"
+msgstr "从文件加载"
+
+#: zh-localization-pass
+msgid "Select folder"
+msgstr "选择文件夹"
+
+#: zh-localization-pass
+msgid "Save to file"
+msgstr "保存到文件"
+
+#: zh-localization-pass
+msgid "Copy to clipboard (base64)"
+msgstr "复制到剪贴板（base64）"
+
+#: zh-localization-pass
+msgid "Forward Lookup Zones"
+msgstr "正向查找区域"
+
+#: zh-localization-pass
+msgid "Reverse Lookup Zones"
+msgstr "反向查找区域"
+
+#: zh-localization-pass
+msgid "Retrieve records: "
+msgstr "获取记录："
+
+#: zh-localization-pass
+msgid "The user must logoff and then logon again for the change to take effect."
+msgstr "用户必须注销并重新登录后，更改才会生效。"
