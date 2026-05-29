@@ -1,0 +1,124 @@
+﻿msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_CN\n"
+
+#: tvisabout.caption
+msgctxt "tvisabout.caption"
+msgid "About"
+msgstr "关于"
+
+#: tvisabout.label_description.caption
+msgid "OpenRSAT is an open-source, cross-platform tool for Active Directory administration via an interface, inspired by Microsoft’s RSAT tools. It enables system administrators to manage users, groups, and organizational units on Windows, Linux, and macOS. "
+msgstr "OpenRSAT 是一个开源、跨平台的 Active Directory 图形化管理工具，灵感来自 Microsoft RSAT 工具。它可以帮助系统管理员在 Windows、Linux 和 macOS 上管理用户、组和组织单位。"
+
+#: tvisabout.label_discord.caption
+msgid "Click to join Tranquil IT discord."
+msgstr "点击加入 Tranquil IT Discord。"
+
+#: tvisabout.label_documentation.caption
+msgid "Click to open Documentation page. (Not yet implemented)"
+msgstr "点击打开文档页面。（尚未实现）"
+
+#: tvisabout.label_github.caption
+msgid "Click to open OpenRSAT github page."
+msgstr "点击打开 OpenRSAT GitHub 页面。"
+
+#: tvisabout.label_githubissue.caption
+msgid "You found a bug or want to give feedback? Click to open an issue on github!"
+msgstr "发现问题或想反馈？点击在 GitHub 上创建 issue！"
+
+#: tvisabout.label_tranquilit.caption
+msgid "Click to open Tranquil IT home page."
+msgstr "点击打开 Tranquil IT 主页。"
+
+#: tvisabout.label_waptpackage.caption
+msgid "Click to open OpenRSAT WAPT package."
+msgstr "点击打开 OpenRSAT WAPT 包页面。"
+
+#: tvisopenrsat.action_about.caption
+msgctxt "tvisopenrsat.action_about.caption"
+msgid "About"
+msgstr "关于"
+
+#: tvisopenrsat.action_newwindow.caption
+msgid "Action_NewWindow"
+msgstr "新建窗口"
+
+#: tvisopenrsat.action_openedproperties.caption
+msgctxt "tvisopenrsat.action_openedproperties.caption"
+msgid "Properties"
+msgstr "属性"
+
+#: tvisopenrsat.action_quit.caption
+msgctxt "tvisopenrsat.action_quit.caption"
+msgid "Quit"
+msgstr "退出"
+
+#: tvisopenrsat.caption
+msgctxt "tvisopenrsat.caption"
+msgid "OpenRSAT"
+msgstr "OpenRSAT"
+
+#: tvisopenrsat.menuitem3.caption
+msgctxt "tvisopenrsat.menuitem3.caption"
+msgid "Change tool"
+msgstr "切换工具"
+
+#: tvisopenrsat.menuitem_advancedfeatures.caption
+msgctxt "tvisopenrsat.menuitem_advancedfeatures.caption"
+msgid "MenuItem_AdvancedFeatures"
+msgstr "高级功能"
+
+#: tvisopenrsat.menuitem_debug.caption
+msgctxt "tvisopenrsat.menuitem_debug.caption"
+msgid "Debug options"
+msgstr "调试选项"
+
+#: tvisopenrsat.menuitem_file.caption
+msgctxt "tvisopenrsat.menuitem_file.caption"
+msgid "File"
+msgstr "文件"
+
+#: tvisopenrsat.menuitem_fileoptions.caption
+msgctxt "tvisopenrsat.menuitem_fileoptions.caption"
+msgid "Options"
+msgstr "选项"
+
+#: tvisopenrsat.menuitem_help.caption
+msgctxt "tvisopenrsat.menuitem_help.caption"
+msgid "?"
+msgstr "？"
+
+#: tvisopenrsat.menuitem_retrieveoldconfiguration.caption
+msgid "Retrieve old configuration"
+msgstr "Retrieve old 配置"
+
+#: tvisopenrsat.menuitem_showgpo.caption
+msgid "MenuItem_ShowGPO"
+msgstr "显示 GPO"
+
+#: tvisopenrsat.menuitem_view.caption
+msgctxt "tvisopenrsat.menuitem_view.caption"
+msgid "View"
+msgstr "视图"
+
+#: tvisopenrsat.menuitem_viewtheme.caption
+msgctxt "tvisopenrsat.menuitem_viewtheme.caption"
+msgid "Theme"
+msgstr "主题"
+
+#: tvisopenrsat.menuitem_viewthemedark.caption
+msgctxt "tvisopenrsat.menuitem_viewthemedark.caption"
+msgid "Use dark theme (at next launch)"
+msgstr "使用深色主题（下次启动生效）"
+
+#: tvisopenrsat.menuitem_viewthemelight.caption
+msgctxt "tvisopenrsat.menuitem_viewthemelight.caption"
+msgid "Use light theme (at next launch)"
+msgstr "使用浅色主题（下次启动生效）"
+
+#: tvisopenrsat.menuitem_viewthemesystem.caption
+msgctxt "tvisopenrsat.menuitem_viewthemesystem.caption"
+msgid "Use system theme (at next launch)"
+msgstr "使用系统主题（下次启动生效）"

@@ -313,6 +313,28 @@ uses
 
 {$R *.lfm}
 
+resourcestring
+  rsPropertyTabGeneral = 'General';
+  rsPropertyTabAddress = 'Address';
+  rsPropertyTabAccount = 'Account';
+  rsPropertyTabProfile = 'Profile';
+  rsPropertyTabTelephone = 'Telephone';
+  rsPropertyTabOrganization = 'Organization';
+  rsPropertyTabPublishedCertificates = 'Published Certificates';
+  rsPropertyTabMemberOf = 'Member Of';
+  rsPropertyTabMember = 'Member';
+  rsPropertyTabManagedBy = 'Managed By';
+  rsPropertyTabOperatingSystem = 'Operating System';
+  rsPropertyTabLAPS = 'LAPS';
+  rsPropertyTabBitLocker = 'BitLocker';
+  rsPropertyTabLocation = 'Location';
+  rsPropertyTabObject = 'Object';
+  rsPropertyTabSecurity = 'Security';
+  rsPropertyTabAttributes = 'Attributes';
+  rsPropertyTabUnixAttributes = 'UNIX Attributes';
+  rsPropertyTabNTAuthCertificates = 'NTAuthCertificates';
+  rsPropertyTabConnections = 'Connections';
+
 const
   PROPERTY_USER: Array of TPropertyFrameClass = (
     TFrmPropertyGeneralUser,
@@ -540,6 +562,33 @@ const
 
 { TVisProperties }
 
+function TranslatePropertyTabCaption(const ACaption: String): String;
+begin
+  case ACaption of
+    'General': Result := rsPropertyTabGeneral;
+    'Address': Result := rsPropertyTabAddress;
+    'Account': Result := rsPropertyTabAccount;
+    'Profile': Result := rsPropertyTabProfile;
+    'Telephone': Result := rsPropertyTabTelephone;
+    'Organization': Result := rsPropertyTabOrganization;
+    'Published Certificates': Result := rsPropertyTabPublishedCertificates;
+    'Member Of': Result := rsPropertyTabMemberOf;
+    'Member': Result := rsPropertyTabMember;
+    'Managed By': Result := rsPropertyTabManagedBy;
+    'Operating System': Result := rsPropertyTabOperatingSystem;
+    'LAPS': Result := rsPropertyTabLAPS;
+    'BitLocker': Result := rsPropertyTabBitLocker;
+    'Location': Result := rsPropertyTabLocation;
+    'Object': Result := rsPropertyTabObject;
+    'Security': Result := rsPropertyTabSecurity;
+    'Attributes': Result := rsPropertyTabAttributes;
+    'UNIX Attributes': Result := rsPropertyTabUnixAttributes;
+    'NTAuthCertificates': Result := rsPropertyTabNTAuthCertificates;
+    'Connections': Result := rsPropertyTabConnections;
+    else Result := ACaption;
+  end;
+end;
+
 constructor TVisProperties.Create(TheOwner: TComponent;
   ADistinguishedName: RawUtf8);
 begin
@@ -728,7 +777,7 @@ begin
   Frame := NewFrameClass.Create(Self);
   Frame.Parent := Tab;
   Frame.Align := alClient;
-  Tab.Caption := Frame.Caption;
+  Tab.Caption := TranslatePropertyTabCaption(Frame.Caption);
   Insert(Frame, fPropertyFrameList, High(fPropertyFrameList));
 end;
 

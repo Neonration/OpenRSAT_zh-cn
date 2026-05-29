@@ -11,7 +11,7 @@ object VisProperties: TVisProperties
   Constraints.MinWidth = 480
   KeyPreview = True
   Position = poOwnerFormCenter
-  SessionProperties = 'Width;Top;Left;Height;WindowState'
+  SessionProperties = 'Width;Top;Left;WindowState'
   LCLVersion = '4.6.0.0'
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery

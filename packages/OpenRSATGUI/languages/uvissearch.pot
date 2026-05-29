@@ -1,0 +1,70 @@
+﻿msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: uvissearch.rssearchobjectclassbuiltindomain
+msgid "builtinDomain"
+msgstr ""
+
+#: uvissearch.rssearchobjectclasscomputer
+msgid "computer"
+msgstr ""
+
+#: uvissearch.rssearchobjectclasscontact
+msgid "contact"
+msgstr ""
+
+#: uvissearch.rssearchobjectclasscontainer
+msgid "container"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassdomaindns
+msgid "domainDNS"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassgroup
+msgid "group"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassgrouppolicycontainer
+msgid "groupPolicyContainer"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassinfrastructureupdate
+msgid "infrastructureUpdate"
+msgstr ""
+
+#: uvissearch.rssearchobjectclasslostandfound
+msgid "lostAndFound"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassntdsdsa
+msgid "nTDSDSA"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassorganizationalunit
+msgid "organizationalUnit"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassprintqueue
+msgid "printQueue"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassserver
+msgid "server"
+msgstr ""
+
+#: uvissearch.rssearchobjectclasssite
+msgid "site"
+msgstr ""
+
+#: uvissearch.rssearchobjectclasssubnet
+msgid "subnet"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassuser
+msgid "user"
+msgstr ""
+
+#: uvissearch.rssearchobjectclassvolume
+msgid "volume"
+msgstr ""

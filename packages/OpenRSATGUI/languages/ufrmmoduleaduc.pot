@@ -1,0 +1,110 @@
+﻿msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: ufrmmoduleaduc.rsaduccomputeropenfailed
+msgid "The computer object could not be opened. It may be outside the current view or you may not have permission to read it."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdescriptionbuiltinsystemsettings
+msgid "Builtin system settings"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdescriptiondefaultapplicationdata
+msgid "Default location for storage of application data."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdescriptiondefaultcomputeraccounts
+msgid "Default container for upgraded computer accounts"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdescriptiondefaultdomaincontrollers
+msgid "Default container for domain controllers"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdescriptiondefaultmanagedserviceaccounts
+msgid "Default container for managed service accounts"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdescriptiondefaultorphanedobjects
+msgid "Default container for orphaned objects"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdescriptiondefaultsecurityidentifiers
+msgid "Default container for security identifiers (SIDs) associated with objects from external, trusted domains"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassbuiltindomain
+msgid "builtinDomain"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclasscomputer
+msgid "computer"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclasscontact
+msgid "contact"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclasscontainer
+msgid "container"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassdomaindns
+msgid "domainDNS"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassgroup
+msgid "group"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassgrouppolicycontainer
+msgid "groupPolicyContainer"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassinfrastructureupdate
+msgid "infrastructureUpdate"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclasslostandfound
+msgid "lostAndFound"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassntdsdsa
+msgid "nTDSDSA"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassorganizationalunit
+msgid "organizationalUnit"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassprintqueue
+msgid "printQueue"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassserver
+msgid "server"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclasssite
+msgid "site"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclasssubnet
+msgid "subnet"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassuser
+msgid "user"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducobjectclassvolume
+msgid "volume"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducrootnode
+msgid "Active Directory Users and Computers"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducsavedquerynode
+msgid "Saved Query"
+msgstr ""

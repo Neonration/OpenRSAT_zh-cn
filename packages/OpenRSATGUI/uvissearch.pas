@@ -125,6 +125,50 @@ uses
 
 {$R *.lfm}
 
+resourcestring
+  rsSearchObjectClassBuiltinDomain = 'builtinDomain';
+  rsSearchObjectClassComputer = 'computer';
+  rsSearchObjectClassContact = 'contact';
+  rsSearchObjectClassContainer = 'container';
+  rsSearchObjectClassDomainDNS = 'domainDNS';
+  rsSearchObjectClassGroup = 'group';
+  rsSearchObjectClassGroupPolicyContainer = 'groupPolicyContainer';
+  rsSearchObjectClassInfrastructureUpdate = 'infrastructureUpdate';
+  rsSearchObjectClassLostAndFound = 'lostAndFound';
+  rsSearchObjectClassNTDSDSA = 'nTDSDSA';
+  rsSearchObjectClassOrganizationalUnit = 'organizationalUnit';
+  rsSearchObjectClassPrintQueue = 'printQueue';
+  rsSearchObjectClassServer = 'server';
+  rsSearchObjectClassSite = 'site';
+  rsSearchObjectClassSubnet = 'subnet';
+  rsSearchObjectClassUser = 'user';
+  rsSearchObjectClassVolume = 'volume';
+
+function TranslateSearchObjectClass(const AValue: RawUtf8): String;
+begin
+  case AValue of
+    'builtinDomain': Result := rsSearchObjectClassBuiltinDomain;
+    'computer': Result := rsSearchObjectClassComputer;
+    'contact': Result := rsSearchObjectClassContact;
+    'container': Result := rsSearchObjectClassContainer;
+    'domainDNS': Result := rsSearchObjectClassDomainDNS;
+    'group': Result := rsSearchObjectClassGroup;
+    'groupPolicyContainer': Result := rsSearchObjectClassGroupPolicyContainer;
+    'infrastructureUpdate': Result := rsSearchObjectClassInfrastructureUpdate;
+    'lostAndFound': Result := rsSearchObjectClassLostAndFound;
+    'nTDSDSA': Result := rsSearchObjectClassNTDSDSA;
+    'organizationalUnit': Result := rsSearchObjectClassOrganizationalUnit;
+    'printQueue': Result := rsSearchObjectClassPrintQueue;
+    'server': Result := rsSearchObjectClassServer;
+    'site': Result := rsSearchObjectClassSite;
+    'subnet': Result := rsSearchObjectClassSubnet;
+    'user': Result := rsSearchObjectClassUser;
+    'volume': Result := rsSearchObjectClassVolume;
+  else
+    Result := String(AValue);
+  end;
+end;
+
 { TVisSearch }
 
 // Form
@@ -188,7 +232,9 @@ begin
   if TisGrid_Result.FindColumnByIndex(Column).PropertyName = 'name' then
   begin
     data := TisGrid_Result.GetNodeAsPDocVariantData(Node);
-    if Assigned(data) and data^.Exists('objectClass') then
+    if Assigned(data) and data^.Exists('objectClassRaw') then
+      ImageIndex := ObjectClassToImageIndex(data^.S['objectClassRaw'])
+    else if Assigned(data) and data^.Exists('objectClass') then
       ImageIndex := ObjectClassToImageIndex(data^.S['objectClass']);
   end;
 end;
@@ -425,7 +471,11 @@ begin
           if not Assigned(attr) then
             continue;
           case attribute of
-            'objectClass': data.AddValue(attribute, attr.GetReadable(attr.Count - 1));
+            'objectClass':
+              begin
+                data.AddValue('objectClassRaw', attr.GetReadable(attr.Count - 1));
+                data.AddValue(attribute, TranslateSearchObjectClass(attr.GetReadable(attr.Count - 1)));
+              end;
           else
             data.AddValue(attribute, attr.GetReadable());
           end;
