@@ -581,6 +581,11 @@ object VisSearch: TVisSearch
       OnExecute = Action_ShowInViewExecute
       OnUpdate = Action_ShowInViewUpdate
     end
+    object Action_DeleteComputerFromAllDC: TAction
+      Caption = 'Delete computer from all domain controllers...'
+      OnExecute = Action_DeleteComputerFromAllDCExecute
+      OnUpdate = Action_DeleteComputerFromAllDCUpdate
+    end
     object Action_Properties: TAction
       Caption = 'Properties'
       ShortCut = 13
@@ -611,6 +616,9 @@ object VisSearch: TVisSearch
     end
     object MenuItem_ShowInView: TMenuItem
       Action = Action_ShowInView
+    end
+    object MenuItem_DeleteComputerFromAllDC: TMenuItem
+      Action = Action_DeleteComputerFromAllDC
     end
     object MenuItem_Properties: TMenuItem
       Action = Action_Properties

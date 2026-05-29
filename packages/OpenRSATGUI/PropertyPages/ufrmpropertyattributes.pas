@@ -79,6 +79,146 @@ uses
 
 {$R *.lfm}
 
+resourcestring
+  rsAttrAccountExpires = 'Account expiration time';
+  rsAttrAdminCount = 'Admin count';
+  rsAttrBadPasswordTime = 'Last bad password time';
+  rsAttrBadPwdCount = 'Bad password count';
+  rsAttrCn = 'Common name';
+  rsAttrCo = 'Country/region';
+  rsAttrCompany = 'Company';
+  rsAttrDepartment = 'Department';
+  rsAttrDescription = 'Description';
+  rsAttrDisplayName = 'Display name';
+  rsAttrDistinguishedName = 'Distinguished name';
+  rsAttrDNSHostName = 'DNS host name';
+  rsAttrFacsimileTelephoneNumber = 'Fax number';
+  rsAttrGivenName = 'First name';
+  rsAttrHomePhone = 'Home phone';
+  rsAttrInitials = 'Initials';
+  rsAttrIpPhone = 'IP phone';
+  rsAttrL = 'City';
+  rsAttrLastLogon = 'Last logon';
+  rsAttrLastLogonTimestamp = 'Last logon timestamp';
+  rsAttrLockoutTime = 'Lockout time';
+  rsAttrLogonCount = 'Logon count';
+  rsAttrMail = 'Email';
+  rsAttrManagedBy = 'Managed by';
+  rsAttrMember = 'Member';
+  rsAttrMemberOf = 'Member of';
+  rsAttrMobile = 'Mobile';
+  rsAttrMsDSAllowedToDelegateTo = 'Allowed to delegate to';
+  rsAttrMsDSSupportedEncryptionTypes = 'Supported encryption types';
+  rsAttrMsFVERecoveryGuid = 'BitLocker recovery GUID';
+  rsAttrMsFVERecoveryPassword = 'BitLocker recovery password';
+  rsAttrMsLAPSPassword = 'Windows LAPS password';
+  rsAttrMsLAPSPasswordExpirationTime = 'Windows LAPS password expiration time';
+  rsAttrMsMcsAdmPwd = 'LAPS local administrator password';
+  rsAttrMsMcsAdmPwdExpirationTime = 'LAPS password expiration time';
+  rsAttrName = 'Name';
+  rsAttrNTSecurityDescriptor = 'Security descriptor';
+  rsAttrObjectCategory = 'Object category';
+  rsAttrObjectClass = 'Object class';
+  rsAttrObjectGUID = 'Object GUID';
+  rsAttrObjectSid = 'Object SID';
+  rsAttrOperatingSystem = 'Operating system';
+  rsAttrOperatingSystemVersion = 'Operating system version';
+  rsAttrPager = 'Pager';
+  rsAttrPhysicalDeliveryOfficeName = 'Office';
+  rsAttrPostalCode = 'Postal code';
+  rsAttrPrimaryGroupID = 'Primary group ID';
+  rsAttrPwdLastSet = 'Password last set';
+  rsAttrSAMAccountName = 'SAM account name';
+  rsAttrSAMAccountType = 'SAM account type';
+  rsAttrServicePrincipalName = 'Service principal name';
+  rsAttrSn = 'Last name';
+  rsAttrSt = 'State/province';
+  rsAttrStreetAddress = 'Street address';
+  rsAttrTelephoneNumber = 'Telephone number';
+  rsAttrTitle = 'Job title';
+  rsAttrUrl = 'URL';
+  rsAttrUserAccountControl = 'User account control';
+  rsAttrUserCertificate = 'User certificate';
+  rsAttrUserPrincipalName = 'User principal name';
+  rsAttrUSNChanged = 'USN changed';
+  rsAttrUSNCreated = 'USN created';
+  rsAttrWhenChanged = 'Changed time';
+  rsAttrWhenCreated = 'Created time';
+  rsAttrWWWHommePage = 'Web page';
+
+function TranslateAttributeName(const AName: RawUtf8): String;
+begin
+  case AName of
+    'accountExpires': Result := rsAttrAccountExpires;
+    'adminCount': Result := rsAttrAdminCount;
+    'badPasswordTime': Result := rsAttrBadPasswordTime;
+    'badPwdCount': Result := rsAttrBadPwdCount;
+    'cn': Result := rsAttrCn;
+    'co': Result := rsAttrCo;
+    'company': Result := rsAttrCompany;
+    'department': Result := rsAttrDepartment;
+    'description': Result := rsAttrDescription;
+    'displayName': Result := rsAttrDisplayName;
+    'distinguishedName': Result := rsAttrDistinguishedName;
+    'dNSHostName': Result := rsAttrDNSHostName;
+    'facsimileTelephoneNumber': Result := rsAttrFacsimileTelephoneNumber;
+    'givenName': Result := rsAttrGivenName;
+    'homePhone': Result := rsAttrHomePhone;
+    'initials': Result := rsAttrInitials;
+    'ipPhone': Result := rsAttrIpPhone;
+    'l': Result := rsAttrL;
+    'lastLogon': Result := rsAttrLastLogon;
+    'lastLogonTimestamp': Result := rsAttrLastLogonTimestamp;
+    'lockoutTime': Result := rsAttrLockoutTime;
+    'logonCount': Result := rsAttrLogonCount;
+    'mail': Result := rsAttrMail;
+    'managedBy': Result := rsAttrManagedBy;
+    'member': Result := rsAttrMember;
+    'memberOf': Result := rsAttrMemberOf;
+    'mobile': Result := rsAttrMobile;
+    'msDS-AllowedToDelegateTo': Result := rsAttrMsDSAllowedToDelegateTo;
+    'msDS-SupportedEncryptionTypes': Result := rsAttrMsDSSupportedEncryptionTypes;
+    'msFVE-RecoveryGuid': Result := rsAttrMsFVERecoveryGuid;
+    'msFVE-RecoveryPassword': Result := rsAttrMsFVERecoveryPassword;
+    'msLAPS-Password': Result := rsAttrMsLAPSPassword;
+    'msLAPS-PasswordExpirationTime': Result := rsAttrMsLAPSPasswordExpirationTime;
+    'ms-Mcs-AdmPwd': Result := rsAttrMsMcsAdmPwd;
+    'ms-Mcs-AdmPwdExpirationTime': Result := rsAttrMsMcsAdmPwdExpirationTime;
+    'name': Result := rsAttrName;
+    'nTSecurityDescriptor': Result := rsAttrNTSecurityDescriptor;
+    'objectCategory': Result := rsAttrObjectCategory;
+    'objectClass': Result := rsAttrObjectClass;
+    'objectGUID': Result := rsAttrObjectGUID;
+    'objectSid': Result := rsAttrObjectSid;
+    'operatingSystem': Result := rsAttrOperatingSystem;
+    'operatingSystemVersion': Result := rsAttrOperatingSystemVersion;
+    'pager': Result := rsAttrPager;
+    'physicalDeliveryOfficeName': Result := rsAttrPhysicalDeliveryOfficeName;
+    'postalCode': Result := rsAttrPostalCode;
+    'primaryGroupID': Result := rsAttrPrimaryGroupID;
+    'pwdLastSet': Result := rsAttrPwdLastSet;
+    'sAMAccountName': Result := rsAttrSAMAccountName;
+    'sAMAccountType': Result := rsAttrSAMAccountType;
+    'servicePrincipalName': Result := rsAttrServicePrincipalName;
+    'sn': Result := rsAttrSn;
+    'st': Result := rsAttrSt;
+    'streetAddress': Result := rsAttrStreetAddress;
+    'telephoneNumber': Result := rsAttrTelephoneNumber;
+    'title': Result := rsAttrTitle;
+    'url': Result := rsAttrUrl;
+    'userAccountControl': Result := rsAttrUserAccountControl;
+    'userCertificate': Result := rsAttrUserCertificate;
+    'userPrincipalName': Result := rsAttrUserPrincipalName;
+    'uSNChanged': Result := rsAttrUSNChanged;
+    'uSNCreated': Result := rsAttrUSNCreated;
+    'whenChanged': Result := rsAttrWhenChanged;
+    'whenCreated': Result := rsAttrWhenCreated;
+    'wWWHomePage': Result := rsAttrWWWHommePage;
+  else
+    Result := String(AName);
+  end;
+end;
+
 { TFrmPropertyAttributes }
 
 procedure TFrmPropertyAttributes.Timer_SearchInGridTimer(Sender: TObject);
@@ -188,18 +328,24 @@ var
   len: SizeInt;
   GridColumn: TTisGridColumn;
 begin
-  if aColumn <> 1 then
-    Exit;
-
   NodeData := List_Attributes.GetNodeAsPDocVariantData(aNode);
   if not Assigned(NodeData) then
     Exit;
   AttributeName := NodeData^.U['attribute'];
+  GridColumn := List_Attributes.FindColumnByIndex(aColumn);
+
+  if Assigned(GridColumn) and (GridColumn.PropertyName = 'attribute') then
+  begin
+    aText := TranslateAttributeName(AttributeName);
+    Exit;
+  end;
+
+  if (aColumn <> 1) or not Assigned(GridColumn) then
+    Exit;
 
   AttributeValues := fProperty.GetAllReadable(AttributeName);
 
   aText := String.Join('; ', TStringArray(AttributeValues));
-  GridColumn := List_Attributes.FindColumnByIndex(aColumn);
   if GridColumn.Width <= List_Attributes.Canvas.TextWidth(aText) then
   begin
     len := Length(AttributeValues);

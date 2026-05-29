@@ -1,0 +1,262 @@
+﻿msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: ufrmpropertyattributes.rsattraccountexpires
+msgid "Account expiration time"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattradmincount
+msgid "Admin count"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrbadpasswordtime
+msgid "Last bad password time"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrbadpwdcount
+msgid "Bad password count"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrcn
+msgid "Common name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrco
+msgid "Country/region"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrcompany
+msgid "Company"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrdepartment
+msgid "Department"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrdescription
+msgid "Description"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrdisplayname
+msgid "Display name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrdistinguishedname
+msgid "Distinguished name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrdnshostname
+msgid "DNS host name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrfacsimiletelephonenumber
+msgid "Fax number"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrgivenname
+msgid "First name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrhomephone
+msgid "Home phone"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrinitials
+msgid "Initials"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattripphone
+msgid "IP phone"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrl
+msgid "City"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrlastlogon
+msgid "Last logon"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrlastlogontimestamp
+msgid "Last logon timestamp"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrlockouttime
+msgid "Lockout time"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrlogoncount
+msgid "Logon count"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmail
+msgid "Email"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmanagedby
+msgid "Managed by"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmember
+msgid "Member"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmemberof
+msgid "Member of"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmobile
+msgid "Mobile"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmsdsallowedtodelegateto
+msgid "Allowed to delegate to"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmsdssupportedencryptiontypes
+msgid "Supported encryption types"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmsfverecoveryguid
+msgid "BitLocker recovery GUID"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmsfverecoverypassword
+msgid "BitLocker recovery password"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmslapspassword
+msgid "Windows LAPS password"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmslapspasswordexpirationtime
+msgid "Windows LAPS password expiration time"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmsmcsadmpwd
+msgid "LAPS local administrator password"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrmsmcsadmpwdexpirationtime
+msgid "LAPS password expiration time"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrname
+msgid "Name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrntsecuritydescriptor
+msgid "Security descriptor"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrobjectcategory
+msgid "Object category"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrobjectclass
+msgid "Object class"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrobjectguid
+msgid "Object GUID"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrobjectsid
+msgid "Object SID"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattroperatingsystem
+msgid "Operating system"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattroperatingsystemversion
+msgid "Operating system version"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrpager
+msgid "Pager"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrphysicaldeliveryofficename
+msgid "Office"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrpostalcode
+msgid "Postal code"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrprimarygroupid
+msgid "Primary group ID"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrpwdlastset
+msgid "Password last set"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrsamaccountname
+msgid "SAM account name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrsamaccounttype
+msgid "SAM account type"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrserviceprincipalname
+msgid "Service principal name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrsn
+msgid "Last name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrst
+msgid "State/province"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrstreetaddress
+msgid "Street address"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrtelephonenumber
+msgid "Telephone number"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrtitle
+msgid "Job title"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrurl
+msgid "URL"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattruseraccountcontrol
+msgid "User account control"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrusercertificate
+msgid "User certificate"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattruserprincipalname
+msgid "User principal name"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrusnchanged
+msgid "USN changed"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrusncreated
+msgid "USN created"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrwhenchanged
+msgid "Changed time"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrwhencreated
+msgid "Created time"
+msgstr ""
+
+#: ufrmpropertyattributes.rsattrwwwhommepage
+msgid "Web page"
+msgstr ""

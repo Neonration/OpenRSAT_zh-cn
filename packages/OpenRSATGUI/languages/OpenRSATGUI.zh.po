@@ -1,4 +1,4 @@
-﻿#: uvisconnectconfigs.lrj:$.strings.[9].value
+#: uvisconnectconfigs.lrj:$.strings.[9].value
 msgctxt "tformconnectconfigs.action_addconfig.caption"
 msgid "Add"
 msgstr "添加"
@@ -1330,7 +1330,7 @@ msgstr "州或省的名称"
 #: ufrmpropertygeneralou.lrj:$.strings.[2].value
 msgctxt "tfrmpropertygeneralou.label_city.caption"
 msgid "City:"
-msgstr "City："
+msgstr "城市："
 
 #: ufrmpropertygeneralou.lrj:$.strings.[5].value
 msgctxt "tfrmpropertygeneralou.label_country.caption"
@@ -1345,12 +1345,12 @@ msgstr "描述："
 #: ufrmpropertygeneralou.lrj:$.strings.[3].value
 msgctxt "tfrmpropertygeneralou.label_state.caption"
 msgid "State/province:"
-msgstr "State/province："
+msgstr "州/省："
 
 #: ufrmpropertygeneralou.lrj:$.strings.[1].value
 msgctxt "tfrmpropertygeneralou.label_street.caption"
 msgid "Street:"
-msgstr "Street："
+msgstr "街道："
 
 #: ufrmpropertygeneralou.lrj:$.strings.[4].value
 msgctxt "tfrmpropertygeneralou.label_zip.caption"
@@ -1585,12 +1585,12 @@ msgstr "属性"
 #: ufrmpropertymanagedby.lrj:$.strings.[1].value
 msgctxt "tfrmpropertymanagedby.labe_office.caption"
 msgid "Office:"
-msgstr "Office："
+msgstr "办公室："
 
 #: ufrmpropertymanagedby.lrj:$.strings.[3].value
 msgctxt "tfrmpropertymanagedby.label_city.caption"
 msgid "City:"
-msgstr "City："
+msgstr "城市："
 
 #: ufrmpropertymanagedby.lrj:$.strings.[5].value
 msgctxt "tfrmpropertymanagedby.label_countryregion.caption"
@@ -1600,7 +1600,7 @@ msgstr "国家/地区："
 #: ufrmpropertymanagedby.lrj:$.strings.[7].value
 msgctxt "tfrmpropertymanagedby.label_faxnumber.caption"
 msgid "Fax number:"
-msgstr "Fax number："
+msgstr "传真号码："
 
 #: ufrmpropertymanagedby.lrj:$.strings.[0].value
 msgctxt "tfrmpropertymanagedby.label_managedby.caption"
@@ -1610,17 +1610,17 @@ msgstr "名称："
 #: ufrmpropertymanagedby.lrj:$.strings.[4].value
 msgctxt "tfrmpropertymanagedby.label_stateprovince.caption"
 msgid "State/province:"
-msgstr "State/province："
+msgstr "州/省："
 
 #: ufrmpropertymanagedby.lrj:$.strings.[2].value
 msgctxt "tfrmpropertymanagedby.label_streetaddress.caption"
 msgid "Street:"
-msgstr "Street："
+msgstr "街道："
 
 #: ufrmpropertymanagedby.lrj:$.strings.[6].value
 msgctxt "tfrmpropertymanagedby.label_telephonenumber.caption"
 msgid "Telephone number:"
-msgstr "Telephone number："
+msgstr "电话号码："
 
 #: ufrmpropertymember.lrj:$.strings.[3].value
 msgctxt "tfrmpropertymember.action_add.caption"
@@ -1759,12 +1759,12 @@ msgstr "名称："
 #: ufrmpropertyoperatingsystem.lrj:$.strings.[2].value
 msgctxt "tfrmpropertyoperatingsystem.label_operatingsystemservicepack.caption"
 msgid "Service Pack:"
-msgstr "Service Pack："
+msgstr "服务包："
 
 #: ufrmpropertyoperatingsystem.lrj:$.strings.[1].value
 msgctxt "tfrmpropertyoperatingsystem.label_operatingsystemversion.caption"
 msgid "Version:"
-msgstr "Version："
+msgstr "版本："
 
 #: ufrmpropertyorganization.lrj:$.strings.[10].value
 msgctxt "tfrmpropertyorganization.action_change.caption"
@@ -5041,7 +5041,7 @@ msgstr "从所有域控制器删除计算机"
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcconfirm
 msgid "This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s"
-msgstr "将尝试从下列每个域控制器删除此计算机对象。%s%s计算机：%s%s%s域控制器：%s%s"
+msgstr "将尝试从下面列出的每个域控制器中删除此计算机对象。%s%s计算机：%s%s%s域控制器：%s%s"
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcnodc
 msgid "No domain controller could be found."
@@ -5049,7 +5049,7 @@ msgstr "未找到域控制器。"
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldconlyone
 msgid "Select exactly one computer object."
-msgstr "请选择一个计算机对象。"
+msgstr "请选择且仅选择一个计算机对象。"
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcresult
 msgid "Deletion results for:%s%s%s%s"
@@ -5101,3 +5101,263 @@ msgstr "已移动"
 #: ufrmmoduleaduc.rsaducbatchmoveoufailed
 msgid "Move failed"
 msgstr "移动失败"
+
+#: codex.zh.manual
+msgid "End with"
+msgstr "结尾为"
+
+#: codex.zh.manual
+msgid "Equal"
+msgstr "等于"
+
+#: codex.zh.manual
+msgid "Is different"
+msgstr "不等于"
+
+#: codex.zh.manual
+msgid "Present"
+msgstr "存在"
+
+#: codex.zh.manual
+msgid "Absent"
+msgstr "不存在"
+
+#: codex.zh.manual
+msgid "Show chart"
+msgstr "显示图表"
+
+#: codex.zh.manual
+msgid "Search..."
+msgstr "搜索..."
+
+#: codex.zh.manual
+msgid "Find next"
+msgstr "查找下一个"
+
+#: codex.zh.manual
+msgid "Copy cell"
+msgstr "复制单元格"
+
+#: codex.zh.manual
+msgid "Account expiration time"
+msgstr "帐户过期时间"
+
+#: codex.zh.manual
+msgid "Admin count"
+msgstr "管理员计数"
+
+#: codex.zh.manual
+msgid "Last bad password time"
+msgstr "上次密码错误时间"
+
+#: codex.zh.manual
+msgid "Bad password count"
+msgstr "密码错误次数"
+
+#: codex.zh.manual
+msgid "Common name"
+msgstr "通用名称"
+
+#: codex.zh.manual
+msgid "Country/region"
+msgstr "国家/地区"
+
+#: codex.zh.manual
+msgid "Company"
+msgstr "公司"
+
+#: codex.zh.manual
+msgid "Department"
+msgstr "部门"
+
+#: codex.zh.manual
+msgid "Display name"
+msgstr "显示名称"
+
+#: codex.zh.manual
+msgid "Distinguished name"
+msgstr "可分辨名称"
+
+#: codex.zh.manual
+msgid "DNS host name"
+msgstr "DNS 主机名"
+
+#: codex.zh.manual
+msgid "First name"
+msgstr "名"
+
+#: codex.zh.manual
+msgid "Home phone"
+msgstr "家庭电话"
+
+#: codex.zh.manual
+msgid "Initials"
+msgstr "缩写"
+
+#: codex.zh.manual
+msgid "IP phone"
+msgstr "IP 电话"
+
+#: codex.zh.manual
+msgid "Last logon"
+msgstr "上次登录"
+
+#: codex.zh.manual
+msgid "Last logon timestamp"
+msgstr "上次登录时间戳"
+
+#: codex.zh.manual
+msgid "Lockout time"
+msgstr "锁定时间"
+
+#: codex.zh.manual
+msgid "Logon count"
+msgstr "登录次数"
+
+#: codex.zh.manual
+msgid "Email"
+msgstr "电子邮件"
+
+#: codex.zh.manual
+msgid "Managed by"
+msgstr "管理者"
+
+#: codex.zh.manual
+msgid "Member of"
+msgstr "隶属于"
+
+#: codex.zh.manual
+msgid "Mobile"
+msgstr "手机"
+
+#: codex.zh.manual
+msgid "Allowed to delegate to"
+msgstr "允许委派到"
+
+#: codex.zh.manual
+msgid "Supported encryption types"
+msgstr "支持的加密类型"
+
+#: codex.zh.manual
+msgid "BitLocker recovery GUID"
+msgstr "BitLocker 恢复 GUID"
+
+#: codex.zh.manual
+msgid "BitLocker recovery password"
+msgstr "BitLocker 恢复密码"
+
+#: codex.zh.manual
+msgid "Windows LAPS password"
+msgstr "Windows LAPS 密码"
+
+#: codex.zh.manual
+msgid "Windows LAPS password expiration time"
+msgstr "Windows LAPS 密码到期时间"
+
+#: codex.zh.manual
+msgid "LAPS local administrator password"
+msgstr "LAPS 本地管理员密码"
+
+#: codex.zh.manual
+msgid "LAPS password expiration time"
+msgstr "LAPS 密码到期时间"
+
+#: codex.zh.manual
+msgid "Security descriptor"
+msgstr "安全描述符"
+
+#: codex.zh.manual
+msgid "Object category"
+msgstr "对象类别"
+
+#: codex.zh.manual
+msgid "Object GUID"
+msgstr "对象 GUID"
+
+#: codex.zh.manual
+msgid "Object SID"
+msgstr "对象 SID"
+
+#: codex.zh.manual
+msgid "Operating system"
+msgstr "操作系统"
+
+#: codex.zh.manual
+msgid "Operating system version"
+msgstr "操作系统版本"
+
+#: codex.zh.manual
+msgid "Pager"
+msgstr "寻呼机"
+
+#: codex.zh.manual
+msgid "Postal code"
+msgstr "邮政编码"
+
+#: codex.zh.manual
+msgid "Primary group ID"
+msgstr "主要组 ID"
+
+#: codex.zh.manual
+msgid "Password last set"
+msgstr "密码上次设置时间"
+
+#: codex.zh.manual
+msgid "SAM account name"
+msgstr "SAM 帐户名"
+
+#: codex.zh.manual
+msgid "SAM account type"
+msgstr "SAM 帐户类型"
+
+#: codex.zh.manual
+msgid "Service principal name"
+msgstr "服务主体名称"
+
+#: codex.zh.manual
+msgid "Last name"
+msgstr "姓"
+
+#: codex.zh.manual
+msgid "Street address"
+msgstr "街道地址"
+
+#: codex.zh.manual
+msgid "Job title"
+msgstr "职务"
+
+#: codex.zh.manual
+msgid "URL"
+msgstr "URL"
+
+#: codex.zh.manual
+msgid "User account control"
+msgstr "用户帐户控制"
+
+#: codex.zh.manual
+msgid "User certificate"
+msgstr "用户证书"
+
+#: codex.zh.manual
+msgid "User principal name"
+msgstr "用户主体名称"
+
+#: codex.zh.manual
+msgid "USN changed"
+msgstr "USN 已更改"
+
+#: codex.zh.manual
+msgid "USN created"
+msgstr "USN 已创建"
+
+#: codex.zh.manual
+msgid "Changed time"
+msgstr "更改时间"
+
+#: codex.zh.manual
+msgid "Created time"
+msgstr "创建时间"
+
+#: codex.zh.manual
+msgid "Web page"
+msgstr "网页"

@@ -1,6 +1,72 @@
 ﻿msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8"
 
+#: uvissearch.rssearchconditionabsent
+msgid "Absent"
+msgstr ""
+
+#: uvissearch.rssearchconditiondifferent
+msgid "Is different"
+msgstr ""
+
+#: uvissearch.rssearchconditionendwith
+msgid "End with"
+msgstr ""
+
+#: uvissearch.rssearchconditionequal
+msgid "Equal"
+msgstr ""
+
+#: uvissearch.rssearchconditionpresent
+msgid "Present"
+msgstr ""
+
+#: uvissearch.rssearchconditionstartwith
+msgid "Start with"
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldc
+msgid "Delete computer from all domain controllers..."
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldcalreadyabsent
+msgid "Already absent"
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldcconfirm
+#, object-pascal-format
+msgid "This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s"
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldcconnectfailed
+msgid "Connection failed"
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldcdeletefailed
+msgid "Deletion failed"
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldcnodc
+msgid "No domain controller could be found."
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldconlyone
+msgid "Select exactly one computer object."
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldcresult
+#, object-pascal-format
+msgid "Deletion results for:%s%s%s%s"
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldcsuccess
+msgid "Deleted"
+msgstr ""
+
+#: uvissearch.rssearchdeletecomputerfromalldctitle
+msgid "Delete computer from all domain controllers"
+msgstr ""
+
 #: uvissearch.rssearchobjectclassbuiltindomain
 msgid "builtinDomain"
 msgstr ""
