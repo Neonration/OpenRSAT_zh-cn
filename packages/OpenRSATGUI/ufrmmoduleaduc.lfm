@@ -693,6 +693,11 @@ object FrmModuleADUC: TFrmModuleADUC
       OnExecute = Action_DeleteExecute
       OnUpdate = Action_DeleteUpdate
     end
+    object Action_DeleteComputerFromAllDC: TAction
+      Caption = 'Delete computer from all domain controllers...'
+      OnExecute = Action_DeleteComputerFromAllDCExecute
+      OnUpdate = Action_DeleteComputerFromAllDCUpdate
+    end
     object Action_TaskDelegateControl: TAction
       Category = 'Tasks'
       Caption = 'Delagate Control'
@@ -717,6 +722,12 @@ object FrmModuleADUC: TFrmModuleADUC
       Caption = 'Disable Enable Account'
       OnExecute = Action_TaskDisableEnableAccountExecute
       OnUpdate = Action_TaskDisableEnableAccountUpdate
+    end
+    object Action_TaskBatchMoveOU: TAction
+      Category = 'Tasks'
+      Caption = 'Batch move OUs...'
+      OnExecute = Action_TaskBatchMoveOUExecute
+      OnUpdate = Action_TaskBatchMoveOUUpdate
     end
     object Action_TaskResetPassword: TAction
       Category = 'Tasks'
@@ -964,6 +975,9 @@ object FrmModuleADUC: TFrmModuleADUC
     object MenuItem_Move: TMenuItem
       Action = Action_TaskMove
     end
+    object MenuItem_BatchMoveOU: TMenuItem
+      Action = Action_TaskBatchMoveOU
+    end
     object MenuItem_OpenHomePage: TMenuItem
       Action = Action_TaskOpenHomePage
     end
@@ -1167,6 +1181,9 @@ object FrmModuleADUC: TFrmModuleADUC
     end
     object MenuItem_Delete: TMenuItem
       Action = Action_Delete
+    end
+    object MenuItem_DeleteComputerFromAllDC: TMenuItem
+      Action = Action_DeleteComputerFromAllDC
     end
     object MenuItem_Refresh: TMenuItem
       Action = Action_Refresh

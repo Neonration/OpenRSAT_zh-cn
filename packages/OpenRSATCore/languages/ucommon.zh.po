@@ -851,7 +851,7 @@ msgstr "读取控制"
 
 #: ucommon.rssecaccessreadprop
 msgid "Read"
-msgstr "Read"
+msgstr "读取"
 
 #: ucommon.rssecaccessselfwrite
 msgid "Self Write"
@@ -859,7 +859,7 @@ msgstr "自写入"
 
 #: ucommon.rssecaccesssynchronize
 msgid "Synchronize"
-msgstr "Synchronize"
+msgstr "同步"
 
 #: ucommon.rssecaccesswritedac
 msgid "Write Dac"
@@ -871,7 +871,7 @@ msgstr "写入所有者"
 
 #: ucommon.rssecaccesswriteprop
 msgid "Write"
-msgstr "Write"
+msgstr "写入"
 
 #: ucommon.rssecuritydescriptorinvalid
 msgid "Fail to read security descriptor"

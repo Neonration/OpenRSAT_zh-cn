@@ -75,6 +75,7 @@ type
     Action_Cut: TAction;
     Action_DelegateControl: TAction;
     Action_Delete: TAction;
+    Action_DeleteComputerFromAllDC: TAction;
     Action_Filter: TAction;
     Action_NewAll: TAction;
     Action_NewComputer: TAction;
@@ -100,6 +101,7 @@ type
     Action_TaskCopy: TAction;
     Action_TaskDelegateControl: TAction;
     Action_TaskDisableEnableAccount: TAction;
+    Action_TaskBatchMoveOU: TAction;
     Action_TaskManage: TAction;
     Action_TaskMove: TAction;
     Action_TaskNameMappings: TAction;
@@ -167,8 +169,10 @@ type
     MenuItem_DisableAccount: TMenuItem;
     MenuItem_ResetPassword: TMenuItem;
     MenuItem_Move: TMenuItem;
+    MenuItem_BatchMoveOU: TMenuItem;
     MenuItem_OpenHomePage: TMenuItem;
     MenuItem_Delete: TMenuItem;
+    MenuItem_DeleteComputerFromAllDC: TMenuItem;
     MenuItem_Refresh: TMenuItem;
     MenuItem_Properties: TMenuItem;
     MenuItem_New: TMenuItem;
@@ -228,6 +232,8 @@ type
     procedure Action_DelegateControlExecute(Sender: TObject);
     procedure Action_DelegateControlUpdate(Sender: TObject);
     procedure Action_DeleteExecute(Sender: TObject);
+    procedure Action_DeleteComputerFromAllDCExecute(Sender: TObject);
+    procedure Action_DeleteComputerFromAllDCUpdate(Sender: TObject);
     procedure Action_DeleteUpdate(Sender: TObject);
     procedure Action_DisableGPOExecute(Sender: TObject);
     procedure Action_EnableGPOExecute(Sender: TObject);
@@ -284,6 +290,8 @@ type
     procedure Action_TaskAddToAGroupUpdate(Sender: TObject);
     procedure Action_TaskDisableEnableAccountExecute(Sender: TObject);
     procedure Action_TaskDisableEnableAccountUpdate(Sender: TObject);
+    procedure Action_TaskBatchMoveOUExecute(Sender: TObject);
+    procedure Action_TaskBatchMoveOUUpdate(Sender: TObject);
     procedure Action_TaskMoveExecute(Sender: TObject);
     procedure Action_TaskMoveUpdate(Sender: TObject);
     procedure Action_TaskResetPasswordExecute(Sender: TObject);
@@ -364,6 +372,9 @@ type
     function GetSelectedObjects: TRawUtf8DynArray;
     function GetFocusedObject(OnlyContainer: Boolean = False): RawUtf8;
     function GetFocusedObjectClass: RawUtf8;
+    function GetDomainControllerHosts: TRawUtf8DynArray;
+    function GridSelectionContainsOnlyObjectClass(AObjectClass: RawUtf8;
+      AMinCount: Integer = 1): Boolean;
 
     procedure ObserverRsatOptions(Option: TOption);
 
@@ -456,6 +467,24 @@ resourcestring
   rsADUCDescriptionDefaultApplicationData = 'Default location for storage of application data.';
   rsADUCDescriptionBuiltinSystemSettings = 'Builtin system settings';
   rsADUCComputerOpenFailed = 'The computer object could not be opened. It may be outside the current view or you may not have permission to read it.';
+  rsADUCDeleteComputerFromAllDC = 'Delete computer from all domain controllers...';
+  rsADUCDeleteComputerFromAllDCTitle = 'Delete computer from all domain controllers';
+  rsADUCDeleteComputerFromAllDCConfirm = 'This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s';
+  rsADUCDeleteComputerFromAllDCNoDC = 'No domain controller could be found.';
+  rsADUCDeleteComputerFromAllDCOnlyOne = 'Select exactly one computer object.';
+  rsADUCDeleteComputerFromAllDCResult = 'Deletion results for:%s%s%s%s';
+  rsADUCDeleteComputerFromAllDCSuccess = 'Deleted';
+  rsADUCDeleteComputerFromAllDCAlreadyAbsent = 'Already absent';
+  rsADUCDeleteComputerFromAllDCConnectFailed = 'Connection failed';
+  rsADUCDeleteComputerFromAllDCDeleteFailed = 'Deletion failed';
+  rsADUCBatchMoveOU = 'Batch move OUs...';
+  rsADUCBatchMoveOUTitle = 'Batch move OUs';
+  rsADUCBatchMoveOUOnlyOU = 'Select two or more organizational units.';
+  rsADUCBatchMoveOUInvalidTarget = 'The target container cannot be one of the selected OUs or a child of one of them.';
+  rsADUCBatchMoveOUConfirm = 'Move % organizational units to:%s%s';
+  rsADUCBatchMoveOUResult = 'Move results:%s%s';
+  rsADUCBatchMoveOUSuccess = 'Moved';
+  rsADUCBatchMoveOUFailed = 'Move failed';
 
 type
   // Enumeration of actions new on ldap
@@ -816,6 +845,79 @@ begin
     TreeADUC.Selected := TreeADUC.Selected.Parent;
 
   Action_Refresh.Execute;
+end;
+
+procedure TFrmModuleADUC.Action_DeleteComputerFromAllDCExecute(Sender: TObject);
+var
+  DC, DCList, ResultLine, Results, SelectedObject: RawUtf8;
+  DCs, SelectedObjects: TRawUtf8DynArray;
+  LdapClient: TRsatLdapClient;
+begin
+  if Assigned(fLog) then
+    fLog.Log(sllTrace, 'Execute', Action_DeleteComputerFromAllDC);
+
+  SelectedObjects := GetSelectedObjects;
+  if (Length(SelectedObjects) <> 1) or (GetFocusedObjectClass <> 'computer') then
+  begin
+    MessageDlg(rsADUCDeleteComputerFromAllDCTitle, rsADUCDeleteComputerFromAllDCOnlyOne, mtWarning, [mbOK], 0);
+    Exit;
+  end;
+
+  SelectedObject := SelectedObjects[0];
+  DCs := GetDomainControllerHosts;
+  if Length(DCs) = 0 then
+  begin
+    MessageDlg(rsADUCDeleteComputerFromAllDCTitle, rsADUCDeleteComputerFromAllDCNoDC, mtError, [mbOK], 0);
+    Exit;
+  end;
+  DCList := '';
+  for DC in DCs do
+  begin
+    if DCList <> '' then
+      DCList := DCList + LineEnding;
+    DCList := DCList + DC;
+  end;
+
+  if MessageDlg(rsADUCDeleteComputerFromAllDCTitle,
+    FormatUtf8(rsADUCDeleteComputerFromAllDCConfirm, [LineEnding, LineEnding, LineEnding, SelectedObject, LineEnding, LineEnding, DCList]),
+    mtWarning, [mbYes, mbNo], 0) <> mrYes then
+    Exit;
+
+  Results := '';
+  for DC in DCs do
+  begin
+    LdapClient := TRsatLdapClient.Create(FrmRSAT.LdapClient.Settings);
+    try
+      LdapClient.Settings.TargetHost := DC;
+      LdapClient.Settings.KerberosSpn := '';
+      if not LdapClient.Connect() then
+        ResultLine := FormatUtf8('%: % - %', [DC, rsADUCDeleteComputerFromAllDCConnectFailed, LdapClient.ResultString])
+      else if LdapClient.Delete(SelectedObject, True) then
+        ResultLine := FormatUtf8('%: %', [DC, rsADUCDeleteComputerFromAllDCSuccess])
+      else if LdapClient.ResultError = leNoSuchObject then
+        ResultLine := FormatUtf8('%: %', [DC, rsADUCDeleteComputerFromAllDCAlreadyAbsent])
+      else
+        ResultLine := FormatUtf8('%: % - %', [DC, rsADUCDeleteComputerFromAllDCDeleteFailed, LdapClient.ResultString]);
+    finally
+      FreeAndNil(LdapClient);
+    end;
+
+    if Results <> '' then
+      Results := Results + LineEnding;
+    Results := Results + ResultLine;
+  end;
+
+  MessageDlg(rsADUCDeleteComputerFromAllDCTitle,
+    FormatUtf8(rsADUCDeleteComputerFromAllDCResult, [LineEnding, SelectedObject, LineEnding, Results]),
+    mtInformation, [mbOK], 0);
+  Action_Refresh.Execute;
+end;
+
+procedure TFrmModuleADUC.Action_DeleteComputerFromAllDCUpdate(Sender: TObject);
+begin
+  Action_DeleteComputerFromAllDC.Enabled :=
+    Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and
+    (Length(GetSelectedObjects) = 1) and (GetFocusedObjectClass = 'computer');
 end;
 
 procedure TFrmModuleADUC.Action_DeleteUpdate(Sender: TObject);
@@ -1756,6 +1858,81 @@ begin
     Action_TaskDisableEnableAccount.Caption := rsDisableAccount;
 end;
 
+procedure TFrmModuleADUC.Action_TaskBatchMoveOUExecute(Sender: TObject);
+var
+  DN, NewDN, ResultLine, Results, TargetDN: RawUtf8;
+  DNs: TNameValueDNs;
+  SelectedObjects: TRawUtf8DynArray;
+
+  function IsInvalidTarget(AMoveDN, ATargetDN: RawUtf8): Boolean;
+  var
+    Suffix, Target: String;
+  begin
+    Suffix := ',' + String(AMoveDN);
+    Target := String(ATargetDN);
+    result := SameText(String(AMoveDN), Target) or
+      ((Length(Target) > Length(Suffix)) and
+      SameText(Copy(Target, Length(Target) - Length(Suffix) + 1, Length(Suffix)), Suffix));
+  end;
+
+begin
+  if Assigned(fLog) then
+    fLog.Log(sllTrace, '% - Execute', [Action_TaskBatchMoveOU.Caption]);
+
+  if not GridSelectionContainsOnlyObjectClass('organizationalUnit', 2) then
+  begin
+    MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUOnlyOU, mtWarning, [mbOK], 0);
+    Exit;
+  end;
+
+  SelectedObjects := GetSelectedObjects;
+  With TVisChangeDN.Create(Self, FrmRSAT.LdapClient, GetParentDN(SelectedObjects[0]), FrmRSAT.LdapClient.DefaultDN) do
+  try
+    if (mrOK <> ShowModal) or (SelectedDN = '') then
+      Exit;
+    TargetDN := SelectedDN;
+  finally
+    Free;
+  end;
+
+  for DN in SelectedObjects do
+    if IsInvalidTarget(DN, TargetDN) then
+    begin
+      MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUInvalidTarget, mtWarning, [mbOK], 0);
+      Exit;
+    end;
+
+  if MessageDlg(rsADUCBatchMoveOUTitle,
+    FormatUtf8(rsADUCBatchMoveOUConfirm, [Length(SelectedObjects), LineEnding, TargetDN]),
+    mtWarning, [mbYes, mbNo], 0) <> mrYes then
+    Exit;
+
+  Results := '';
+  for DN in SelectedObjects do
+  begin
+    ParseDN(DN, DNs, True);
+    if Length(DNs) <= 0 then
+      Continue;
+    NewDN := DNs[0].Name + '=' + DNs[0].Value + ',' + TargetDN;
+    if FrmRSAT.LdapClient.MoveLdapEntry(DN, NewDN) then
+      ResultLine := FormatUtf8('%: %', [DN, rsADUCBatchMoveOUSuccess])
+    else
+      ResultLine := FormatUtf8('%: % - %', [DN, rsADUCBatchMoveOUFailed, FrmRSAT.LdapClient.ResultString]);
+    if Results <> '' then
+      Results := Results + LineEnding;
+    Results := Results + ResultLine;
+  end;
+
+  MessageDlg(rsADUCBatchMoveOUTitle, FormatUtf8(rsADUCBatchMoveOUResult, [LineEnding, Results]), mtInformation, [mbOK], 0);
+  Action_Refresh.Execute;
+end;
+
+procedure TFrmModuleADUC.Action_TaskBatchMoveOUUpdate(Sender: TObject);
+begin
+  Action_TaskBatchMoveOU.Enabled := Assigned(FrmRSAT.LdapClient) and
+    FrmRSAT.LdapClient.Connected and GridSelectionContainsOnlyObjectClass('organizationalUnit', 2);
+end;
+
 procedure TFrmModuleADUC.Action_TaskMoveExecute(Sender: TObject);
 var
   DistinguishedName: String;
@@ -2007,7 +2184,7 @@ begin
       VisibleItems := Concat(VisibleItems, [MenuItem_DelegateControl,
         MenuItem_ChangeDomainController,MenuItem_OperationsMasters,MenuItem_New,
         MenuItem_FindBitLockerRecoveryPassword, MenuItem_Search,MenuItem_Refresh,
-        MenuItem_Delete,MenuItem_Properties]);
+        MenuItem_Delete,MenuItem_DeleteComputerFromAllDC,MenuItem_Properties]);
       if fModuleAduc.ADUCOption.ShowGPO then
         VisibleItems := Concat(VisibleItems, [MenuItem_BlockGPOInheritance]);
     end;
@@ -2188,6 +2365,7 @@ begin
     MenuItem_DisableAccount,
     MenuItem_ResetPassword,
     MenuItem_Move,
+    MenuItem_BatchMoveOU,
     MenuItem_OpenHomePage,
     MenuItem_SendMail,
     MenuItem_Manage,
@@ -2202,6 +2380,7 @@ begin
     MenuItem_ShowObjectLocation,
     MenuItem_Search,
     MenuItem_Delete,
+    MenuItem_DeleteComputerFromAllDC,
     MenuItem_Refresh,
     MenuItem_Properties
   ];
@@ -3060,7 +3239,6 @@ var
     end;
 
     SelectedRows := GridADUC.SelectedRows;
-    SetLength(result, SelectedRows.Count);
 
     Count := 0;
     for Row in SelectedRows.Objects do
@@ -3262,6 +3440,70 @@ begin
       fLog.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
     Exit;
   end;
+end;
+
+function TFrmModuleADUC.GetDomainControllerHosts: TRawUtf8DynArray;
+var
+  HostName: RawUtf8;
+  Ldap: TRsatLdapClient;
+  SearchResult: TLdapResult;
+begin
+  result := [];
+  if not Assigned(FrmRSAT) or not Assigned(FrmRSAT.LdapClient) then
+    Exit;
+
+  Ldap := FrmRSAT.LdapClient;
+  Ldap.SearchBegin();
+  try
+    Ldap.SearchScope := lssWholeSubtree;
+    repeat
+      if not Ldap.Search(Ldap.ConfigDN, False, '(objectClass=server)', ['dNSHostName', 'name']) then
+      begin
+        if Assigned(fLog) then
+          fLog.Log(sllError, 'Ldap Search Error: "%"', [Ldap.ResultString]);
+        Exit;
+      end;
+
+      for SearchResult in Ldap.SearchResult.Items do
+      begin
+        if not Assigned(SearchResult) then
+          continue;
+        HostName := SearchResult.Find('dNSHostName').GetReadable();
+        if HostName = '' then
+          HostName := SearchResult.Find('name').GetReadable();
+        if (HostName <> '') and not result.Contains(HostName) then
+          Insert(HostName, result, Length(result));
+      end;
+    until Ldap.SearchCookie = '';
+  finally
+    Ldap.SearchEnd();
+  end;
+end;
+
+function TFrmModuleADUC.GridSelectionContainsOnlyObjectClass(
+  AObjectClass: RawUtf8; AMinCount: Integer): Boolean;
+var
+  ObjectClassArray: TRawUtf8DynArray;
+  Row: PDocVariantData;
+  SelectedRows: TDocVariantData;
+begin
+  result := False;
+  if not Assigned(GridADUC) or (GridADUC.SelectedCount < AMinCount) then
+    Exit;
+
+  SelectedRows := GridADUC.SelectedRows;
+  if SelectedRows.Count < AMinCount then
+    Exit;
+
+  for Row in SelectedRows.Objects do
+  begin
+    if not Assigned(Row) or not Row^.Exists('objectClass') then
+      Exit;
+    ObjectClassArray := Row^.A['objectClass']^.ToRawUtf8DynArray;
+    if (Length(ObjectClassArray) = 0) or (ObjectClassArray[High(ObjectClassArray)] <> AObjectClass) then
+      Exit;
+  end;
+  result := True;
 end;
 
 procedure TFrmModuleADUC.ObserverRsatOptions(Option: TOption);
