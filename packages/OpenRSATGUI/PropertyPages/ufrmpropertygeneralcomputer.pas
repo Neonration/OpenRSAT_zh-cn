@@ -56,12 +56,26 @@ uses
 
 {$R *.lfm}
 
+function ComputerSamAccountNameForDisplay(const AValue: String): String;
+begin
+  result := AValue;
+  if result.EndsWith('$') then
+    Delete(result, Length(result), 1);
+end;
+
+function ComputerSamAccountNameForSave(const AValue: String): String;
+begin
+  result := AValue;
+  if (result <> '') and not result.EndsWith('$') then
+    result := result + '$';
+end;
+
 { TFrmPropertyGeneralComputer }
 
 procedure TFrmPropertyGeneralComputer.Edit_SamaccountNameChange(Sender: TObject
   );
 begin
-  fProperty.Add('sAMAccountName', Edit_SamaccountName.Text);
+  fProperty.Add('sAMAccountName', ComputerSamAccountNameForSave(Edit_SamaccountName.Text));
 end;
 
 procedure TFrmPropertyGeneralComputer.Edit_DescriptionChange(Sender: TObject);
@@ -88,7 +102,7 @@ begin
   fProperty := Props;
 
   Edit_Name.CaptionNoChange := fProperty.name;
-  Edit_SamaccountName.CaptionNoChange := fProperty.sAMAccountName;
+  Edit_SamaccountName.CaptionNoChange := ComputerSamAccountNameForDisplay(fProperty.sAMAccountName);
   Edit_DNSHostName.CaptionNoChange := fProperty.GetReadable('dNSHostName');
   Edit_dcType.CaptionNoChange := fProperty.dcTypeFromUAC;
   Edit_Site.CaptionNoChange := fProperty.SiteFromServerReference;

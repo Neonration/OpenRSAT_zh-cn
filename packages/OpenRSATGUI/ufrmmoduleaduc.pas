@@ -879,7 +879,7 @@ begin
   end;
 
   if MessageDlg(rsADUCDeleteComputerFromAllDCTitle,
-    FormatUtf8(rsADUCDeleteComputerFromAllDCConfirm, [LineEnding, LineEnding, LineEnding, SelectedObject, LineEnding, LineEnding, DCList]),
+    Format(rsADUCDeleteComputerFromAllDCConfirm, [LineEnding, LineEnding, LineEnding, String(SelectedObject), LineEnding, LineEnding, String(DCList)]),
     mtWarning, [mbYes, mbNo], 0) <> mrYes then
     Exit;
 
@@ -908,7 +908,7 @@ begin
   end;
 
   MessageDlg(rsADUCDeleteComputerFromAllDCTitle,
-    FormatUtf8(rsADUCDeleteComputerFromAllDCResult, [LineEnding, SelectedObject, LineEnding, Results]),
+    Format(rsADUCDeleteComputerFromAllDCResult, [LineEnding, String(SelectedObject), LineEnding, String(Results)]),
     mtInformation, [mbOK], 0);
   Action_Refresh.Execute;
 end;
