@@ -1635,7 +1635,8 @@ begin
   With TVisSearch.Create(Self, Self) do
   begin
     Edit_Path.Caption := NodeData.DistinguishedName;
-    ShowModal;
+    Show;
+    BringToFront;
   end;
 end;
 

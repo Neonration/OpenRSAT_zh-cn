@@ -1,4 +1,7 @@
-﻿#: ucommon.rsaccountunlocked
+﻿msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: ucommon.rsaccountunlocked
 msgid "Account Unlock"
 msgstr "帐户解锁"
 
@@ -1409,3 +1412,4 @@ msgstr "此组织"
 #: ucommon.rswellknownsidworld
 msgid "Everyone"
 msgstr "Everyone"
+
