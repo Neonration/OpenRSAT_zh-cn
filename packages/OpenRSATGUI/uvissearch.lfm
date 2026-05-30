@@ -532,6 +532,7 @@ object VisSearch: TVisSearch
       Header.MinHeight = 19
       Header.Options = [hoColumnResize, hoDblClickResize, hoDrag, hoShowSortGlyphs, hoVisible, hoHeaderClickAutoSort]
       Header.Style = hsFlatButtons
+      TreeOptions.SelectionOptions = [toDisableDrawSelection, toExtendedFocus, toMultiSelect, toRightClickSelect, toSimpleDrawSelection]
       PopupMenu = PopupMenu1
       TabOrder = 0
       SelectedAndTotalLabel = Label_ResultCount
