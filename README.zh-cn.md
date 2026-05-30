@@ -2,7 +2,7 @@
 
 OpenRSAT 是一个使用 Object Pascal/Lazarus 编写的 Active Directory 管理工具，界面和使用方式接近 Microsoft RSAT。它可以在 Windows、Linux 和 macOS 上运行，用于管理用户、计算机、DNS、站点和服务等 AD 对象。
 
-本仓库是中文本地化和 macOS arm64 打包维护版本。英文原文文档保留在 [`README.md`](./README.md)，中文构建说明见 [`build.zh-cn.md`](./build.zh-cn.md)。
+本仓库是中文本地化和 macOS arm64 打包维护版本。英文原文文档保留在 [`README.en.md`](./README.en.md)，中文构建说明见 [`build.zh-cn.md`](./build.zh-cn.md)。
 
 ## 功能概览
 

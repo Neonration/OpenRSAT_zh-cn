@@ -395,6 +395,7 @@ type
     destructor Destroy; override;
 
     function Focus(DistinguishedName: String): Boolean;
+    function BatchMoveObjects(const SelectedObjects: TRawUtf8DynArray): Boolean;
 
     procedure BeginUpdate;
     procedure EndUpdate;
@@ -477,11 +478,11 @@ resourcestring
   rsADUCDeleteComputerFromAllDCAlreadyAbsent = 'Already absent';
   rsADUCDeleteComputerFromAllDCConnectFailed = 'Connection failed';
   rsADUCDeleteComputerFromAllDCDeleteFailed = 'Deletion failed';
-  rsADUCBatchMoveOU = 'Batch move OUs...';
-  rsADUCBatchMoveOUTitle = 'Batch move OUs';
-  rsADUCBatchMoveOUOnlyOU = 'Select two or more organizational units.';
-  rsADUCBatchMoveOUInvalidTarget = 'The target container cannot be one of the selected OUs or a child of one of them.';
-  rsADUCBatchMoveOUConfirm = 'Move % organizational units to:%s%s';
+  rsADUCBatchMoveOU = 'Batch move to OU...';
+  rsADUCBatchMoveOUTitle = 'Batch move to OU';
+  rsADUCBatchMoveOUOnlyOU = 'Select two or more objects.';
+  rsADUCBatchMoveOUInvalidTarget = 'The target container cannot be one of the selected objects or a child of one of them.';
+  rsADUCBatchMoveOUConfirm = 'Move % objects to:%s%s';
   rsADUCBatchMoveOUResult = 'Move results:%s%s';
   rsADUCBatchMoveOUSuccess = 'Moved';
   rsADUCBatchMoveOUFailed = 'Move failed';
@@ -1859,10 +1860,18 @@ begin
 end;
 
 procedure TFrmModuleADUC.Action_TaskBatchMoveOUExecute(Sender: TObject);
+begin
+  if Assigned(fLog) then
+    fLog.Log(sllTrace, '% - Execute', [Action_TaskBatchMoveOU.Caption]);
+
+  BatchMoveObjects(GetSelectedObjects);
+end;
+
+function TFrmModuleADUC.BatchMoveObjects(
+  const SelectedObjects: TRawUtf8DynArray): Boolean;
 var
   DN, NewDN, ResultLine, Results, TargetDN: RawUtf8;
   DNs: TNameValueDNs;
-  SelectedObjects: TRawUtf8DynArray;
 
   function IsInvalidTarget(AMoveDN, ATargetDN: RawUtf8): Boolean;
   var
@@ -1876,16 +1885,13 @@ var
   end;
 
 begin
-  if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_TaskBatchMoveOU.Caption]);
-
-  if not GridSelectionContainsOnlyObjectClass('organizationalUnit', 2) then
+  result := False;
+  if Length(SelectedObjects) < 2 then
   begin
     MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUOnlyOU, mtWarning, [mbOK], 0);
     Exit;
   end;
 
-  SelectedObjects := GetSelectedObjects;
   With TVisChangeDN.Create(Self, FrmRSAT.LdapClient, GetParentDN(SelectedObjects[0]), FrmRSAT.LdapClient.DefaultDN) do
   try
     if (mrOK <> ShowModal) or (SelectedDN = '') then
@@ -1925,12 +1931,13 @@ begin
 
   MessageDlg(rsADUCBatchMoveOUTitle, FormatUtf8(rsADUCBatchMoveOUResult, [LineEnding, Results]), mtInformation, [mbOK], 0);
   Action_Refresh.Execute;
+  result := True;
 end;
 
 procedure TFrmModuleADUC.Action_TaskBatchMoveOUUpdate(Sender: TObject);
 begin
   Action_TaskBatchMoveOU.Enabled := Assigned(FrmRSAT.LdapClient) and
-    FrmRSAT.LdapClient.Connected and GridSelectionContainsOnlyObjectClass('organizationalUnit', 2);
+    FrmRSAT.LdapClient.Connected and (Length(GetSelectedObjects) >= 2);
 end;
 
 procedure TFrmModuleADUC.Action_TaskMoveExecute(Sender: TObject);

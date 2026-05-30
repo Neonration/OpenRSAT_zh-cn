@@ -5196,24 +5196,24 @@ msgstr "连接失败"
 msgid "Deletion failed"
 msgstr "删除失败"
 #: ufrmmoduleaduc.rsaducbatchmoveou
-msgid "Batch move OUs..."
-msgstr "批量移动 OU..."
+msgid "Batch move to OU..."
+msgstr "批量移动到 OU..."
 
 #: ufrmmoduleaduc.rsaducbatchmoveoutitle
-msgid "Batch move OUs"
-msgstr "批量移动 OU"
+msgid "Batch move to OU"
+msgstr "批量移动到 OU"
 
 #: ufrmmoduleaduc.rsaducbatchmoveouonlyou
-msgid "Select two or more organizational units."
-msgstr "请选择两个或更多组织单位。"
+msgid "Select two or more objects."
+msgstr "请选择两个或更多对象。"
 
 #: ufrmmoduleaduc.rsaducbatchmoveouinvalidtarget
-msgid "The target container cannot be one of the selected OUs or a child of one of them."
-msgstr "目标容器不能是已选 OU 本身或其子级。"
+msgid "The target container cannot be one of the selected objects or a child of one of them."
+msgstr "目标容器不能是已选对象本身或其子级。"
 
 #: ufrmmoduleaduc.rsaducbatchmoveouconfirm
-msgid "Move % organizational units to:%s%s"
-msgstr "将 % 个组织单位移动到：%s%s"
+msgid "Move % objects to:%s%s"
+msgstr "将 % 个对象移动到：%s%s"
 
 #: ufrmmoduleaduc.rsaducbatchmoveouresult
 msgid "Move results:%s%s"
@@ -5226,6 +5226,10 @@ msgstr "已移动"
 #: ufrmmoduleaduc.rsaducbatchmoveoufailed
 msgid "Move failed"
 msgstr "移动失败"
+
+#: uvissearch.rssearchbatchmoveou
+msgid "Batch move to OU..."
+msgstr "批量移动到 OU..."
 
 #: ucommon.rsaccountunlocked
 msgid "Account Unlock"
