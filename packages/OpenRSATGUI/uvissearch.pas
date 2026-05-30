@@ -28,6 +28,7 @@ type
   TVisSearch = class(TForm)
     Action_AdvAdd: TAction;
     Action_AdvDel: TAction;
+    Action_BatchMoveOU: TAction;
     Action_DeleteComputerFromAllDC: TAction;
     Action_Properties: TAction;
     Action_SearchFrom: TAction;
@@ -46,6 +47,7 @@ type
     Label_PageSize: TLabel;
     Label_PageCount: TLabel;
     Memo_ExpFilter: TMemo;
+    MenuItem_BatchMoveOU: TMenuItem;
     MenuItem_DeleteComputerFromAllDC: TMenuItem;
     MenuItem_Properties: TMenuItem;
     MenuItem_SearchFrom: TMenuItem;
@@ -82,6 +84,8 @@ type
     procedure Action_AdvAddUpdate(Sender: TObject);
     procedure Action_AdvDelExecute(Sender: TObject);
     procedure Action_AdvDelUpdate(Sender: TObject);
+    procedure Action_BatchMoveOUExecute(Sender: TObject);
+    procedure Action_BatchMoveOUUpdate(Sender: TObject);
     procedure Action_ChangeDNExecute(Sender: TObject);
     procedure Action_DeleteComputerFromAllDCExecute(Sender: TObject);
     procedure Action_DeleteComputerFromAllDCUpdate(Sender: TObject);
@@ -111,6 +115,7 @@ type
     function GetDomainControllerHosts: TRawUtf8DynArray;
     function GetFocusedResultDN: RawUtf8;
     function GetFocusedResultObjectClass: RawUtf8;
+    function GetSelectedResultDNs: TRawUtf8DynArray;
   public
     constructor Create(TheOwner: TComponent; AModule: TFrmModuleADUC); reintroduce;
   end;
@@ -167,6 +172,7 @@ resourcestring
   rsSearchDeleteComputerFromAllDCAlreadyAbsent = 'Already absent';
   rsSearchDeleteComputerFromAllDCConnectFailed = 'Connection failed';
   rsSearchDeleteComputerFromAllDCDeleteFailed = 'Deletion failed';
+  rsSearchBatchMoveOU = 'Batch move to OU...';
 
 function TranslateSearchObjectClass(const AValue: RawUtf8): String;
 begin
@@ -202,6 +208,7 @@ var
   SearchResult: TLdapResult;
 begin
   Action_DeleteComputerFromAllDC.Caption := rsSearchDeleteComputerFromAllDC;
+  Action_BatchMoveOU.Caption := rsSearchBatchMoveOU;
   ComboBox_AdvCondition.Items.Clear;
   ComboBox_AdvCondition.Items.AddStrings([
     rsSearchConditionStartWith,
@@ -326,6 +333,21 @@ begin
   end;
 end;
 
+function TVisSearch.GetSelectedResultDNs: TRawUtf8DynArray;
+var
+  Row: PDocVariantData;
+  Rows: TDocVariantData;
+begin
+  result := [];
+  if not Assigned(TisGrid_Result) or (TisGrid_Result.SelectedCount <= 0) then
+    Exit;
+
+  Rows := TisGrid_Result.SelectedRows;
+  for Row in Rows.Objects do
+    if Assigned(Row) and Row^.Exists('distinguishedName') then
+      Insert(Row^.S['distinguishedName'], result, Length(result));
+end;
+
 function TVisSearch.GetDomainControllerHosts: TRawUtf8DynArray;
 var
   ExistingHost, HostName: RawUtf8;
@@ -393,6 +415,19 @@ procedure TVisSearch.Action_SearchUpdate(Sender: TObject);
 begin
   Action_Search.Enabled := ((PageControl_Search.ActivePageIndex = 1) and (TisGrid_AdvDetails.TotalCount > 0)) or
                            (PageControl_Search.ActivePageIndex = 0) or (PageControl_Search.ActivePageIndex = 2);
+end;
+
+procedure TVisSearch.Action_BatchMoveOUExecute(Sender: TObject);
+begin
+  if Assigned(fModule) and fModule.BatchMoveObjects(GetSelectedResultDNs) then
+    Action_Search.Execute;
+end;
+
+procedure TVisSearch.Action_BatchMoveOUUpdate(Sender: TObject);
+begin
+  Action_BatchMoveOU.Enabled :=
+    Assigned(fModule) and Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and
+    (Length(GetSelectedResultDNs) >= 2);
 end;
 
 procedure TVisSearch.Action_ShowInViewExecute(Sender: TObject);
@@ -542,8 +577,16 @@ begin
 end;
 
 procedure TVisSearch.Action_PropertiesExecute(Sender: TObject);
+var
+  Vis: TForm;
 begin
-  FrmRSAT.OpenProperty(TisGrid_Result.FocusedRow^.S['distinguishedName'], TisGrid_Result.FocusedRow^.S['name']);
+  Vis := FrmRSAT.OpenProperty(TisGrid_Result.FocusedRow^.S['distinguishedName'], TisGrid_Result.FocusedRow^.S['name']);
+  if Assigned(Vis) then
+  begin
+    Vis.Show;
+    Vis.BringToFront;
+    Vis.SetFocus;
+  end;
 end;
 
 procedure TVisSearch.Action_PropertiesUpdate(Sender: TObject);

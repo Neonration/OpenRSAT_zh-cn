@@ -1,67 +1,60 @@
-# OpenRSAT (Open Remote System Administration Tools)
-A new console that look like Microsoft RSAT written in modern Object Pascal.
+# OpenRSAT 中文版
 
-# Overview
-This repository provide a Lazarus project with all sources and dependances to build the OpenRSAT console.
-The console is available on different platforms such as Windows, Linux, and Macos.
-The OpenRSAT is a tool that allow you to connect to your Active Directory, and manage it as you wish.
+OpenRSAT 是一个使用 Object Pascal/Lazarus 编写的 Active Directory 管理工具，界面和使用方式接近 Microsoft RSAT。它可以在 Windows、Linux 和 macOS 上运行，用于管理用户、计算机、DNS、站点和服务等 AD 对象。
 
-The objective is to allow system administrators to manage an Active Directory on a Linux or Macos platform.
-Associated with Samba AD, you'll be able to fully manage an Active Directory for free with open source solutions.
-A secondary objective is to provide new feature that are missing in Microsoft RSAT.
+本仓库是中文本地化和 macOS arm64 打包维护版本。英文原文文档保留在 [`README.en.md`](./README.en.md)，中文构建说明见 [`build.zh-cn.md`](./build.zh-cn.md)。
 
-# Features
-With OpenRSAT, you can easely connect to an Active Directory with simple or kerberos connection, with TLS, with current account or even with a User/Password connection. You can also create different profile so you can switch connection easely.
-Features are splitted in different modules:
-- Users and computers: Manage users and machines within groups and containers to securly organize ressources in your AD. 
-- DNS: Manage network entries in your AD.
-- Sites and Services: Manage sites and services in your AD.
-- Services and Interfaces: Overview of all objects in your AD.
+## 功能概览
 
-## Users and computers
-- Overview of containers hierarchy in a tree view.
-- Overview of objects in a container in a grid view.
-- Create/Edit/Delete object such as containers, groups, users, computers,...
-- View and edit object's properties. You can see all attributs of an object, its security informations, LAPS, Bitlocker,...
-- Search object in your active directory.
-- Delegate control to others.
+- 用户和计算机：浏览 OU/容器树，管理用户、组、计算机等对象。
+- DNS：通过 LDAP 管理 AD DNS 区域和记录。
+- 站点和服务：管理站点、子网和相关对象。
+- 服务和接口：查看 AD 中的服务对象。
+- 对象属性：查看和编辑常用属性、安全信息、LAPS、BitLocker 等。
+- 搜索：在 AD 中搜索对象。
 
-## DNS
-/!\ The DNS module is using LDAP protocole instead of DCERPC. There is some different behavior, but you can manage DNS even if DNS with DCERPC is blocked.
-- Overview of DNS zones in a tree view.
-- Overview of DNS records in a grid view.
-- Create/Delete DNS zones and DNS records.
+## macOS arm64 包
 
-## Sites and Services
-- Overview of sites and subnets in a tree view.
-- Overview of sites and subnets of a container in a grid view.
-- Create/Delete sites and subnets.
-- View and edit sites and subnets properties.
-- Search sites and subnets.
+Apple Silicon 版本发布包位于：
 
-# Screenshots
-Overview of OpenRSAT:
-![](./assets/Screenshots/OpenRSAT%20-%20Overview.gif "OpenRSAT overview")
-Users and Computers of OpenRSAT:
-![](./assets/Screenshots/OpenRSAT%20-%20ADUC.gif "OpenRSAT Users and Computers")
+[`dist/OpenRSAT-macos-arm64.zip`](./dist/OpenRSAT-macos-arm64.zip)
 
-# Get started
-## Requirement
-To use the tool, you need an access to an Active Directory. You can refer to the [Samba Documentation by Tranquil IT](https://samba.tranquil.it/doc/fr/#) to deploy an Active Directory on a server.
+压缩包内包含：
 
+- `OpenRSAT.app`
+- `fix-and-open.command`
 
-## How to install
-### WAPT
-As the product is made by Tranquil IT, which provide WAPT to deploy software on machines in a domain, you can find the tool in a WAPT package in our store just [here](https://wapt.tranquil.it/store/fr/tis-openrsat).
-### Binary
-The binaries are packaged manually from the WAPT packages. \
-You can download latest binary just [here](https://github.com/tranquilit/OpenRSAT/releases).
-### Build from source
-You can find all steps just here: [build.md](./build.md).
+在其他 Mac 上使用时：
 
-# Documentation
-Not documented yet, but work is in progress.
+1. 解压 `OpenRSAT-macos-arm64.zip`。
+2. 保持 `OpenRSAT.app` 和 `fix-and-open.command` 在同一个目录。
+3. 如果 macOS 提示无法验证应用，双击或在终端执行 `fix-and-open.command`。
+4. 脚本会移除隔离属性、重新做本机 ad-hoc 签名、校验签名并打开应用。
 
-# Contributing
-Feel free to contribute to the project. As the project is a new project, no contributing rules are defined yet.
-Feel free to provide issues on github to tell us any bug or what you want to see in this tool.
+首次运行和签名脚本的单独说明见 [`macos-signing.zh-cn.md`](./macos-signing.zh-cn.md)。
+
+应用包已经内置 OpenSSL 1.1 动态库，路径为 `OpenRSAT.app/Contents/MacOS/lib`，正常情况下不需要单独安装 OpenSSL。
+
+注意：当前签名是 ad-hoc 签名，不是 Apple Developer ID 公证签名。内部测试和自用可以使用该脚本处理 Gatekeeper 拦截；正式分发建议使用 Developer ID 签名和 notarization。
+
+## 中文显示
+
+本仓库默认语言维护为中文。macOS 版本已处理资源路径和默认语言配置，使应用启动后优先加载中文翻译资源。
+
+如果出现界面仍显示英文，优先检查：
+
+- `languages/*.zh.po` 是否随源码存在。
+- `sources/OpenRSAT.lpi` 中资源路径是否使用类 Unix 路径。
+- 用户配置中是否保存了旧语言选项。
+
+## 构建
+
+完整构建步骤见 [`build.zh-cn.md`](./build.zh-cn.md)。
+
+macOS arm64 本地构建输出通常位于：
+
+`bin/macosx-arm64/OpenRSAT`
+
+可分发包输出位于：
+
+`dist/OpenRSAT-macos-arm64.zip`

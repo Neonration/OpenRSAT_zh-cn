@@ -1,6 +1,10 @@
 ﻿msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8"
 
+#: uvissearch.rssearchbatchmoveou
+msgid "Batch move to OU..."
+msgstr ""
+
 #: uvissearch.rssearchconditionabsent
 msgid "Absent"
 msgstr ""
@@ -134,3 +138,4 @@ msgstr ""
 #: uvissearch.rssearchobjectclassvolume
 msgid "volume"
 msgstr ""
+

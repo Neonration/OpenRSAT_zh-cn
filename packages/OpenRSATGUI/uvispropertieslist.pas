@@ -111,7 +111,11 @@ begin
   result := fItems[c];
   fItems[c].Caption := AName;
   if Assigned(fItems[c].Owner) then
+  begin
     fItems[c].Show();
+    fItems[c].BringToFront;
+    fItems[c].SetFocus;
+  end;
 end;
 
 function TVisPropertiesList.Close(aForm: TVisProperties): boolean;

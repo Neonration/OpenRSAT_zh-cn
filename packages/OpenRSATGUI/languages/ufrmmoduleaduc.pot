@@ -2,11 +2,11 @@
 msgstr "Content-Type: text/plain; charset=UTF-8"
 
 #: ufrmmoduleaduc.rsaducbatchmoveou
-msgid "Batch move OUs..."
+msgid "Batch move to OU..."
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveouconfirm
-msgid "Move % organizational units to:%s%s"
+msgid "Move % objects to:%s%s"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveoufailed
@@ -14,11 +14,11 @@ msgid "Move failed"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveouinvalidtarget
-msgid "The target container cannot be one of the selected OUs or a child of one of them."
+msgid "The target container cannot be one of the selected objects or a child of one of them."
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveouonlyou
-msgid "Select two or more organizational units."
+msgid "Select two or more objects."
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveouresult
@@ -31,7 +31,7 @@ msgid "Moved"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveoutitle
-msgid "Batch move OUs"
+msgid "Batch move to OU"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaduccomputeropenfailed
@@ -183,3 +183,4 @@ msgstr ""
 #: ufrmmoduleaduc.rsaducsavedquerynode
 msgid "Saved Query"
 msgstr ""
+

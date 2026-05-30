@@ -725,7 +725,7 @@ object FrmModuleADUC: TFrmModuleADUC
     end
     object Action_TaskBatchMoveOU: TAction
       Category = 'Tasks'
-      Caption = 'Batch move OUs...'
+      Caption = 'Batch move to OU...'
       OnExecute = Action_TaskBatchMoveOUExecute
       OnUpdate = Action_TaskBatchMoveOUUpdate
     end

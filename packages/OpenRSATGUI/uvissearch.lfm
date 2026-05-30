@@ -576,6 +576,11 @@ object VisSearch: TVisSearch
       OnExecute = Action_SearchNewExecute
       OnUpdate = Action_SearchNewUpdate
     end
+    object Action_BatchMoveOU: TAction
+      Caption = 'Batch move to OU...'
+      OnExecute = Action_BatchMoveOUExecute
+      OnUpdate = Action_BatchMoveOUUpdate
+    end
     object Action_ShowInView: TAction
       Caption = 'Show in view'
       OnExecute = Action_ShowInViewExecute
@@ -616,6 +621,9 @@ object VisSearch: TVisSearch
     end
     object MenuItem_ShowInView: TMenuItem
       Action = Action_ShowInView
+    end
+    object MenuItem_BatchMoveOU: TMenuItem
+      Action = Action_BatchMoveOU
     end
     object MenuItem_DeleteComputerFromAllDC: TMenuItem
       Action = Action_DeleteComputerFromAllDC
