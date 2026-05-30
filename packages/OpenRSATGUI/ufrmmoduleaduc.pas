@@ -1861,11 +1861,72 @@ begin
 end;
 
 procedure TFrmModuleADUC.Action_TaskBatchMoveOUExecute(Sender: TObject);
+var
+  DN, NewDN, ResultLine, Results, TargetDN: RawUtf8;
+  DNs: TNameValueDNs;
+  SelectedObjects: TRawUtf8DynArray;
+
+  function IsInvalidTarget(AMoveDN, ATargetDN: RawUtf8): Boolean;
+  var
+    Suffix, Target: String;
+  begin
+    Suffix := ',' + String(AMoveDN);
+    Target := String(ATargetDN);
+    result := SameText(String(AMoveDN), Target) or
+      ((Length(Target) > Length(Suffix)) and
+      SameText(Copy(Target, Length(Target) - Length(Suffix) + 1, Length(Suffix)), Suffix));
+  end;
+
 begin
   if Assigned(fLog) then
     fLog.Log(sllTrace, '% - Execute', [Action_TaskBatchMoveOU.Caption]);
 
-  BatchMoveObjects(GetSelectedObjects);
+  SelectedObjects := GetSelectedObjects;
+  if Length(SelectedObjects) < 2 then
+  begin
+    MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUOnlyOU, mtWarning, [mbOK], 0);
+    Exit;
+  end;
+
+  With TVisChangeDN.Create(Self, FrmRSAT.LdapClient, GetParentDN(SelectedObjects[0]), FrmRSAT.LdapClient.DefaultDN) do
+  try
+    if (mrOK <> ShowModal) or (SelectedDN = '') then
+      Exit;
+    TargetDN := SelectedDN;
+  finally
+    Free;
+  end;
+
+  for DN in SelectedObjects do
+    if IsInvalidTarget(DN, TargetDN) then
+    begin
+      MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUInvalidTarget, mtWarning, [mbOK], 0);
+      Exit;
+    end;
+
+  if MessageDlg(rsADUCBatchMoveOUTitle,
+    FormatUtf8(rsADUCBatchMoveOUConfirm, [Length(SelectedObjects), LineEnding, TargetDN]),
+    mtWarning, [mbYes, mbNo], 0) <> mrYes then
+    Exit;
+
+  Results := '';
+  for DN in SelectedObjects do
+  begin
+    ParseDN(DN, DNs, True);
+    if Length(DNs) <= 0 then
+      Continue;
+    NewDN := DNs[0].Name + '=' + DNs[0].Value + ',' + TargetDN;
+    if FrmRSAT.LdapClient.MoveLdapEntry(DN, NewDN) then
+      ResultLine := FormatUtf8('%: %', [DN, rsADUCBatchMoveOUSuccess])
+    else
+      ResultLine := FormatUtf8('%: % - %', [DN, rsADUCBatchMoveOUFailed, FrmRSAT.LdapClient.ResultString]);
+    if Results <> '' then
+      Results := Results + LineEnding;
+    Results := Results + ResultLine;
+  end;
+
+  MessageDlg(rsADUCBatchMoveOUTitle, FormatUtf8(rsADUCBatchMoveOUResult, [LineEnding, Results]), mtInformation, [mbOK], 0);
+  Action_Refresh.Execute;
 end;
 
 function TFrmModuleADUC.BatchMoveObjects(
@@ -2392,6 +2453,10 @@ begin
     MenuItem_Refresh,
     MenuItem_Properties
   ];
+  Action_TaskBatchMoveOU.Caption := '批量移动到 OU...';
+  Action_TaskBatchMoveOU.Enabled := Assigned(FrmRSAT.LdapClient) and
+    FrmRSAT.LdapClient.Connected and Assigned(GridADUC) and
+    (GridADUC.SelectedCount >= 2);
   Handled := not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected;
   for Item in PopupMenu1.Items do
     Item.Visible := Contains(VisibleItems, Item);
@@ -3234,6 +3299,8 @@ var
   function GetSelectedObjectsInGrid: TRawUtf8DynArray;
   var
     Count: Integer;
+    Node: PVirtualNode;
+    Data: PDocVariantData;
   begin
     result := nil;
     if Assigned(fLog) then
@@ -3246,14 +3313,30 @@ var
       Exit;
     end;
 
-    SelectedRows := GridADUC.SelectedRows;
-
     Count := 0;
+    Node := GridADUC.GetFirstSelected;
+    while Assigned(Node) do
+    begin
+      Data := GridADUC.GetNodeAsPDocVariantData(Node);
+      // Invalid row
+      if Assigned(Data) and Data^.Exists('objectName') then
+      begin
+        Insert(Data^.U['objectName'], result, Count);
+        Inc(Count);
+      end;
+
+      Node := GridADUC.GetNextSelected(Node);
+    end;
+
+    if Length(result) > 0 then
+      Exit;
+
+    SelectedRows := GridADUC.SelectedRows;
     for Row in SelectedRows.Objects do
     begin
       // Invalid row
       if not Assigned(Row) then
-        continue;
+        Continue;
 
       if Row^.Exists('objectName') then
       begin
@@ -3289,7 +3372,7 @@ var
 begin
   result := [];
 
-  if GridADUC.Focused then
+  if Assigned(GridADUC) and (GridADUC.SelectedCount > 0) then
   begin
     result := GetSelectedObjectsInGrid;
     if (Length(result) = 0) then // If no result, fallback to tree selection
@@ -3669,6 +3752,8 @@ constructor TFrmModuleADUC.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
 
+  Action_TaskBatchMoveOU.Caption := rsADUCBatchMoveOU;
+
   fLog := TSynLog.Add;
   if Assigned(fLog) then
     fLog.Log(sllTrace, '% - Create', [Self.Name]);
@@ -3850,7 +3935,7 @@ end;
 
 procedure TFrmModuleADUC.Load;
 begin
-
+  Action_TaskBatchMoveOU.Caption := rsADUCBatchMoveOU;
 end;
 
 procedure TFrmModuleADUC.Refresh;
