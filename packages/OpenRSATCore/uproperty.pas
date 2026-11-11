@@ -1076,20 +1076,30 @@ end;
 
 function TProperty.ApplyAttributeDifference: Boolean;
 var
-  i: Integer;
+  ModifiedAttribute: TLdapAttribute;
+  AttributeName: RawUtf8;
 begin
   result := not Assigned(fModifiedAttributes);
   if result then
     Exit;
 
   result := True;
-  for i := 0 to fModifiedAttributes.Count - 1 do
+  while fModifiedAttributes.Count > 0 do
   begin
-    if fModifiedAttributes.Items[i].AttributeName = '' then
-      continue;
-    result := result and ApplyAttributeDifference(fModifiedAttributes.Items[i].AttributeName);
-    if not result and (LdapClient.ResultString <> '') then
-      break;
+    ModifiedAttribute := fModifiedAttributes.Items[0];
+    AttributeName := ModifiedAttribute.AttributeName;
+    if AttributeName <> '' then
+    begin
+      result := ApplyAttributeDifference(AttributeName);
+      if not result then
+        Exit;
+      // Retire only committed edits so retrying a later failure is safe.
+      if ModifiedAttribute.GetRaw = '' then
+        fAttributes.Delete(AttributeName)
+      else
+        fAttributes.Add(AttributeName).Assign(ModifiedAttribute);
+    end;
+    fModifiedAttributes.Delete(0);
   end;
   FreeAndNil(fModifiedAttributes);
 end;
@@ -1098,6 +1108,7 @@ function TProperty.ApplyAttributeDifference(AttributeName: RawUtf8): Boolean;
 var
   ModifiedAttribute, Attribute: TLdapAttribute;
   ToAdd, ToDelete: TRawUtf8DynArray;
+  Modifications: TAsnObjects;
   i, idx: Integer;
   Value: RawByteString;
 begin
@@ -1107,11 +1118,10 @@ begin
   ModifiedAttribute := fModifiedAttributes.Find(AttributeName);
   Attribute := fAttributes.Find(AttributeName);
 
-  // No value, should not happen
+  result := True;
+  // Clearing an absent attribute is already satisfied.
   if not Assigned(Attribute) and (not Assigned(ModifiedAttribute) or (ModifiedAttribute.GetReadable() = '')) then
     Exit;
-
-  result := True;
 
   // New value, add it
   if not Assigned(Attribute) and Assigned(ModifiedAttribute) then
@@ -1152,14 +1162,15 @@ begin
       Insert(Value, ToAdd, 0);
   end;
 
-  // Add new values
+  // One LDAP request keeps additions and removals atomic.
+  Modifications := nil;
   Attribute := TLdapAttribute.Create(AttributeName, atUndefined);
   try
     if Length(ToAdd) > 0 then
     begin
       for Value in ToAdd do
         Attribute.Add(Value);
-      result := LdapClient.Modify(distinguishedName, lmoAdd, Attribute);
+      AsnAddItem(Modifications, Modifier(lmoAdd, Attribute.ExportToAsnSeq));
     end;
   finally
     FreeAndNil(Attribute);
@@ -1172,26 +1183,28 @@ begin
     begin
       for Value in ToDelete do
         Attribute.Add(Value);
-      result := LdapClient.Modify(distinguishedName, lmoDelete, Attribute);
+      AsnAddItem(Modifications, Modifier(lmoDelete, Attribute.ExportToAsnSeq));
     end;
   finally
     FreeAndNil(Attribute);
   end;
+  if Length(Modifications) > 0 then
+    result := LdapClient.Modify(distinguishedName, Modifications);
 end;
 
 function TProperty.ApplyTempModification: Boolean;
 var
   DistinguishedNameArray, AttributeNameArray: TRawUtf8DynArray;
   ADistinguishedName, AttributeName, Value: RawUtf8;
+  Modifications: TAsnObjects;
 
-  function InnerModify(DistinguishedName, AttributeName: RawUtf8; Modifier: TLdapModifyOp): Boolean;
+  procedure AddModification(DistinguishedName, AttributeName: RawUtf8; Operation: TLdapModifyOp);
   var
     ModifierString: RawUtf8;
     Attribute: TLdapAttribute;
     AttributeObject: PDocVariantData;
   begin
-    result := False;
-    case Modifier of
+    case Operation of
       lmoAdd: ModifierString := 'add';
       lmoDelete: ModifierString := 'delete';
       lmoReplace: ModifierString := 'replace';
@@ -1207,11 +1220,7 @@ var
         for Value in AttributeObject^.A[ModifierString]^.ToRawUtf8DynArray do
           Attribute.Add(Value);
         if Attribute.Count > 0 then
-        begin
-          result := LdapClient.Modify(DistinguishedName, Modifier, Attribute);
-          if not result then
-            Exit;
-        end;
+          AsnAddItem(Modifications, Modifier(Operation, Attribute.ExportToAsnSeq));
       finally
         FreeAndNil(Attribute);
       end;
@@ -1224,15 +1233,22 @@ begin
 
   for ADistinguishedName in DistinguishedNameArray do
   begin
+    Modifications := nil;
     AttributeNameArray := fTempModify.O[ADistinguishedName]^.GetNames;
     for AttributeName in AttributeNameArray do
     begin
-      InnerModify(ADistinguishedName, AttributeName, lmoAdd);
-      InnerModify(ADistinguishedName, AttributeName, lmoDelete);
-      InnerModify(ADistinguishedName, AttributeName, lmoReplace);
+      AddModification(ADistinguishedName, AttributeName, lmoAdd);
+      AddModification(ADistinguishedName, AttributeName, lmoDelete);
+      AddModification(ADistinguishedName, AttributeName, lmoReplace);
     end;
+    if Length(Modifications) > 0 then
+    begin
+      result := LdapClient.Modify(ADistinguishedName, Modifications);
+      if not result then
+        Exit;
+    end;
+    fTempModify.Delete(ADistinguishedName);
   end;
-  fTempModify.Clear;
 end;
 
 constructor TProperty.Create(ARSAT: TRSAT);
@@ -1294,6 +1310,8 @@ var
   LdapObject: TLdapResult;
 begin
   result := ApplyAttributeDifference and ApplyTempModification;
+  if not result then
+    Exit;
 
   LdapObject := LdapClient.SearchObject(distinguishedName, '', ['*']);
   if Assigned(LdapObject) then

@@ -99,10 +99,7 @@ begin
       fLog.Add.Log(sllError, 'TreeView: No SelectedNode or no data assigned to SelectedNode', Self);
 
   if Assigned(Node) and Assigned(Node.Data) then
-  begin
-    TFrameOption(Node.Data).Visible := True;
-    TFrameOption(Node.Data).Load;
-  end
+    TFrameOption(Node.Data).Visible := True
   else
     if Assigned(fLog) then
       fLog.Add.Log(sllError, 'TreeView: No Node or no data assigned to node', Self);
@@ -122,6 +119,7 @@ var
     FrameOption.Align := alClient;
     FrameOption.Parent := PairSplitterSide2;
     FrameOption.Visible := False;
+    FrameOption.Load;
     Insert(FrameOption, fOptionFrames, 0);
   end;
 

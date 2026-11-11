@@ -139,6 +139,20 @@ New-Item -ItemType Directory -Force bin\win64\locale | Out-Null
 Copy-Item languages\OpenRSAT.*.po bin\win64\locale\
 ```
 
+## 打包 Linux DEB / RPM
+
+先用当前分支构建对应架构的 Linux 程序，再把本地产物作为第 4 个参数传给打包脚本。脚本不会下载上游 Release；程序文件不存在时会立即失败。
+
+在仓库根目录执行的 x64 示例（将图标路径替换为实际文件）：
+
+```bash
+lazbuild --build-mode=linux-x64 sources/OpenRSAT.lpi
+bash packaging/linux/deb/build.sh 0.4.594 x64 "/path/to/OpenRSAT.png" "bin/linux-x64/OpenRSAT"
+bash packaging/linux/rpm/build.sh 0.4.594 x64 "/path/to/OpenRSAT.png" "bin/linux-x64/OpenRSAT"
+```
+
+DEB 需要 `dpkg-deb`，RPM 需要 `rpmbuild`。参数顺序为版本、架构、图标、本地程序；支持 `x64`、`arm64`、`arm32`、`x86`（也接受 `i386`）。架构必须与程序实际目标一致。输入路径相对执行命令时的目录解析，可包含空格；模板与语言文件相对脚本目录定位，生成的包放在当前目录。打包使用独立临时目录，不改动已有的 `~/rpmbuild`。
+
 ## 打包 macOS app
 
 仓库现有的 `dist/OpenRSAT-macos-arm64.zip` 是历史构建，未包含本次合并上游 0.4.594 后的增强。下面是重新构建和打包的步骤，本次未生成或验证新版 macOS 包。

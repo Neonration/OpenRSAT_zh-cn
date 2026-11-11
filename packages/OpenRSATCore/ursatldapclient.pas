@@ -63,7 +63,7 @@ type
   Scope: TLdapSearchScope=lssBaseObject): TLdapAttribute; overload;
     function SearchObject(const ObjectDN, Filter: RawUtf8;
       const Attributes: array of RawUtf8; Scope: TLdapSearchScope=lssBaseObject
-      ): TLdapResult; overload;
+      ): TLdapResult; overload; virtual;
     function SearchObject(Attribute: TLdapAttributeType; const ObjectDN,
       Filter: RawUtf8; Scope: TLdapSearchScope=lssBaseObject): TLdapAttribute;
       overload;
@@ -71,14 +71,14 @@ type
       const ObjectDN, Filter: RawUtf8; Scope: TLdapSearchScope=lssBaseObject
       ): TLdapResult; overload;
     function Modify(const Obj: RawUtf8; const Modifications: array of TAsnObject
-      ): boolean; overload;
+      ): boolean; overload; virtual;
     function Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
       const Types: array of TLdapAttributeType;
       const Values: array of const): boolean; overload;
     function Modify(const Obj: RawUtf8; Op: TLdapModifyOp; const AttrName: RawUtf8;
   const AttrValue: RawByteString): boolean; overload;
     function Modify(const Obj: RawUtf8; Op: TLdapModifyOp; Attribute: TLdapAttribute
-  ): boolean; overload;
+  ): boolean; overload; virtual;
     function Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
       AttrType: TLdapAttributeType; const AttrValue: RawByteString): boolean;
       overload;
@@ -820,6 +820,7 @@ end;
 function TRsatLdapClient.Connect(DiscoverMode: TLdapClientConnect;
   DelayMS: integer): boolean;
 begin
+  TlsContext^.IgnoreCertificateErrors := Settings.AllowUnsafePasswordBind;
   Result := inherited Connect(DiscoverMode, DelayMS);
 
   if Result and Connected then

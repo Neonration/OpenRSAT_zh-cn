@@ -400,6 +400,7 @@ function DNSRecordBytesToRecord(out DNSRecord: TDNSRecord; const Buffer: TByteAr
 // Encode a TDNSRecord record into a dnsRecord bytes array.
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/6912b338-5472-4f59-b912-0edb536b6ed8
 function DNSRecordRecordToBytes(out Buffer: TByteArray; const DNSRecord: TDNSRecord): Integer;
+function DNSRecordToRaw(const DNSRecord: TDNSRecord): RawByteString;
 // Make a TDNSRecord record human readable.
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/6912b338-5472-4f59-b912-0edb536b6ed8
 function DNSRecordToString(const DNSRecord: TDNSRecord): RawUtf8;
@@ -1349,8 +1350,17 @@ begin
 
   for i := 0 to Pred(DNSRecord.DataLength) do
     Buffer[24 + i] := DNSRecord.RData[i];
-  Buffer[24 + i + 1] := 0;
-  result := 24 + i + 1;
+  result := 24 + DNSRecord.DataLength;
+  Buffer[result] := 0;
+end;
+
+function DNSRecordToRaw(const DNSRecord: TDNSRecord): RawByteString;
+var
+  Buffer: array[0..24 + High(Word)] of Byte;
+  Len: Integer;
+begin
+  Len := DNSRecordRecordToBytes(PByteArray(@Buffer[0])^, DNSRecord);
+  SetString(result, PAnsiChar(@Buffer[0]), Len);
 end;
 
 function DNSRecordToString(const DNSRecord: TDNSRecord): RawUtf8;

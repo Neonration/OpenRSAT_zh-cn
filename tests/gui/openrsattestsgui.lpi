@@ -26,6 +26,9 @@
     </RunParams>
     <RequiredPackages>
       <Item>
+        <PackageName Value="OpenRSATGUI"/>
+      </Item>
+      <Item>
         <PackageName Value="LCL"/>
       </Item>
       <Item>

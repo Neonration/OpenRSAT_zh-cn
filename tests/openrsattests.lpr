@@ -3,6 +3,7 @@ program openrsattests;
 uses
   {$IFDEF UNIX}
     cthreads,
+    cwstring, // Match the GUI's Unicode conversion support for UTF-8 comparisons.
   {$ENDIF}
   mormot.core.test,
   {$IFDEF INTEGRATION}
@@ -16,7 +17,10 @@ uses
   unittest.udnoperations,
   unittest.ucomputerdelete,
   unittest.ursatoption,
-  unittest.umoduleaducoption;
+  unittest.umoduleaducoption,
+  unittest.udns,
+  unittest.uldapwritesafety,
+  unittest.advancedsearch;
 
 type
 
@@ -44,7 +48,10 @@ begin
     TUnitTestDNOperations,
     TUnitTestComputerDelete,
     TUnitTestRSATOption,
-    TUnitTestModuleADUCOption
+    TUnitTestModuleADUCOption,
+    TUnitTestDNSRecord,
+    TUnitTestLdapWriteSafety,
+    TUnitTestAdvancedSearch
   ]);
 end;
 

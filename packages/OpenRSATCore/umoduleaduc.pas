@@ -18,6 +18,7 @@ uses
 type
 
   TResetPasswordCallback = function(const LockerAccount: Boolean; out ANewPassword: RawUtf8; out AUserMustChangePassword: Boolean; out AUnlockAccount: Boolean): Boolean of object;
+  TResetPasswordWarning = function(Sender: TObject): Boolean of object;
 
   { TModuleADUC }
 
@@ -31,7 +32,7 @@ type
 
     property ADUCOption: TModuleADUCOption read GetADUCOption;
 
-    function ResetPassword(AResetPasswordCallback: TResetPasswordCallback; AObjectDN: RawUtf8; AComputerWarning, AOnUnlockedAccount, AOnPasswordChanged: TNotifyEvent): Boolean;
+    function ResetPassword(AResetPasswordCallback: TResetPasswordCallback; AObjectDN: RawUtf8; AComputerWarning: TResetPasswordWarning; AOnUnlockedAccount, AOnPasswordChanged: TNotifyEvent): Boolean;
   end;
 
 implementation
@@ -65,7 +66,8 @@ end;
 
 function TModuleADUC.ResetPassword(
   AResetPasswordCallback: TResetPasswordCallback; AObjectDN: RawUtf8;
-  AComputerWarning, AOnUnlockedAccount, AOnPasswordChanged: TNotifyEvent
+  AComputerWarning: TResetPasswordWarning;
+  AOnUnlockedAccount, AOnPasswordChanged: TNotifyEvent
   ): Boolean;
 var
   NewPassword: RawUtf8;
@@ -74,7 +76,11 @@ var
   UserData: TLdapResult;
   UserAccountControls: TUserAccountControls;
 begin
-
+  result := False;
+  UserMustChangePassword := False;
+  UnlockAccount := False;
+  if not Assigned(AResetPasswordCallback) then
+    Exit;
   UserData := RSAT.LdapClient.SearchObject(AObjectDN, '', ['userAccountControl', 'objectClass']);
   if not Assigned(UserData) then
   begin
@@ -94,8 +100,8 @@ begin
   if Assigned(fLog) then
     fLog.Add.Log(sllInfo, 'Reset password on %.', [ObjectClassAttr.GetReadable(Pred(ObjectClassAttr.Count))], Self);
 
-  if Assigned(AComputerWarning) then
-    AComputerWarning(ObjectClassAttr);
+  if Assigned(AComputerWarning) and not AComputerWarning(ObjectClassAttr) then
+    Exit;
 
   UserAccountControlAttr := UserData.Attributes.Find('userAccountControl');
   if not Assigned(UserAccountControlAttr) then
@@ -107,7 +113,8 @@ begin
 
   UserAccountControls := UserAccountControlsFromText(UserAccountControlAttr.GetRaw());
 
-  result := AResetPasswordCallback((uacLockedOut in UserAccountControls), NewPassword, UserMustChangePassword, UnlockAccount);
+  if not AResetPasswordCallback((uacLockedOut in UserAccountControls), NewPassword, UserMustChangePassword, UnlockAccount) then
+    Exit;
 
   // modify userAccountControl
   if UnlockAccount then
@@ -122,7 +129,8 @@ begin
           fLog.Add.Log(sllError, 'Ldap Modify Error: %', [RSAT.LdapClient.ResultString], Self);
         Exit;
       end;
-      AOnUnlockedAccount(RSAT.LdapClient);
+      if Assigned(AOnUnlockedAccount) then
+        AOnUnlockedAccount(RSAT.LdapClient);
     finally
       FreeAndNil(Attribute);
     end;
@@ -136,7 +144,8 @@ begin
         fLog.Add.Log(sllError, 'Ldap Modify Error: %', [RSAT.LdapClient.ResultString], Self);
       Exit;
     end;
-    AOnPasswordChanged(RSAT.LdapClient);
+    if Assigned(AOnPasswordChanged) then
+      AOnPasswordChanged(RSAT.LdapClient);
   finally
     FreeAndNil(Attribute);
   end;
@@ -157,6 +166,7 @@ begin
       FreeAndNil(Attribute);
     end;
   end;
+  result := True;
 end;
 
 end.

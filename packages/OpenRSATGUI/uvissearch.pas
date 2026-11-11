@@ -126,6 +126,7 @@ type
     function GetLdapClient: TLdapClient;
   public
     constructor Create(Context: IOpenRSATUIContext; AModule: TFrmModuleADUC); reintroduce;
+    procedure ClearResults;
 
     property LdapClient: TLdapClient read GetLdapClient;
   end;
@@ -322,6 +323,13 @@ begin
   fModule := AModule;
 end;
 
+procedure TVisSearch.ClearResults;
+begin
+  Timer_SearchInGrid.Enabled := False;
+  SearchWord := '';
+  TisGrid_Result.Clear;
+end;
+
 function TVisSearch.GetFocusedResultDN: RawUtf8;
 begin
   result := '';
@@ -482,6 +490,7 @@ begin
 
   data.AddValue('key', Trim(TisSearchEdit_AdvKey.Text));
   data.AddValue('condition', Trim(ComboBox_AdvCondition.Text));
+  data.AddValue('conditionIndex', ComboBox_AdvCondition.ItemIndex);
   data.AddValue('value', Trim(Edit_AdvValue.Text));
   TisGrid_AdvDetails.Data.AddItem(data);
   TisGrid_AdvDetails.LoadData();
@@ -504,9 +513,14 @@ begin
 end;
 
 procedure TVisSearch.Action_PropertiesExecute(Sender: TObject);
+var
+  DN: RawUtf8;
 begin
+  DN := GetFocusedResultDN;
+  if DN = '' then
+    Exit;
   Action_ShowInView.Execute;
-  fIContext.OpenProperty(TisGrid_Result.FocusedRow^.S['distinguishedName']);
+  fIContext.OpenProperty(DN);
 end;
 
 procedure TVisSearch.Action_PropertiesUpdate(Sender: TObject);
@@ -524,7 +538,6 @@ var
   item: TLdapResult;
   data: TDocVariantData;
   attr: TLdapAttribute;
-  row: PDocVariantData;
 begin
   Filter := '';
   Attributes := ['objectClass', 'distinguishedName', 'name', 'description'];
@@ -544,34 +557,8 @@ begin
         Filter := 'name=*';
     end;
     1:
-    begin
-      if (TisGrid_AdvDetails.TotalCount > 0) then
-      begin
-        if RadioButton_AllCondition.Checked then
-          Filter := '&'
-        else
-          Filter := '|';
-        for row in TisGrid_AdvDetails.Data.Objects do
-        begin
-          if not Assigned(row) then
-            continue;
-          case ComboBox_AdvCondition.ItemIndex of
-            // Start with
-            0: Filter := FormatUtf8('%(%=%*)', [Filter, row^.S['key'], row^.S['value']]);
-            // End with
-            1: Filter := FormatUtf8('%(%=*%)', [Filter, row^.S['key'], row^.S['value']]);
-            // Equal
-            2: Filter := FormatUtf8('%(%=%)', [Filter, row^.S['key'], row^.S['value']]);
-            // Is different
-            3: Filter := FormatUtf8('%(!(%=%))', [Filter, row^.S['key'], row^.S['value']]);
-            // Present
-            4: Filter := FormatUtf8('%(%=*)', [Filter, row^.S['key']]);
-            // Absent
-            5: Filter := FormatUtf8('%(!(%=*))', [Filter, row^.S['key']]);
-          end;
-        end;
-      end;
-    end;
+      Filter := BuildAdvancedSearchFilter(TisGrid_AdvDetails.Data,
+        RadioButton_AllCondition.Checked);
     2:
     begin
       Filter := Trim(Memo_ExpFilter.Text);

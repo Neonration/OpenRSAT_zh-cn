@@ -556,7 +556,7 @@ var
         if (mResultNonLeaf <> mrYes) and (mResultNonLeaf <> mrYesToAll) then
           Exit;
 
-        if not LdapClient.Delete((TreeView1.Selected as TADSSTreeNode).DistinguishedName, True) then
+        if not LdapClient.Delete(distinguishedName, True) then
           Exit;
       end;
     end;

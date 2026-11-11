@@ -410,7 +410,8 @@ begin
     raise Exception.Create('No settings to load to GUI.');
 
   ComboBox_Domains.Text := ASettings.KerberosDN;
-  if (ASettings.Tls and (ASettings.TargetPort <> LDAP_TLS_PORT) and (not ASettings.Tls and (ASettings.TargetPort <> LDAP_PORT))) then
+  if (ASettings.Tls and (ASettings.TargetPort <> LDAP_TLS_PORT)) or
+    (not ASettings.Tls and (ASettings.TargetPort <> LDAP_PORT)) then
     ComboBox_DomainControllers.Text := FormatUtf8('%:%', [ASettings.TargetHost, ASettings.TargetPort])
   else
     ComboBox_DomainControllers.Text := ASettings.TargetHost;

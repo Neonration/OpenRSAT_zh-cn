@@ -1,91 +1,42 @@
 #!/bin/bash
+set -euo pipefail
 
-# Usage:
-# ./build.sh <VERSION:0.4.226> <ARCH:x64,arm64,arm32,x86> <ICON_PATH:./icon.png>
-
-USAGE="./build.sh <VERSION:0.4.226> <ARCH:x64,arm64,arm32,x86> <ICON_PATH:./icon.png>"
-
-set -ex
+if [ "$#" -ne 4 ]; then
+  echo "Usage: $0 <VERSION> <ARCH:x64,arm64,arm32,x86> <ICON_PATH> <BINARY_PATH>" >&2
+  exit 1
+fi
 
 VERSION=$1
 ARCH=$2
 ICON_PATH=$3
-URL="https://github.com/tranquilit/openrsat/releases/download/v"$VERSION
-BUILDDIR=$PWD/builddir
+BINARY_PATH=$4
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+REPO_DIR=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 
-if [ "$#" -ne 3 ]; then
-  echo "Invalid number of arguments."
-  echo "Usage:"
-  echo "	$USAGE"
-  exit
-fi
+case "$ARCH" in
+  x64) DEBARCH=amd64 ;;
+  arm64) DEBARCH=arm64 ;;
+  arm32) DEBARCH=armhf ;;
+  x86|i386) DEBARCH=i386 ;;
+  *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
+esac
+[[ "$VERSION" =~ ^[0-9][A-Za-z0-9.+~]*$ ]] || { echo "Invalid version: $VERSION" >&2; exit 1; }
+[ -f "$BINARY_PATH" ] || { echo "Local binary not found: $BINARY_PATH" >&2; exit 1; }
+[ -f "$ICON_PATH" ] || { echo "Icon not found: $ICON_PATH" >&2; exit 1; }
 
-echo "Verify architecture..."
+BUILD_DIR=$(mktemp -d "${TMPDIR:-/tmp}/openrsat-deb.XXXXXXXX")
+trap 'rm -rf -- "$BUILD_DIR"' EXIT
+mkdir -p "$BUILD_DIR/DEBIAN" "$BUILD_DIR/opt/openrsat" \
+  "$BUILD_DIR/usr/share/applications" "$BUILD_DIR/usr/share/openrsat/locale"
 
-if [ "$ARCH" = "x64" ]; then
-  DEBARCH=amd64
-elif [ "$ARCH" = "arm64" ]; then
-  DEBARCH=arm64
-elif [ "$ARCH" = "arm32" ]; then
-  DEBARCH=armhf
-elif [ "$ARCH" = "x86" ]; then
-  DEBARCH=i386
-else
-  echo "Invalid architecture. Exit."
-  exit
-fi
+sed -e "s/VERSION/$VERSION/" -e "s/^Architecture:.*/Architecture: $DEBARCH/" \
+  "$SCRIPT_DIR/control" > "$BUILD_DIR/DEBIAN/control"
+# Keep maintainer scripts executable when packaging a Windows checkout in WSL.
+sed 's/\r$//' "$SCRIPT_DIR/postinst" > "$BUILD_DIR/DEBIAN/postinst"
+chmod 755 "$BUILD_DIR/DEBIAN/postinst"
+install -m 755 -- "$BINARY_PATH" "$BUILD_DIR/opt/openrsat/OpenRSAT"
+install -m 644 -- "$ICON_PATH" "$BUILD_DIR/opt/openrsat/OpenRSAT.png"
+install -m 644 -- "$SCRIPT_DIR/../OpenRSAT.desktop" "$BUILD_DIR/usr/share/applications/"
+install -m 644 -- "$REPO_DIR"/languages/OpenRSAT.*.po "$BUILD_DIR/usr/share/openrsat/locale/"
 
-echo "Architecture OK. "$ARCH" -> "$DEBARCH
-
-echo "Remove remaining .deb files."
-#rm -rf *.deb $BUILDDIR
-
-echo "Create folder structure."
-mkdir -p $BUILDDIR/DEBIAN
-mkdir -p $BUILDDIR/{opt/openrsat/,usr/share/applications}
-mkdir -p $BUILDDIR/usr/share/openrsat/locale
-
-echo "Copy control and postinst files."
-cp ./control $BUILDDIR/DEBIAN
-cp ./postinst $BUILDDIR/DEBIAN
-
-echo "Set permissions to postinst and control."
-chmod 755 $BUILDDIR/DEBIAN/postinst
-chmod 755 $BUILDDIR/DEBIAN/control
-
-echo "Change version in control file."
-sed "s/VERSION/$VERSION/" -i $BUILDDIR/DEBIAN/control
-
-echo "Download binary from architecture."
-wget -O $BUILDDIR/opt/openrsat/OpenRSAT $URL/OpenRSAT-linux-$ARCH
-
-echo "Copy icon."
-[ -f "$ICON_PATH" ] || (echo "$ICON_PATH does not exists." && exit)
-cp $ICON_PATH $BUILDDIR/opt/openrsat/OpenRSAT.png
-
-echo "Copy desktop file."
-[ -f "./OpenRSAT.desktop" ] || (echo "./OpenRSAT.desktop does not exists." && exit)
-cp ./OpenRSAT.desktop $BUILDDIR/usr/share/applications/
-
-echo "Copy locale files."
-for l in en fr pl el zh
-do
-  [ -f "../../../languages/OpenRSAT.$l.po" ] || (echo "../../../languages/OpenRSAT.$l.po does not exists." && exit)
-  cp ../../../languages/OpenRSAT.$l.po $BUILDDIR/usr/share/openrsat/locale/OpenRSAT.$l.po
-done
-
-echo "Set permissions to binary, icon and desktop files."
-chmod 755 $BUILDDIR/opt/openrsat/OpenRSAT
-chmod 755 $BUILDDIR/opt/openrsat/OpenRSAT.png
-chmod 755 $BUILDDIR/usr/share/applications/OpenRSAT.desktop
-chmod 644 $BUILDDIR/usr/share/openrsat/locale/OpenRSAT.en.po
-chmod 644 $BUILDDIR/usr/share/openrsat/locale/OpenRSAT.fr.po
-chmod 644 $BUILDDIR/usr/share/openrsat/locale/OpenRSAT.pl.po
-chmod 644 $BUILDDIR/usr/share/openrsat/locale/OpenRSAT.el.po
-chmod 644 $BUILDDIR/usr/share/openrsat/locale/OpenRSAT.zh.po
-
-echo "Build deb file."
-dpkg-deb --build $BUILDDIR OpenRSAT-${VERSION}-${DEBARCH}.deb
-
-echo "Remove build folder."
-rm -rf $BUILDDIR
+dpkg-deb --root-owner-group --build "$BUILD_DIR" "OpenRSAT-${VERSION}-${DEBARCH}.deb"

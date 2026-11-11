@@ -114,13 +114,15 @@ type
 
     procedure Show; reintroduce;
     procedure SetFocus; reintroduce;
-  private
+  protected
     fProperty: TProperty;
+  private
     fIContext: IOpenRSATUIContext;
     fPropertyFrameList: Array of TPropertyFrame;
     fDistinguishedName: RawUtf8;
 
     function DoBeforeApply: Boolean;
+    function ApplyChanges: Boolean;
     procedure DoAfterApply;
     function GetLdapClient: TLdapClient;
     function LoadAttributes: Boolean;
@@ -827,10 +829,17 @@ end;
 
 procedure TVisProperties.Action_ApplyExecute(Sender: TObject);
 begin
-  if not DoBeforeApply then
+  ApplyChanges;
+end;
+
+function TVisProperties.ApplyChanges: Boolean;
+begin
+  result := DoBeforeApply;
+  if not result then
     Exit;
-  fProperty.ApplyModification;
-  DoAfterApply;
+  result := fProperty.ApplyModification;
+  if result then
+    DoAfterApply;
 end;
 
 procedure TVisProperties.Action_ApplyUpdate(Sender: TObject);
@@ -845,8 +854,11 @@ end;
 
 procedure TVisProperties.Action_OKExecute(Sender: TObject);
 begin
-  Action_Apply.Execute();
-  Close();
+  if ApplyChanges then
+  begin
+    ModalResult := mrOK;
+    Close();
+  end;
 end;
 
 end.

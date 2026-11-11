@@ -271,16 +271,12 @@ var
   NewAttribute: TLdapAttribute;
   ARawByteString: RawByteString;
   NewAttributeList: TLdapAttributeList;
-  BytesArray: Array[0..$ffff] of Byte;
-  Len: Integer;
   BakOnError: TNotifyEvent;
 begin
   // Check if object exists
   result := False;
 
-  Len := DNSRecordRecordToBytes(PByteArray(@BytesArray[0])^, dnsRecord);
-
-  ARawByteString := Copy(String(@BytesArray[0]), 0, Len);
+  ARawByteString := DNSRecordToRaw(dnsRecord);
 
   BakOnError := fLdapClient.OnError;
   fLdapClient.OnError := nil;

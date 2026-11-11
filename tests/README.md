@@ -39,3 +39,34 @@ These commands do not connect to Active Directory. They do not verify real LDAP 
 GUI checks and Windows compilation are separate from these unit assertions. No automated daily test run is configured by this change.
 
 The merged win64 executable was also launched offline: the Chinese main window, Simplified Chinese language option, and multi-controller settings were displayed correctly. Enabling the multi-controller option enabled its host list. Restarting with a saved `zh` configuration loaded Chinese. Clicking through language selection and saving in the modal dialog was not verified end to end; persistence is covered by the tests above.
+
+## Review regression tests
+
+The default console suite is offline. Integration tests are registered only when
+the `INTEGRATION` compiler define is explicitly enabled. With the dependencies
+registered, run the console suite, GUI suite, and packaging contract tests:
+
+```powershell
+lazbuild --build-mode=test tests\openrsattests.lpi
+.\tests\openrsattests.exe --noenter
+lazbuild tests\gui\openrsattestsgui.lpi
+.\tests\gui\openrsattestsgui.exe --noenter
+python -B -m unittest discover -s tests/packaging -v
+```
+
+The new console tests cover LDAP TLS policy at connection time, password-reset
+cancellation and failure, atomic multi-value modifications and retries, DNS
+binary payloads, and mixed advanced-search operators and escaping. GUI tests
+cover unsaved options across page changes, profile port round trips, invalidating
+every search window on disconnect or reconnect, and retaining property edits
+after a failed save. The GUI suite needs a desktop environment.
+
+Packaging tests use mock `dpkg-deb` and `rpmbuild` tools. They check that the local
+binary and language catalogs are copied without downloads, reject missing or
+invalid inputs, normalize Windows line endings in staged RPM specs and DEB
+maintainer scripts, and verify cleanup on failure. They require Bash (Git Bash
+is supported on Windows); they do not build or install real Linux packages.
+
+These offline tests do not perform real AD mutations or TLS handshakes. In
+particular, recursive Sites and Services deletion still needs an isolated AD
+test domain for end-to-end validation.

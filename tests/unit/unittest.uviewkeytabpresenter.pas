@@ -53,6 +53,7 @@ end;
 procedure TUnitTestViewKeyTabPresenter.LoadFromKeyTab;
 var
   KeyTab: TKerberosKeyTab;
+  ExpectedTimestamp: String;
 begin
   // Prepare KeyTab
   KeyTab := TKerberosKeyTab.Create;
@@ -64,7 +65,10 @@ begin
   // Checks
   Check(fView.Entries.Count = 4, 'KeyTab contains 4 entries.');
   Check(fView.Entries._[0]^.I['kvno'] = 2, 'KVNO is set to 2.');
-  Check(fView.Entries._[0]^.S['timestamp'] = '19/05/2026 07:54:52', 'Timestamp is 19/05/2026 07:54:52.');
+  ExpectedTimestamp := FormatDateTime('dd/mm/yyyy hh:nn:ss',
+    EncodeDate(2026, 5, 19) + EncodeTime(7, 54, 52, 0));
+  Check(fView.Entries._[0]^.S['timestamp'] = ExpectedTimestamp,
+    'Timestamp matches the keytab date in the current locale.');
   Check(fView.Entries._[0]^.S['principal'] = 'KEYTAB-TEST$@OPENRSAT.LAN', 'Principal is KEYTAB-TEST$@OPENRSAT.LAN.');
   Check(fView.Entries._[0]^.S['encryptionType'] = 'aes128-cts-hmac-sha1-96', 'EncryptionType is aes128-cts-hmac-sha1-96.');
 end;

@@ -585,6 +585,8 @@ function GetParentDN(DN: RawUtf8): RawUtf8;
 function SplitObjectDN(const DN: RawUtf8; out RDN, ParentDN: RawUtf8): Boolean;
 function TryBuildMoveDN(const DN, TargetDN: RawUtf8; out NewDN: RawUtf8): Boolean;
 function GetDNMoveOrder(const DNs: TRawUtf8DynArray): TIntegerDynArray;
+function BuildAdvancedSearchFilter(const Rules: TDocVariantData;
+  MatchAll: Boolean): RawUtf8;
 function IsContainer(ObjectClass: RawUtf8): Boolean;
 function IsLocalPath(path: RawUtf8): Boolean;
 function ISOToTimeFormat(str: String): String;
@@ -781,6 +783,50 @@ uses
   mormot.net.sock,
   ursatldapclient,
   uLdapUtils;
+
+function BuildAdvancedSearchFilter(const Rules: TDocVariantData;
+  MatchAll: Boolean): RawUtf8;
+var
+  Row: PDocVariantData;
+  AttributeName, RawValue, Value, Clause: RawUtf8;
+  Condition, ValueLength: Integer;
+begin
+  Result := '';
+  if Rules.Count = 0 then
+    Exit;
+  if MatchAll then
+    Result := '(&'
+  else
+    Result := '(|';
+  for Row in Rules.Objects do
+  begin
+    if not Assigned(Row) or not Row^.Exists('conditionIndex') then
+      raise ELdap.Create('Missing advanced search condition.');
+    AttributeName := Row^.U['key'];
+    if (AttributeName = '') or not LdapSafe(AttributeName) then
+      ELdap.RaiseUtf8('Invalid search attribute: %', [AttributeName]);
+    Condition := Row^.I['conditionIndex'];
+    RawValue := Row^.U['value'];
+    ValueLength := Length(RawValue);
+    SetLength(Value, ValueLength * 3);
+    if ValueLength > 0 then
+      // The length-based encoder also escapes NUL after an alphanumeric prefix.
+      SetLength(Value, EscapeHexBuffer(Pointer(RawValue), Pointer(Value),
+        ValueLength, LDAP_ESC[False], '\') - Pointer(Value));
+    case Condition of
+      0: Clause := FormatUtf8('(%=%*)', [AttributeName, Value]);
+      1: Clause := FormatUtf8('(%=*%)', [AttributeName, Value]);
+      2: Clause := FormatUtf8('(%=%)', [AttributeName, Value]);
+      3: Clause := FormatUtf8('(!(%=%))', [AttributeName, Value]);
+      4: Clause := FormatUtf8('(%=*)', [AttributeName]);
+      5: Clause := FormatUtf8('(!(%=*))', [AttributeName]);
+    else
+      ELdap.RaiseUtf8('Invalid advanced search condition: %', [Condition]);
+    end;
+    Result := Result + Clause;
+  end;
+  Result := Result + ')';
+end;
 
 function AceInDacl(Dacl: TSecAcl; Ace: TSecAce): Boolean;
 var

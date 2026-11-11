@@ -6,7 +6,11 @@ uses
   {$ENDIF}
   interfaces,
   Forms,
-  mormot.core.test;
+  mormot.core.test,
+  unittest.optionsswitch,
+  unittest.uprofileconfiguration,
+  unittest.searchsafety,
+  unittest.upropertiessafety;
 
 type
 
@@ -21,7 +25,12 @@ type
 
 procedure TOpenRSATTestsGUI.GUI;
 begin
-  AddCase([]);
+  AddCase([
+    TUnitTestOptionsSwitch,
+    TUnitTestProfileConfiguration,
+    TUnitTestSearchSafety,
+    TUnitTestPropertiesSafety
+  ]);
 end;
 
 begin

@@ -396,8 +396,9 @@ type
 
     procedure LdapConnectEvent(Sender: TObject);
     procedure LdapCloseEvent(Sender: TObject);
+    procedure InvalidateSearchWindows;
 
-    procedure ResetPasswordComputerWarning(Sender: TObject);
+    function ResetPasswordComputerWarning(Sender: TObject): Boolean;
     procedure OnModifyEventAccountUnlock(Sender: TObject);
     procedure OnModifyEventPasswordChanged(Sender: TObject);
     procedure OnSearchEventFillGrid(Sender: TObject);
@@ -3762,11 +3763,32 @@ end;
 
 procedure TFrmModuleADUC.LdapConnectEvent(Sender: TObject);
 begin
+  // A failed unbind can dispose of the previous socket without firing OnClose.
+  // Never let results from that connection survive a successful reconnect.
+  InvalidateSearchWindows;
   fModuleAduc.NeedRefresh := True;
+end;
+
+procedure TFrmModuleADUC.InvalidateSearchWindows;
+var
+  I: Integer;
+  Component: TComponent;
+begin
+  // Search forms are owned by the main window, so disconnect must clear them too.
+  for I := fIContext.ComponentOwner.ComponentCount - 1 downto 0 do
+  begin
+    Component := fIContext.ComponentOwner.Components[I];
+    if Component is TVisSearch then
+    begin
+      TVisSearch(Component).ClearResults;
+      TVisSearch(Component).Close;
+    end;
+  end;
 end;
 
 procedure TFrmModuleADUC.LdapCloseEvent(Sender: TObject);
 begin
+  InvalidateSearchWindows;
   TreeADUC.BeginUpdate;
   try
     if Assigned(fADUCDomainNode) and fADUCDomainNode.HasChildren then
@@ -3778,15 +3800,17 @@ begin
   end;
 end;
 
-procedure TFrmModuleADUC.ResetPasswordComputerWarning(Sender: TObject);
+function TFrmModuleADUC.ResetPasswordComputerWarning(Sender: TObject): Boolean;
 var
   ObjectClassAttr: TLdapAttribute;
 begin
+  result := True;
   ObjectClassAttr := (Sender as TLdapAttribute);
   if (ObjectClassAttr.GetReadable(Pred(ObjectClassAttr.Count)) = 'computer') then
   begin
     if MessageDlg('Dangererous action', 'Be carefull, this action is dangerous. Do you want to perform a reset password on a computer ?', mtWarning, mbYesNoCancel, 0) <> mrYes then
     begin
+      result := False;
       if Assigned(fLog) then
         fLog.Add.Log(sllInfo, 'User cancel', Self);
       Exit;
@@ -3854,7 +3878,9 @@ var
   VisTaskResetPassword: TVisTaskResetPassword;
 begin
   result := False;
-
+  ANewPassword := '';
+  AUserMustChangePassword := False;
+  AUnlockAccount := False;
   VisTaskResetPassword := TVisTaskResetPassword.Create(Self);
   try
     if LockedAccount then

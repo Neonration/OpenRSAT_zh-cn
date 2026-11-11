@@ -1,0 +1,5 @@
+# Linux packaging scripts must remain runnable from Windows/WSL checkouts.
+packaging/linux/**/*.sh text eol=lf
+packaging/linux/deb/postinst text eol=lf
+packaging/linux/deb/postrm text eol=lf
+packaging/linux/rpm/*.spec text eol=lf
