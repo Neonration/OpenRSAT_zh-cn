@@ -40,6 +40,8 @@ uses
   uvisproperties,
   ucoredatamodule,
   ufrmmoduleaducoption,
+  uopenrsatuicontextinterface,
+  uvisobjectsselector,
   ufrmmodule,
   ufrmoption,
   umodule,
@@ -47,13 +49,18 @@ uses
   uDJoin,
   uLdapUtils,
   ursatldapclient,
-  uvisviewkeytab;
+  uvisviewkeytab,
+  uvisrename,
+  ursat,
+  ulog;
 
 type
 
   { TFrmModuleADUC }
 
   TFrmModuleADUC = class(TFrameModule)
+    Action_NewPasswordSettings: TAction;
+    Action_Rename: TAction;
     Action_NewPrinter: TAction;
     Action_NewResourcePropertyList: TAction;
     Action_NewMsDSKeyCredential: TAction;
@@ -113,6 +120,8 @@ type
     CheckBox_IncludeSubContainer: TCheckBox;
     Image1: TImage;
     Image2: TImage;
+    MenuItem_Rename: TMenuItem;
+    MenuItem_New: TMenuItem;
     MenuItem_CreateKeyTab: TMenuItem;
     MenuItem_PrepareDJOIN: TMenuItem;
     MenuItem_ShowObjectLocation: TMenuItem;
@@ -175,7 +184,6 @@ type
     MenuItem_DeleteComputerFromAllDC: TMenuItem;
     MenuItem_Refresh: TMenuItem;
     MenuItem_Properties: TMenuItem;
-    MenuItem_New: TMenuItem;
     Panel1: TPanel;
     Panel2: TPanel;
     Panel3: TPanel;
@@ -256,6 +264,7 @@ type
     procedure Action_NewMsImagingPSPsUpdate(Sender: TObject);
     procedure Action_NewOUExecute(Sender: TObject);
     procedure Action_NewOUUpdate(Sender: TObject);
+    procedure Action_NewPasswordSettingsExecute(Sender: TObject);
     procedure Action_NewPrinterExecute(Sender: TObject);
     procedure Action_NewPrinterUpdate(Sender: TObject);
     procedure Action_NewResourcePropertyListExecute(Sender: TObject);
@@ -279,6 +288,8 @@ type
     procedure Action_PropertiesUpdate(Sender: TObject);
     procedure Action_RefreshExecute(Sender: TObject);
     procedure Action_RefreshUpdate(Sender: TObject);
+    procedure Action_RenameExecute(Sender: TObject);
+    procedure Action_RenameUpdate(Sender: TObject);
     procedure Action_FindBitLockerRecoveryPasswordExecute(Sender: TObject);
     procedure Action_FindBitLockerRecoveryPasswordUpdate(Sender: TObject);
     procedure Action_SearchExecute(Sender: TObject);
@@ -308,6 +319,8 @@ type
     procedure TisSearchEdit_GridADUCSearch(Sender: TObject; const aText: string);
     procedure ToolButton_AttributesGridClick(Sender: TObject);
     procedure TreeADUCChange(Sender: TObject; Node: TTreeNode);
+    procedure TreeADUCCollapsing(Sender: TObject; Node: TTreeNode;
+      var AllowCollapse: Boolean);
     procedure TreeADUCContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
     procedure TreeADUCCreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
@@ -345,11 +358,13 @@ type
     // Self core
     fModuleAduc: TModuleADUC;
 
+    fIContext: IOpenRSATUIContext;
+
     // Selection history
     fTreeSelectionHistory: TTreeSelectionHistory;
 
     // Mormot2 logs
-    fLog: TSynLog;
+    fLog: TSynLogClass;
 
     // Search word for grid
     fSearchWord: RawUtf8;
@@ -360,6 +375,7 @@ type
 
     fUpdating: Integer;
 
+    function GetLdapClient: TRsatLdapClient;
     procedure UpdateTreeImages(ANode: TADUCTreeNode);
 
     procedure UpdateGPLink(ANode: TADUCTreeNode; Flag: Integer);
@@ -391,7 +407,7 @@ type
   AUnlockAccount: Boolean): Boolean;
     procedure ViewKeyTab(AKeyTab: TKerberosKeyTab);
   public
-    constructor Create(TheOwner: TComponent); override;
+    constructor Create(Context: IOpenRSATUIContext);
     destructor Destroy; override;
 
     function Focus(DistinguishedName: String): Boolean;
@@ -402,6 +418,8 @@ type
 
     procedure BeginUpdate;
     procedure EndUpdate;
+
+    property LdapClient: TRsatLdapClient read GetLdapClient;
 
   protected
     function GetModule: TModule; override;
@@ -419,7 +437,6 @@ uses
   uvissearch,
   utheme,
   uvisnewobject,
-  uOmniselect,
   uvisdelegatecontrol,
   uvischangedn,
   uvistaskresetpassword,
@@ -428,10 +445,9 @@ uses
   uvismodifygplink,
   ucommon,
   ucommonui,
+  ufrmnewuser,
   ursatldapclientui,
-  ufrmrsatoptions,
   ursatoption,
-  ufrmrsat,
   uviseditaduccolumns,
   uvisshowrelationship,
   uconfig,
@@ -591,7 +607,7 @@ var
   c: TCursor;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Refresh.Name]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Refresh.Name]);
 
   c := Screen.Cursor;
   Screen.Cursor := crHourGlass;
@@ -605,9 +621,30 @@ begin
 end;
 
 procedure TFrmModuleADUC.Action_CopyExecute(Sender: TObject);
+var
+  Vis: TVisNewObject;
+  User: RawUtf8;
+  UserRes: TLdapResult;
+  Attr: TLdapAttribute;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Copy.Name]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Copy.Name]);
+
+  User := GetFocusedObject();
+
+  UserRes := LdapClient.SearchObject(User, '', ['objectClass']);
+  Attr := UserRes.Find('objectClass');
+  if not (Attr.GetReadable(Attr.Count - 1) = 'user') then
+    Exit;
+  Vis := TVisNewObject.Create(Self, vnotUser, GetParentDN(User), LdapClient.DefaultDN, LdapClient);
+  try
+    Vis.PageCount := 3;
+    (Vis.Frame as TFrmNewUser).Copy(User);
+    if Vis.ShowModal = mrOK then
+      Action_Refresh.Execute;
+  finally
+    FreeAndNil(Vis);
+  end;
 end;
 
 procedure TFrmModuleADUC.Action_ChangeDomainControllerUpdate(Sender: TObject);
@@ -620,13 +657,13 @@ var
   Vis: TVisChangeDomainController;
   mr: Integer;
 begin
-  Vis := TVisChangeDomainController.Create(Self);
+  Vis := TVisChangeDomainController.Create(fIContext);
 
   try
     mr := Vis.ShowModal;
     if (mr <> mrOK) or (Vis.DomainController = '') then
       Exit;
-    FrmRSAT.ChangeDomainController(Vis.DomainController);
+    fIContext.ChangeDomainController(Vis.DomainController);
   finally
     FreeAndNil(Vis);
   end;
@@ -645,7 +682,7 @@ begin
     NodeData.GPOptions := '0'
   else
     NodeData.GPOptions := '1';
-  if not FrmRSAT.LdapClient.Modify(NodeData.DistinguishedName, lmoReplace, 'gPOptions', NodeData.GPOptions) then
+  if not LdapClient.Modify(NodeData.DistinguishedName, lmoReplace, 'gPOptions', NodeData.GPOptions) then
   begin
     NodeData.GPOptions := BakGPOptions;
     Exit;
@@ -661,13 +698,13 @@ var
 
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create KeyTab.', Self);
+    fLog.Add.Log(sllTrace, 'Create KeyTab.', Self);
 
   // Warning about trust relationships.
   if (mrYes <> MessageDlg(rsGenerateKeyTab, rsGenerateKeyTabConfirmation, mtWarning, mbYesNoCancel, 0)) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllInfo, 'Action cancelled by user. (confirmation)', Self);
+      fLog.Add.Log(sllInfo, 'Action cancelled by user. (confirmation)', Self);
     Exit;
   end;
 
@@ -681,7 +718,7 @@ begin
   // Generate KeyTab
   try
     try
-      KeyTabGenerator := GenerateKeyTab(FrmRSAT.LdapClient, GetFocusedObject(), Password);
+      KeyTabGenerator := GenerateKeyTab(LdapClient, GetFocusedObject(), Password);
       if not Assigned(KeyTabGenerator) then
         raise TGenerateKeyTabException.Create('InternalError: GenerateKeyTab return a nil KeyTabGenerator.');
       ViewKeyTab(KeyTabGenerator);
@@ -749,7 +786,7 @@ end;
 procedure TFrmModuleADUC.Action_CutExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Cut.Name]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Cut.Name]);
 end;
 
 procedure TFrmModuleADUC.Action_CutUpdate(Sender: TObject);
@@ -762,30 +799,31 @@ var
   NodeData: TADUCTreeNodeObject;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Execute', Action_DelegateControl);
+    fLog.Add.Log(sllTrace, 'Execute', Action_DelegateControl);
 
   // Fast Exit
   if not Assigned(TreeADUC.Selected) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'No node assigned', Action_DelegateControl);
+      fLog.Add.Log(sllWarning, 'No node assigned', Action_DelegateControl);
     Exit;
   end;
 
   With TVisDelegateControl.Create(Self) do
   try
+    LdapClient := fModuleAduc.RSAT.LdapClient;
     NodeData := (TreeADUC.Selected as TADUCTreeNode).GetNodeDataObject;
     if not Assigned(NodeData) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllWarning, 'No data assigned to node.', Action_DelegateControl);
+        fLog.Add.Log(sllWarning, 'No data assigned to node.', Action_DelegateControl);
       Exit;
     end;
     SelectedObject := NodeData.DistinguishedName;
     if ShowModal <> mrOK then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllInfo, 'Canceled', Action_DelegateControl);
+        fLog.Add.Log(sllInfo, 'Canceled', Action_DelegateControl);
       Exit;
     end;
     Execute;
@@ -812,14 +850,14 @@ var
   SavedOnError: TNotifyEvent;
 begin
   result := False;
-  if not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected or
+  if not Assigned(LdapClient) or not LdapClient.Connected or
     (Length(SelectedObjects) = 0) then
     Exit;
 
   ObjectList := '';
   for DN in SelectedObjects do
   begin
-    if (DN = '') or SameText(String(DN), String(FrmRSAT.LdapClient.DefaultDN)) then
+    if (DN = '') or SameText(String(DN), String(LdapClient.DefaultDN)) then
     begin
       MessageDlg(rsDelete, rsADUCDeleteDomainRoot, mtWarning, [mbOK], 0);
       Exit;
@@ -836,20 +874,20 @@ begin
 
   Results := '';
   Failed := False;
-  SavedOnError := FrmRSAT.LdapClient.OnError;
-  FrmRSAT.LdapClient.OnError := nil;
+  SavedOnError := LdapClient.OnError;
+  LdapClient.OnError := nil;
   try
     for DN in SelectedObjects do
     begin
       try
-        if FrmRSAT.LdapClient.Delete(DN, True) then
+        if LdapClient.Delete(DN, True) then
           ResultLine := FormatUtf8('%: %', [DN, rsADUCDeleteComputerFromAllDCSuccess])
         else
         begin
-          ErrorDetail := FrmRSAT.LdapClient.ResultString;
-          if (FrmRSAT.LdapClient.ResultError = leNoSuchObject) and
-            not Assigned(FrmRSAT.LdapClient.SearchObject(DN, '', ['objectClass'])) and
-            (FrmRSAT.LdapClient.ResultError = leNoSuchObject) then
+          ErrorDetail := LdapClient.ResultString;
+          if (LdapClient.ResultError = leNoSuchObject) and
+            not Assigned(LdapClient.SearchObject(DN, '', ['objectClass'])) and
+            (LdapClient.ResultError = leNoSuchObject) then
             ResultLine := FormatUtf8('%: %', [DN, rsADUCDeleteComputerFromAllDCAlreadyAbsent])
           else
           begin
@@ -871,7 +909,7 @@ begin
       Results := Results + ResultLine;
     end;
   finally
-    FrmRSAT.LdapClient.OnError := SavedOnError;
+    LdapClient.OnError := SavedOnError;
   end;
 
   if TreeADUC.Focused and Assigned(TreeADUC.Selected) and
@@ -900,7 +938,7 @@ end;
 procedure TFrmModuleADUC.Action_DeleteComputerFromAllDCUpdate(Sender: TObject);
 begin
   Action_DeleteComputerFromAllDC.Enabled := MultiDCDeleteEnabled and
-    Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and
+    Assigned(LdapClient) and LdapClient.Connected and
     GridSelectionContainsOnlyObjectClass('computer');
 end;
 
@@ -918,7 +956,7 @@ var
   HadFailure: Boolean;
 begin
   Result := False;
-  if not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected then
+  if not Assigned(LdapClient) or not LdapClient.Connected then
     Exit;
   if not MultiDCDeleteEnabled then
   begin
@@ -928,7 +966,7 @@ begin
   if Length(SelectedObjects) = 0 then
     Exit;
   try
-    DomainDN := FrmRSAT.LdapClient.DefaultDN;
+    DomainDN := LdapClient.DefaultDN;
     Available := GetDomainControllerHosts;
     if Length(Available) = 0 then
     begin
@@ -947,13 +985,13 @@ begin
     ComputerList := '';
     for I := 0 to High(SelectedObjects) do
     begin
-      Entry := FrmRSAT.LdapClient.SearchObject(SelectedObjects[I], '',
+      Entry := LdapClient.SearchObject(SelectedObjects[I], '',
         ['objectGUID', 'objectClass', 'userAccountControl']);
       if not ComputerGuidDN(Entry, Targets[I].GuidDN) then
       begin
         MessageDlg(rsADUCDeleteComputerFromAllDCTitle,
           Format(rsADUCInvalidComputer, [SelectedObjects[I], LineEnding,
-            rsComputerDeleteInvalidIdentity + LineEnding + FrmRSAT.LdapClient.ResultString]),
+            rsComputerDeleteInvalidIdentity + LineEnding + LdapClient.ResultString]),
           mtError, [mbOK], 0);
         Exit;
       end;
@@ -987,7 +1025,7 @@ begin
       try
         // Construct serially because TLdapClient.Create updates the source settings key.
         for I := 0 to Count - 1 do
-          Workers[I] := TComputerDeleteThread.Create(FrmRSAT.LdapClient,
+          Workers[I] := TComputerDeleteThread.Create(LdapClient,
             DCs[First + I], DomainDN, Targets);
         for I := 0 to Count - 1 do
           Workers[I].Start;
@@ -1034,7 +1072,7 @@ end;
 
 procedure TFrmModuleADUC.Action_DeleteUpdate(Sender: TObject);
 begin
-  Action_delete.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and ((GridADUC.SelectedCount > 0) or (Assigned(TreeADUC.Selected)));
+  Action_delete.Enabled := Assigned(LdapClient) and LdapClient.Connected and ((GridADUC.SelectedCount > 0) or (Assigned(TreeADUC.Selected)));
 end;
 
 procedure TFrmModuleADUC.Action_DisableGPOExecute(Sender: TObject);
@@ -1056,9 +1094,11 @@ procedure TFrmModuleADUC.Action_ModifyGPLinkExecute(Sender: TObject);
 var
   Vis: TVisModifyGPLink;
 begin
-  Vis := TVisModifyGPLink.Create(Self, GetFocusedObject(True));
+  Vis := TVisModifyGPLink.Create(Self);
 
   try
+    Vis.LdapClient := LdapClient;
+    Vis.DistinguishedName := GetFocusedObject(True);
     Vis.ShowModal;
     RefreshADUCTreeNode((TreeADUC.Selected as TADUCTreeNode));
   finally
@@ -1214,7 +1254,7 @@ begin
     'lostAndFound': newList := LostAndFoundNew;
     'domainDNS': newList := DomainDNSNew;
     else
-      TSynLog.Add.Log(sllWarning, FormatUtf8('"objectClass" not yet implemented: %', [ObjectClass]));
+      TOpenRSATLog.Add.Log(sllWarning, FormatUtf8('"objectClass" not yet implemented: %', [ObjectClass]));
   end;
 
   // Create filter to allow MenuItem_TreeNew visibility
@@ -1243,12 +1283,11 @@ end;
 procedure TFrmModuleADUC.Action_NewComputerExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewComputer.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewComputer.Caption]);
 
-  With TVisNewObject.Create(Self, vnotComputer, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotComputer, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1256,18 +1295,17 @@ end;
 
 procedure TFrmModuleADUC.Action_NewComputerUpdate(Sender: TObject);
 begin
-  Action_NewComputer.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewComputer.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewContactExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewContact.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewContact.Caption]);
 
-  With TVisNewObject.Create(Self, vnotContact, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotContact, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1275,18 +1313,17 @@ end;
 
 procedure TFrmModuleADUC.Action_NewContactUpdate(Sender: TObject);
 begin
-  Action_NewContact.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewContact.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewGroupExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewGroup.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewGroup.Caption]);
 
-  With TVisNewObject.Create(Self, vnotGroup, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotGroup, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1294,18 +1331,17 @@ end;
 
 procedure TFrmModuleADUC.Action_NewGroupUpdate(Sender: TObject);
 begin
-  Action_NewGroup.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewGroup.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewInetOrgPersonExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewInetOrgPerson.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewInetOrgPerson.Caption]);
 
-  With TVisNewObject.Create(Self, vnotInetOrgPerson, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotInetOrgPerson, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1313,18 +1349,17 @@ end;
 
 procedure TFrmModuleADUC.Action_NewInetOrgPersonUpdate(Sender: TObject);
 begin
-  Action_NewInetOrgPerson.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewInetOrgPerson.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewMsDSKeyCredentialExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewMsDSKeyCredential.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewMsDSKeyCredential.Caption]);
 
-  With TVisNewObject.Create(Self, vnotMsDSKeyCredential, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotMsDSKeyCredential, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1332,19 +1367,18 @@ end;
 
 procedure TFrmModuleADUC.Action_NewMsDSKeyCredentialUpdate(Sender: TObject);
 begin
-  Action_NewMsDSKeyCredential.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewMsDSKeyCredential.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewMsDSShadowPrincipalContainerExecute(
   Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewMsDSShadowPrincipalContainer.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewMsDSShadowPrincipalContainer.Caption]);
 
-  With TVisNewObject.Create(Self, vnotMsDSShadowPrincipalContainer, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotMsDSShadowPrincipalContainer, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1353,18 +1387,17 @@ end;
 procedure TFrmModuleADUC.Action_NewMsDSShadowPrincipalContainerUpdate(
   Sender: TObject);
 begin
-  Action_NewMsDSShadowPrincipalContainer.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewMsDSShadowPrincipalContainer.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewMsImagingPSPsExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewMsImagingPSPs.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewMsImagingPSPs.Caption]);
 
-  With TVisNewObject.Create(Self, vnotMsImagingPSPs, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotMsImagingPSPs, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1372,18 +1405,17 @@ end;
 
 procedure TFrmModuleADUC.Action_NewMsImagingPSPsUpdate(Sender: TObject);
 begin
-  Action_NewMsImagingPSPs.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewMsImagingPSPs.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewOUExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewOU.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewOU.Caption]);
 
-  With TVisNewObject.Create(Self, vnotOrganizationalUnit, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN()) do
+  With TVisNewObject.Create(Self, vnotOrganizationalUnit, GetFocusedObject(True), LdapClient.DefaultDN(), LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1391,18 +1423,34 @@ end;
 
 procedure TFrmModuleADUC.Action_NewOUUpdate(Sender: TObject);
 begin
-  Action_NewOU.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewOU.Enabled := Assigned(LdapClient) and LdapClient.Connected;
+end;
+
+procedure TFrmModuleADUC.Action_NewPasswordSettingsExecute(Sender: TObject);
+var
+  Vis: TVisNewObject;
+begin
+  if Assigned(fLog) then
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewPasswordSettings.Caption]);
+
+  Vis := TVisNewObject.Create(Self, vnotPasswordSettings, GetFocusedObject(True), LdapClient.DefaultDN(), LdapClient);
+  try
+    Vis.PageCount := 1;
+    if Vis.ShowModal = mrOK then
+      Action_Refresh.Execute;
+  finally
+    FreeAndNil(Vis);
+  end;
 end;
 
 procedure TFrmModuleADUC.Action_NewPrinterExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
 
-  With TVisNewObject.Create(Self, vnotPrinter, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotPrinter, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1410,18 +1458,17 @@ end;
 
 procedure TFrmModuleADUC.Action_NewPrinterUpdate(Sender: TObject);
 begin
-  Action_NewPrinter.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewPrinter.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewResourcePropertyListExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
 
-  With TVisNewObject.Create(Self, vnotMsDSResourcePropertyList, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotMsDSResourcePropertyList, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 1;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1429,18 +1476,17 @@ end;
 
 procedure TFrmModuleADUC.Action_NewResourcePropertyListUpdate(Sender: TObject);
 begin
-  Action_NewResourcePropertyList.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewResourcePropertyList.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewSharedFolderExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
 
-  With TVisNewObject.Create(Self, vnotSharedFolder, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotSharedFolder, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 3;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1448,18 +1494,17 @@ end;
 
 procedure TFrmModuleADUC.Action_NewSharedFolderUpdate(Sender: TObject);
 begin
-  Action_NewSharedFolder.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewSharedFolder.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NewUserExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
 
-  With TVisNewObject.Create(Self, vnotUser, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisNewObject.Create(Self, vnotUser, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient) do
   begin
     PageCount := 3;
-    Ldap := FrmRSAT.LdapClient;
     if ShowModal = mrOK then
       Action_Refresh.Execute;
   end;
@@ -1467,7 +1512,7 @@ end;
 
 procedure TFrmModuleADUC.Action_NewUserUpdate(Sender: TObject);
 begin
-  Action_NewUser.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewUser.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_NextExecute(Sender: TObject);
@@ -1475,7 +1520,7 @@ var
   Node: TTreeNode;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Next.Name]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Next.Name]);
 
   Node := fTreeSelectionHistory.Next;
   if Assigned(Node) then
@@ -1491,7 +1536,7 @@ procedure TFrmModuleADUC.Action_OperationsMastersExecute(Sender: TObject);
 var
   Vis: TVisOperationMasters;
 begin
-  Vis := TVisOperationMasters.Create(Self);
+  Vis := TVisOperationMasters.Create(fIContext);
   try
     Vis.ShowModal();
   finally
@@ -1502,7 +1547,7 @@ end;
 procedure TFrmModuleADUC.Action_ParentExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Parent.Name]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Parent.Name]);
 
   if Assigned(TreeADUC.Selected.Parent) then
     TreeADUC.Selected.Parent.Selected := True;
@@ -1516,7 +1561,7 @@ end;
 procedure TFrmModuleADUC.Action_PasteExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Paste.Name]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Paste.Name]);
 end;
 
 procedure TFrmModuleADUC.Action_PasteUpdate(Sender: TObject);
@@ -1532,13 +1577,13 @@ var
   DNs: TRawUtf8DynArray;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Prepare DJoin.', Self);
+    fLog.Add.Log(sllTrace, 'Prepare DJoin.', Self);
 
   // Warning about trust relationships.
   if (mrYes <> MessageDlg(rsPrepareDJOIN, rsPrepareDJOINConfirmation, mtWarning, mbYesNoCancel, 0)) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllInfo, 'Action cancelled by user (Confirmation).', Self);
+      fLog.Add.Log(sllInfo, 'Action cancelled by user (Confirmation).', Self);
     Exit;
   end;
 
@@ -1553,7 +1598,7 @@ begin
         Continue;
       DNs[i] := PData^.S['objectName'];
     end;
-    DJoins := PrepareDJoins(FrmRSAT.LdapClient, DNs);
+    DJoins := PrepareDJoins(LdapClient, DNs);
   except
     on E: TPrepareDJoinException do
       MessageDlg(rsPrepareDJOIN, '', mtError, mbOKCancel, 0);
@@ -1565,7 +1610,7 @@ begin
     if not SelectDirectoryDialog1.Execute then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllInfo, 'Action cancelled by user (Select forlder).', Self);
+        fLog.Add.Log(sllInfo, 'Action cancelled by user (Select forlder).', Self);
       Exit;
     end;
     Folder := SelectDirectoryDialog1.FileName;
@@ -1576,7 +1621,7 @@ begin
     for i := 0 to High(DJoins) do
       if Assigned(DJoins[i]) then
       begin
-        DJoins[i].SaveToFile(FormatUtf8('%%%.%.djoin', [Folder, PathDelim, DJoins[i].MachineName, DNToCN(FrmRSAT.LdapClient.DefaultDN())]));
+        DJoins[i].SaveToFile(FormatUtf8('%%%.%.djoin', [Folder, PathDelim, DJoins[i].MachineName, DNToCN(LdapClient.DefaultDN())]));
         FreeAndNil(DJoins[i]);
       end;
   finally
@@ -1629,7 +1674,7 @@ var
   Node: TTreeNode;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Previous.Name]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Previous.Name]);
 
   Node := fTreeSelectionHistory.Previous;
   if Assigned(Node) then
@@ -1661,7 +1706,7 @@ var
   end;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Properties.Name]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Properties.Name]);
 
   if GridADUC.Focused then
   begin
@@ -1690,17 +1735,29 @@ begin
   end;
 
   if DistinguishedName <> '' then
-    FrmRSAT.OpenProperty(DistinguishedName, SelectedText);
+    fIContext.OpenProperty(DistinguishedName);
 end;
 
 procedure TFrmModuleADUC.Action_PropertiesUpdate(Sender: TObject);
 begin
-  Action_Properties.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and ((GridADUC.SelectedCount > 0) or (Assigned(TreeADUC.Selected)));
+  Action_Properties.Enabled := Assigned(LdapClient) and LdapClient.Connected and ((GridADUC.SelectedCount > 0) or (Assigned(TreeADUC.Selected)));
 end;
 
 procedure TFrmModuleADUC.Action_RefreshUpdate(Sender: TObject);
 begin
-  Action_Refresh.Enabled := {Active and} Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected();
+  Action_Refresh.Enabled := {Active and} Assigned(LdapClient) and LdapClient.Connected();
+end;
+
+procedure TFrmModuleADUC.Action_RenameExecute(Sender: TObject);
+begin
+  GridADUC.TreeOptions.MiscOptions := GridADUC.TreeOptions.MiscOptions - [toReadOnly] + [toEditable];
+  GridADUC.EditNode(GridADUC.FocusedNode, GridADUC.FocusedColumn);
+  GridADUC.TreeOptions.MiscOptions := GridADUC.TreeOptions.MiscOptions + [toReadOnly] - [toEditable];
+end;
+
+procedure TFrmModuleADUC.Action_RenameUpdate(Sender: TObject);
+begin
+  Action_Rename.Enabled := GridADUC.SelectedCount = 1;
 end;
 
 procedure TFrmModuleADUC.Action_FindBitLockerRecoveryPasswordExecute(
@@ -1709,9 +1766,9 @@ var
   Vis: TVisBitLockerRecoverySearch;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_FindBitLockerRecoveryPassword.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_FindBitLockerRecoveryPassword.Caption]);
 
-  Vis := TVisBitLockerRecoverySearch.Create(Self, FrmRSAT.LdapClient);
+  Vis := TVisBitLockerRecoverySearch.Create(Self, LdapClient);
   try
     if (Vis.ShowModal = mrOk) and (Vis.SelectedComputerDN <> '') then
       if not Focus(String(Vis.SelectedComputerDN)) then
@@ -1724,8 +1781,8 @@ end;
 procedure TFrmModuleADUC.Action_FindBitLockerRecoveryPasswordUpdate(
   Sender: TObject);
 begin
-  Action_FindBitLockerRecoveryPassword.Enabled := Assigned(FrmRSAT.LdapClient)
-    and FrmRSAT.LdapClient.Connected;
+  Action_FindBitLockerRecoveryPassword.Enabled := Assigned(LdapClient)
+    and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_SearchExecute(Sender: TObject);
@@ -1733,7 +1790,7 @@ var
   NodeData: TADUCTreeNodeObject;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Search.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Search.Caption]);
 
   // Fast Exit
   if not Assigned(TreeADUC.Selected) then
@@ -1743,7 +1800,7 @@ begin
   if not Assigned(NodeData) then
     Exit;
 
-  With TVisSearch.Create(Self, Self) do
+  With TVisSearch.Create(fIContext, Self) do
   begin
     Edit_Path.Caption := NodeData.DistinguishedName;
     Show;
@@ -1753,7 +1810,7 @@ end;
 
 procedure TFrmModuleADUC.Action_SearchUpdate(Sender: TObject);
 begin
-  Action_Search.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_Search.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleADUC.Action_ShowObjectLocationExecute(Sender: TObject);
@@ -1803,7 +1860,7 @@ begin
     if ObjectClass[Length(ObjectClass) - 1] = 'group' then
       ObjectName := GridADUC.SelectedObjects[0]^.S['objectName'];
   end;
-  Vis := TVisShowRelationship.Create(Self, FrmRSAT.LdapClient, ObjectName);
+  Vis := TVisShowRelationship.Create(fIContext, ObjectName);
 
   Vis.ShowModal;
   Vis.Free;
@@ -1813,6 +1870,7 @@ procedure TFrmModuleADUC.Action_TaskAddToAGroupExecute(Sender: TObject);
 var
   DistinguishedName, SelectedDistinguishedName: String;
   selectedDistinguishedNameArray: TRawUtf8DynArray;
+  Vis: TVisObjectsSelector;
 
   // Create an attribute to add a member to a group.
   // It does a modify ldap request with an Add operation.
@@ -1825,10 +1883,10 @@ var
     try
       AttributeMember.Add(Member);
 
-      if not FrmRSAT.LdapClient.Modify(Group, lmoAdd, AttributeMember) then
+      if not LdapClient.Modify(Group, lmoAdd, AttributeMember) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllError, 'Ldap modify error: "%"', [FrmRSAT.LdapClient.ResultString]);
+          fLog.Add.Log(sllError, 'Ldap modify error: "%"', [LdapClient.ResultString]);
       end;
     finally
       FreeAndNil(AttributeMember);
@@ -1838,56 +1896,43 @@ var
   // Search for groups that contains the focused object.
   // If so, create a ldap filter to exclude those groups.
   // It prevents the addition of a member in a group that already contains this member.
-  function ExclusionFilter(Member: RawUtf8): RawUtf8;
+  function GetExcludedObjects(Member: RawUtf8): TRawUtf8DynArray;
   var
-    SearchResult: TLdapResult;
-    memberOf: RawUtf8;
+    memberOf, ObjectName: RawUtf8;
+    SearchResult: TDocVariantData;
   begin
-    Result := '';
-    FrmRSAT.LdapClient.SearchBegin();
-    try
-      FrmRSAT.LdapClient.SearchScope := lssWholeSubtree;
-
-      repeat
-        if not FrmRSAT.LdapClient.Search(FrmRSAT.LdapClient.DefaultDN, False, FormatUtf8('(member=%)', [LdapEscape(Member)]), ['distinguishedName']) then
-        begin
-          if Assigned(fLog) then
-            fLog.Log(sllError, 'Ldap Search Error: "%"', [FrmRSAT.LdapClient.ResultString]);
-          Exit;
-        end;
-
-        for SearchResult in FrmRSAT.LdapClient.SearchResult.Items do
-        begin
-          if not Assigned(SearchResult) then
-            continue;
-
-          memberOf := SearchResult.Find('distinguishedName').GetReadable();
-          Result := FormatUtf8('%(distinguishedName=%)', [Result, memberOf]);
-        end;
-      until FrmRSAT.LdapClient.SearchCookie = '';
-    finally
-      FrmRSAT.LdapClient.SearchEnd();
+    Result := nil;
+    LdapClient.SearchScope := lssWholeSubtree;
+    if not LdapClient.SearchAllDocRaw(SearchResult, LdapClient.DefaultDN, FormatUtf8('(member=%)', [LdapEscape(Member)]), ['distinguishedName'], [roAutoRange, roObjectNameAtRoot, roRawValues, roKnownValuesAsArray]) then
+    begin
+      if Assigned(fLog) then
+        fLog.Add.Log(sllError, 'Ldap Search Error: "%"', [LdapClient.ResultString]);
+      Exit;
     end;
-    if (Result <> '') then
-      Result := FormatUtf8('(!(|%))', [Result]);
+
+    result := SearchResult.Names;
   end;
 
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_TaskAddToAGroup.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_TaskAddToAGroup.Caption]);
 
   // Retrieve Focused object distinguishedName
   DistinguishedName := GridADUC.FocusedRow^.S['objectName'];
 
   // Open the vis to let the user select groups
-  With TVisOmniselect.Create(Self, FrmRSAT.LdapClient, ['group'], FrmRSAT.LdapClient.DefaultDN, True, ExclusionFilter(DistinguishedName)) do
+  Vis := TVisObjectsSelector.Create(Self);
   try
-    Caption := rsTitleSelectGroups;
-    if (ShowModal <> mrOK) then
+    Vis.LdapClient := LdapClient;
+    Vis.AllowedObjectTypes := [otfGroup];
+    Vis.SelectedObjectTypes := [otfGroup];
+    Vis.AllowMultiSelect := True;
+    Vis.ExcludedObjects := GetExcludedObjects(DistinguishedName);
+    if (Vis.ShowModal <> mrOK) then
       Exit;
-    selectedDistinguishedNameArray := SelectedObjects;
+    selectedDistinguishedNameArray := Vis.SelectedObjects;
   finally
-    Free;
+    FreeAndNil(Vis);
   end;
 
   // Add the member to the selected groups
@@ -1911,12 +1956,14 @@ var
   UAC: TUserAccountControls;
   UACAttr, AttrName: TLdapAttribute;
   Obj: RawUtf8;
+  Node: PVirtualNode;
 begin
-  Data := GridADUC.GetNodeAsPDocVariantData(nil, True);
+  Node := GridADUC.FocusedNode;
+  Data := GridADUC.GetNodeAsPDocVariantData(Node);
   if not Assigned(Data) then
     Exit;
 
-  LdapResult := FrmRSAT.LdapClient.SearchObject(Data^.S['objectName'],
+  LdapResult := LdapClient.SearchObject(Data^.S['objectName'],
     '', ['name', 'userAccountControl']);
   if not Assigned(LdapResult) then
     exit;
@@ -1935,13 +1982,14 @@ begin
 
   UACAttr.Clear;
   UACAttr.Add(IntToStr(UserAccountControlsValue(UAC)));
-  if not FrmRSAT.LdapClient.Modify(Data^.S['objectName'], lmoReplace, UACAttr) then
+  if not LdapClient.Modify(Data^.S['objectName'], lmoReplace, UACAttr) then
     exit;
 
   if uacAccountDisable in UAC then
     ShowMessage(FormatUtf8(rsActionDisableObject, [Obj]))
   else
     ShowMessage(FormatUtf8(rsActionEnableObject, [Obj]));
+  Data^.U['userAccountControl'] := UACAttr.GetReadable();
   UpdateGridADUC(nil);
 end;
 
@@ -1985,7 +2033,7 @@ var
   SavedOnError: TNotifyEvent;
 begin
   result := False;
-  if not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected then
+  if not Assigned(LdapClient) or not LdapClient.Connected then
     Exit;
   if Length(SelectedObjects) < 2 then
   begin
@@ -1993,7 +2041,7 @@ begin
     Exit;
   end;
 
-  With TVisChangeDN.Create(Self, FrmRSAT.LdapClient, GetParentDN(SelectedObjects[0]), FrmRSAT.LdapClient.DefaultDN) do
+  With TVisChangeDN.Create(Self, LdapClient, GetParentDN(SelectedObjects[0]), LdapClient.DefaultDN) do
   try
     if (mrOK <> ShowModal) or (SelectedDN = '') then
       Exit;
@@ -2016,20 +2064,20 @@ begin
 
   Results := '';
   Failed := False;
-  SavedOnError := FrmRSAT.LdapClient.OnError;
-  FrmRSAT.LdapClient.OnError := nil;
+  SavedOnError := LdapClient.OnError;
+  LdapClient.OnError := nil;
   try
     for Index in GetDNMoveOrder(SelectedObjects) do
     begin
       DN := SelectedObjects[Index];
       TryBuildMoveDN(DN, TargetDN, NewDN);
       try
-        if (DN = NewDN) or FrmRSAT.LdapClient.MoveLdapEntry(DN, NewDN) then
+        if (DN = NewDN) or LdapClient.MoveLdapEntry(DN, NewDN) then
           ResultLine := FormatUtf8('%: %', [DN, rsADUCBatchMoveOUSuccess])
         else
         begin
           Failed := True;
-          ResultLine := FormatUtf8('%: % - %', [DN, rsADUCBatchMoveOUFailed, FrmRSAT.LdapClient.ResultString]);
+          ResultLine := FormatUtf8('%: % - %', [DN, rsADUCBatchMoveOUFailed, LdapClient.ResultString]);
         end;
       except
         on E: Exception do
@@ -2043,7 +2091,7 @@ begin
       Results := Results + ResultLine;
     end;
   finally
-    FrmRSAT.LdapClient.OnError := SavedOnError;
+    LdapClient.OnError := SavedOnError;
   end;
 
   if Failed then
@@ -2058,8 +2106,8 @@ end;
 
 procedure TFrmModuleADUC.Action_TaskBatchMoveOUUpdate(Sender: TObject);
 begin
-  Action_TaskBatchMoveOU.Enabled := Assigned(FrmRSAT.LdapClient) and
-    FrmRSAT.LdapClient.Connected and (Length(GetSelectedObjects) >= 2);
+  Action_TaskBatchMoveOU.Enabled := Assigned(LdapClient) and
+    LdapClient.Connected and (Length(GetSelectedObjects) >= 2);
 end;
 
 procedure TFrmModuleADUC.Action_TaskMoveExecute(Sender: TObject);
@@ -2067,15 +2115,15 @@ var
   DistinguishedName, NewDN: RawUtf8;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_TaskMove.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_TaskMove.Caption]);
 
   DistinguishedName := GridADUC.FocusedRow^.U['objectName'];
-  With TVisChangeDN.Create(Self, FrmRSAT.LdapClient, DistinguishedName, FrmRSAT.LdapClient.DefaultDN) do
+  With TVisChangeDN.Create(Self, LdapClient, DistinguishedName, LdapClient.DefaultDN) do
   try
     if (mrOK <> ShowModal) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllInfo, '% - Task canceled.');
+        fLog.Add.Log(sllInfo, '% - Task canceled.');
       Exit;
     end;
     if not TryBuildMoveDN(DistinguishedName, SelectedDN, NewDN) then
@@ -2083,10 +2131,10 @@ begin
       MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUInvalidTarget, mtWarning, [mbOK], 0);
       Exit;
     end;
-    if not FrmRSAT.LdapClient.MoveLdapEntry(DistinguishedName, NewDN) then
+    if not LdapClient.MoveLdapEntry(DistinguishedName, NewDN) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllError, '% - Failed to move ldap entry "%" to "%": %', [DistinguishedName, SelectedDN, FrmRSAT.LdapClient.ResultString]);
+        fLog.Add.Log(sllError, '% - Failed to move ldap entry "%" to "%": %', [DistinguishedName, SelectedDN, LdapClient.ResultString]);
       Exit;
     end;
   finally
@@ -2102,7 +2150,7 @@ end;
 procedure TFrmModuleADUC.Action_TaskResetPasswordExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Reset password', [Action_TaskResetPassword.Caption], Self);
+    fLog.Add.Log(sllTrace, 'Reset password', [Action_TaskResetPassword.Caption], Self);
 
   fModuleAduc.ResetPassword(@ResetPasswordCallback, GridADUC.FocusedRow^.U['objectName'], @ResetPasswordComputerWarning, @OnModifyEventAccountUnlock, @OnModifyEventPasswordChanged);
 end;
@@ -2120,7 +2168,6 @@ end;
 procedure TFrmModuleADUC.GridADUCFocusChanged(Sender: TBaseVirtualTree;
   Node: PVirtualNode; Column: TColumnIndex);
 var
-  OnSearch: TNotifyEvent;
   NewRow: TDocVariantData;
   VariantData: PDocVariantData;
   LdapResult: TLdapResult;
@@ -2134,12 +2181,10 @@ begin
   VariantData := GridADUC.GetNodeAsPDocVariantData(Node, True);
   GridAttributes.Clear;
   GridAttributes.BeginUpdate;
-  OnSearch := FrmRSAT.LdapClient.OnSearch;
   try
-    FrmRSAT.LdapClient.OnSearch := nil;
     if Assigned(VariantData) then
     begin
-      LdapResult := FrmRSAT.LdapClient.SearchObject(VariantData^.S['objectName'], '', ['*']);
+      LdapResult := LdapClient.SearchObject(VariantData^.S['objectName'], '', ['*']);
       if not Assigned(LdapResult) then
          exit;
 
@@ -2159,7 +2204,6 @@ begin
     end;
     finally
       GridAttributes.EndUpdate;
-      FrmRSAT.LdapClient.OnSearch := OnSearch;
       GridAttributes.LoadData();
   end;
 end;
@@ -2207,7 +2251,7 @@ end;
 procedure TFrmModuleADUC.Timer_TreeChangeNodeTimer(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Tree Change Timer', Self);
+    fLog.Add.Log(sllTrace, 'Tree Change Timer', Self);
 
   Timer_TreeChangeNode.Enabled := False;
 
@@ -2283,13 +2327,19 @@ end;
 procedure TFrmModuleADUC.TreeADUCChange(Sender: TObject; Node: TTreeNode);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Tree Change', Self);
+    fLog.Add.Log(sllTrace, 'Tree Change', Self);
 
   if not Assigned(Node) then
     Exit;
   if Timer_TreeChangeNode.Enabled then
     Timer_TreeChangeNode.Enabled := False;
   Timer_TreeChangeNode.Enabled := True;
+end;
+
+procedure TFrmModuleADUC.TreeADUCCollapsing(Sender: TObject; Node: TTreeNode;
+  var AllowCollapse: Boolean);
+begin
+  AllowCollapse := Node <> fADUCRootNode;
 end;
 
 procedure TFrmModuleADUC.TreeADUCContextPopup(Sender: TObject;
@@ -2315,21 +2365,23 @@ begin
   case (TreeADUC.Selected as TADUCTreeNode).NodeType of
     atntObject:
     begin
-      VisibleItems := Concat(VisibleItems, [MenuItem_DelegateControl,
-        MenuItem_ChangeDomainController,MenuItem_OperationsMasters,MenuItem_New,
-        MenuItem_FindBitLockerRecoveryPassword, MenuItem_Search,MenuItem_Refresh,
+      VisibleItems := Concat(VisibleItems, [MenuItem_DelegateControl,MenuItem_New,
+        MenuItem_FindBitLockerRecoveryPassword,MenuItem_Search,MenuItem_Refresh,
         MenuItem_Delete,MenuItem_DeleteComputerFromAllDC,MenuItem_Properties]);
       if fModuleAduc.ADUCOption.ShowGPO then
         VisibleItems := Concat(VisibleItems, [MenuItem_BlockGPOInheritance]);
+      if ((TreeADUC.Selected as TADUCTreeNode).GetNodeDataObject.LastObjectClass = 'domainDNS') then
+        VisibleItems := Concat(VisibleItems, [MenuItem_ChangeDomainController, MenuItem_OperationsMasters]);
     end;
     atntGPO: VisibleItems := Concat(VisibleItems, [MenuItem_EnableGPO,
       MenuItem_DisableGPO, MenuItem_EnforceGPO]);
   end;
 
-  Handled := not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected;
+  Handled := not Assigned(LdapClient) or not LdapClient.Connected;
 
   for Item in PopupMenu1.Items do
     Item.Visible := Contains(VisibleItems, Item);
+  BuildNewMenuItem(MenuItem_New, GetFocusedObjectClass);
 end;
 
 procedure TFrmModuleADUC.TreeADUCCreateNodeClass(Sender: TCustomTreeView;
@@ -2348,14 +2400,14 @@ var
   NodeData: TADUCTreeNodeObject;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - DragDrop', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - DragDrop', [Self.Name]);
   NewDNS := [];
   OldDNS := [];
   TreeNode := TreeADUC.GetNodeAt(X, Y);
   if not Assigned(TreeNode) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - No node at (%,%)', [Self.Name, IntToStr(X), IntToStr(Y)]);
+      fLog.Add.Log(sllWarning, '% - No node at (%,%)', [Self.Name, IntToStr(X), IntToStr(Y)]);
     Exit;
   end;
   NodeData := (TreeNode as TADUCTreeNode).GetNodeDataObject;
@@ -2369,7 +2421,7 @@ begin
   if not Assigned(Node) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - No node selected in %', [Self.Name, GridADUC.Name]);
+      fLog.Add.Log(sllWarning, '% - No node selected in %', [Self.Name, GridADUC.Name]);
     Exit;
   end;
   repeat
@@ -2383,9 +2435,9 @@ begin
     Insert(newDN, newDNS, Length(newDNS));
     Node := GridADUC.GetNextSelected(Node);
   until Node = nil;
-  FrmRSAT.LdapClient.MoveLdapEntries(oldDNS, newDNS);
+  LdapClient.MoveLdapEntries(oldDNS, newDNS);
   if Assigned(fLog) then
-    fLog.Log(sllInfo, '% - % entries moved.', [Self.Name, IntToStr(Length(OldDN))]);
+    fLog.Add.Log(sllInfo, '% - % entries moved.', [Self.Name, IntToStr(Length(OldDN))]);
   Action_Refresh.Execute;
 end;
 
@@ -2395,12 +2447,12 @@ var
   Node: TTreeNode;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - DragOver', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - DragOver', [Self.Name]);
   Accept := False;
   if Source <> GridADUC then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - Invalid source (%).', [Self.Name, Source.ClassName]);
+      fLog.Add.Log(sllWarning, '% - Invalid source (%).', [Self.Name, Source.ClassName]);
     Exit;
   end;
   TreeADUC.HotTrack := True;
@@ -2408,7 +2460,7 @@ begin
   if not Assigned(Node) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - No node at (%,%)', [Self.Name, IntToStr(X), IntToStr(Y)]);
+      fLog.Add.Log(sllWarning, '% - No node at (%,%)', [Self.Name, IntToStr(X), IntToStr(Y)]);
     Exit;
   end;
   Node.Expand(False);
@@ -2420,7 +2472,7 @@ procedure TFrmModuleADUC.TreeADUCEndDrag(Sender, Target: TObject; X,
   Y: Integer);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - EndDrag', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - EndDrag', [Self.Name]);
 
   TreeADUC.HotTrack := False;
 end;
@@ -2428,7 +2480,7 @@ end;
 procedure TFrmModuleADUC.TreeADUCExpanded(Sender: TObject; Node: TTreeNode);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Expanded', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - Expanded', [Self.Name]);
 
   RefreshADUCTreeNode((Node as TADUCTreeNode));
   if not (Node.Count > 0) then
@@ -2515,6 +2567,7 @@ begin
     MenuItem_Copy,
     MenuItem_Cut,
     MenuItem_Paste,
+    MenuItem_Rename,
     MenuItem_ShowObjectLocation,
     MenuItem_Search,
     MenuItem_Delete,
@@ -2523,12 +2576,13 @@ begin
     MenuItem_Properties
   ];
   Action_TaskBatchMoveOU.Caption := rsADUCBatchMoveOU;
-  Action_TaskBatchMoveOU.Enabled := Assigned(FrmRSAT.LdapClient) and
-    FrmRSAT.LdapClient.Connected and Assigned(GridADUC) and
+  Action_TaskBatchMoveOU.Enabled := Assigned(LdapClient) and
+    LdapClient.Connected and Assigned(GridADUC) and
     (GridADUC.SelectedCount >= 2);
-  Handled := not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected;
+  Handled := not Assigned(LdapClient) or not LdapClient.Connected;
   for Item in PopupMenu1.Items do
     Item.Visible := Contains(VisibleItems, Item);
+  BuildNewMenuItem(MenuItem_New, GetFocusedObjectClass);
 end;
 
 procedure TFrmModuleADUC.GridADUCDblClick(Sender: TObject);
@@ -2538,12 +2592,12 @@ var
   NodeData: TADUCTreeNodeObject;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - DoubleClick', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - DoubleClick', [Self.Name]);
 
   if not Assigned(GridADUC.FocusedNode) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - No focused node.', [Self.Name]);
+      fLog.Add.Log(sllWarning, '% - No focused node.', [Self.Name]);
     Exit;
   end;
 
@@ -2551,7 +2605,7 @@ begin
   if not Assigned(Data) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - No data in selected node (#%)', [Self.Name, IntToStr(GridADUC.FocusedNode^.Index)]);
+      fLog.Add.Log(sllWarning, '% - No data in selected node (#%)', [Self.Name, IntToStr(GridADUC.FocusedNode^.Index)]);
     Exit;
   end;
 
@@ -2570,7 +2624,7 @@ begin
     if NodeData.DistinguishedName = Data^.U['objectName'] then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllInfo, '% - Found object in % (%)', [Self.Name, TreeADUC.Name, TreeADUC.Selected.Items[i].Text]);
+        fLog.Add.Log(sllInfo, '% - Found object in % (%)', [Self.Name, TreeADUC.Name, TreeADUC.Selected.Items[i].Text]);
       TreeADUC.Select(TreeADUC.Selected.Items[i]);
       Exit;
     end;
@@ -2594,7 +2648,7 @@ begin
   newDNS := [];
 
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - DragDrop', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - DragDrop', [Self.Name]);
 
   if Source = GridADUC then
   begin
@@ -2609,7 +2663,7 @@ begin
     if not Assigned(Node) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllWarning, '% - No selected node.', [Self.Name]);
+        fLog.Add.Log(sllWarning, '% - No selected node.', [Self.Name]);
       Exit;
     end;
 
@@ -2626,9 +2680,9 @@ begin
       Node := GridADUC.GetNextSelected(Node);
     until Node = nil;
 
-    FrmRSAT.LdapClient.MoveLdapEntries(oldDNS, newDNS);
+    LdapClient.MoveLdapEntries(oldDNS, newDNS);
     if Assigned(fLog) then
-      fLog.Log(sllInfo, '% - % entries moved.', [Self.Name, IntToStr(Length(oldDNS))]);
+      fLog.Add.Log(sllInfo, '% - % entries moved.', [Self.Name, IntToStr(Length(oldDNS))]);
     Action_Refresh.Execute;
   end
   else if Source = GridAttributes then
@@ -2637,7 +2691,7 @@ begin
     if not Assigned(Node) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllWarning, '% - No selected node.', [Self.Name]);
+        fLog.Add.Log(sllWarning, '% - No selected node.', [Self.Name]);
       Exit;
     end;
 
@@ -2691,52 +2745,73 @@ var
   DistinguishedNameParsed: TNameValueDNs;
   i: Integer;
   newRDN: RawUtf8;
+  Vis: TVisRename;
+  NodeData: PDocVariantData;
+  ObjectClass: TRawUtf8DynArray;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Edited', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - Edited', [Self.Name]);
 
   if not Assigned(Node) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - No node assigned.', [Self.Name]);
+      fLog.Add.Log(sllWarning, '% - No node assigned.', [Self.Name]);
     Exit;
   end;
 
-  DistinguishedName := GridADUC.GetNodeAsPDocVariantData(Node)^.U['objectName'];
-  ParseDN(DistinguishedName, DistinguishedNameParsed);
-  newRDN := GridADUC.GetNodeAsPDocVariantData(Node)^.U['name'];
-  if newRDN = DistinguishedNameParsed[0].Value then
+  NodeData := GridADUC.GetNodeAsPDocVariantData(Node);
+  ObjectClass := NodeData^.A['objectClass']^.ToRawUtf8DynArray;
+  DistinguishedName := NodeData^.U['objectName'];
+  if ObjectClass[High(ObjectClass)] = 'user' then
   begin
-    if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - Name "%" haven''t changed.', [Self.Name, newRDN]);
-    Exit;
-  end;
+    Vis := TVisRename.Create(Self);
+    try
+      Vis.NewName := NodeData^.U['name'];;
+      Vis.DistinguishedName := DistinguishedName;
+      Vis.LdapClient := LdapClient;
+      Vis.ShowModal;
+      DistinguishedName := Vis.DistinguishedName;
+    finally
+      FreeAndNil(Vis);
+    end;
+  end
+  else
+  begin
+    ParseDN(DistinguishedName, DistinguishedNameParsed);
+    newRDN := NodeData^.U['name'];
+    if newRDN = DistinguishedNameParsed[0].Value then
+    begin
+      if Assigned(fLog) then
+        fLog.Add.Log(sllWarning, '% - Name "%" haven''t changed.', [Self.Name, newRDN]);
+      Exit;
+    end;
 
-  if not LdapEscapeName(newRDN, newRDN) then
-  begin
-    if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - Name "%" is invalid.', [Self.Name, newRDN]);
-    Exit;
-  end;
-  newRDN := Join([DistinguishedNameParsed[0].Name + '=' + newRDN]);
-  if not FrmRSAT.LdapClient.RenameLdapEntry(DistinguishedName, newRDN) then
-  begin
-    if Assigned(fLog) then
-      fLog.Log(sllError, 'Rename Ldap Entry: "%"', [FrmRSAT.LdapClient.ResultString], Self);
-    Exit;
-  end;
+    if not LdapEscapeName(newRDN, newRDN) then
+    begin
+      if Assigned(fLog) then
+        fLog.Add.Log(sllWarning, '% - Name "%" is invalid.', [Self.Name, newRDN]);
+      Exit;
+    end;
+    newRDN := Join([DistinguishedNameParsed[0].Name + '=' + newRDN]);
+    if not LdapClient.RenameLdapEntry(DistinguishedName, newRDN) then
+    begin
+      if Assigned(fLog) then
+        fLog.Add.Log(sllError, 'Rename Ldap Entry: "%"', [LdapClient.ResultString], Self);
+      Exit;
+    end;
 
-  DistinguishedName := newRDN;
-  for i := 1 to High(DistinguishedNameParsed) do
-    DistinguishedName := Format('%s,%s=%s', [DistinguishedName, DistinguishedNameParsed[i].Name, DistinguishedNameParsed[i].Value]);
-  GridADUC.GetNodeAsPDocVariantData(Node)^.U['objectName'] := DistinguishedName;
+    DistinguishedName := newRDN;
+    for i := 1 to High(DistinguishedNameParsed) do
+      DistinguishedName := Format('%s,%s=%s', [DistinguishedName, DistinguishedNameParsed[i].Name, DistinguishedNameParsed[i].Value]);
+  end;
+  NodeData^.U['objectName'] := DistinguishedName;
 end;
 
 procedure TFrmModuleADUC.GridADUCEndDrag(Sender, Target: TObject; X, Y: Integer
   );
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - EndDrag', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - EndDrag', [Self.Name]);
   GridADUC.TreeOptions.PaintOptions := GridADUC.TreeOptions.PaintOptions - [toHotTrack];
   TreeADUC.HotTrack := False;
 end;
@@ -2748,7 +2823,7 @@ begin
   if GridADUC.FindColumnByIndex(Column).PropertyName <> 'name' then
     Exit;
   try
-    ImageIndex := ObjectClassToImageIndex(GridADUC.GetNodeAsPDocVariantData(Node)^.A['objectClass']^.ToRawUtf8DynArray);
+    ImageIndex := LdapObjectToImageIndex(GridADUC.GetNodeAsPDocVariantData(Node));
   except
     ImageIndex := Ord(ileADUnknown);
   end;
@@ -2804,12 +2879,12 @@ var
   NodeData: TADUCTreeNodeObject;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - UpdateTreeImages', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - UpdateTreeImages', [Self.Name]);
 
   if not Assigned(ANode) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, '% - Node not assigned.', [Self.Name]);
+      fLog.Add.Log(sllWarning, '% - Node not assigned.', [Self.Name]);
     Exit;
   end;
 
@@ -2817,7 +2892,7 @@ begin
   if not Assigned(NodeData) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'No node data', Self);
+      fLog.Add.Log(sllWarning, 'No node data', Self);
     Exit;
   end;
 
@@ -2839,7 +2914,12 @@ begin
     TreeADUC.EndUpdate;
   end;
   if Assigned(fLog) then
-    fLog.Log(sllInfo, '% - Node "%" and subnodes (%) have been updated.', [Self.Name, ANode.Text, IntToStr(ANode.Count)]);
+    fLog.Add.Log(sllInfo, '% - Node "%" and subnodes (%) have been updated.', [Self.Name, ANode.Text, IntToStr(ANode.Count)]);
+end;
+
+function TFrmModuleADUC.GetLdapClient: TRsatLdapClient;
+begin
+  result := fModuleAduc.RSAT.LdapClient;
 end;
 
 procedure TFrmModuleADUC.UpdateGPLink(ANode: TADUCTreeNode; Flag: Integer);
@@ -2866,7 +2946,7 @@ begin
     ChildNodeGPO := ParentNode.GetNextChildGPO(ChildNodeGPO);
   end;
   GPLink := GPLinkArrToGPLink(GPLinkArr);
-  if not FrmRSAT.LdapClient.Modify(ParentNode.GetNodeDataObject.DistinguishedName, lmoReplace, 'gPLink', GPLink) then
+  if not LdapClient.Modify(ParentNode.GetNodeDataObject.DistinguishedName, lmoReplace, 'gPLink', GPLink) then
   begin
     NodeDataGPO.Flag := BackupFlag;
     Exit;
@@ -2907,20 +2987,20 @@ begin
   if Filter <> '' then
     Filter := FormatUtf8('(|%)', [Filter]);
 
-  FrmRSAT.LdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
-    FrmRSAT.LdapClient.SearchScope := lssWholeSubtree;
+    LdapClient.SearchScope := lssWholeSubtree;
     repeat
-      if not FrmRSAT.LdapClient.Search(FrmRSAT.LdapClient.DefaultDN, False, Filter, ['displayName']) then
+      if not LdapClient.Search(LdapClient.DefaultDN, False, Filter, ['displayName']) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllError, 'Ldap Search Error: "%"', [FrmRSAT.LdapClient.ResultString]);
+          fLog.Add.Log(sllError, 'Ldap Search Error: "%"', [LdapClient.ResultString]);
         Exit;
       end;
-      GPOItems := Concat(GPOItems, FrmRSAT.LdapClient.SearchResult.Items);
-    until FrmRSAT.LdapClient.SearchCookie = '';
+      GPOItems := Concat(GPOItems, LdapClient.SearchResult.Items);
+    until LdapClient.SearchCookie = '';
   finally
-    FrmRSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
   end;
 
   TreeADUC.BeginUpdate;
@@ -3045,7 +3125,7 @@ var
       Exit;
 
     result := '(&';
-    if not FrmRSAT.RSATOption.AdvancedView then
+    if not fModuleAduc.RSAT.RSATOption.AdvancedView then
       result := FormatUtf8('%(|(!(showInAdvancedViewOnly=*))(showInAdvancedViewOnly=FALSE))', [result]);
     result := FormatUtf8('%%(|', [result, fModuleAduc.ADUCOption.TreeFilter]);
     for i := 0 to High(fModuleAduc.ADUCOption.TreeObjectClasses) do
@@ -3055,9 +3135,8 @@ var
 
 begin
   // Fast Exit
-  if not Assigned(FrmRSAT) or
-     not Assigned(FrmRSAT.LdapClient) or
-     not FrmRSAT.LdapClient.Connected or
+  if not Assigned(LdapClient) or
+     not LdapClient.Connected or
      (fUpdating > 0) then
     Exit;
 
@@ -3066,7 +3145,7 @@ begin
     Node := fADUCDomainNode;
 
   // Get Ldap instance
-  Ldap := FrmRSAT.LdapClient;
+  Ldap := LdapClient;
 
   // Retrieve domainNode
   if not Assigned(Node) then
@@ -3075,7 +3154,7 @@ begin
     if not Assigned(Obj) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllError, 'Ldap search object failed: "%"', [Ldap.ResultString], Self);
+        fLog.Add.Log(sllError, 'Ldap search object failed: "%"', [Ldap.ResultString], Self);
       Exit;
     end;
     TreeADUC.BeginUpdate;
@@ -3100,7 +3179,7 @@ begin
     if not Assigned(Obj) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllError, 'Ldap search object failed: "%"', [Ldap.ResultString], Self);
+        fLog.Add.Log(sllError, 'Ldap search object failed: "%"', [Ldap.ResultString], Self);
       Exit;
     end;
   end;
@@ -3133,7 +3212,7 @@ begin
       if not Ldap.Search(NodeData.DistinguishedName, False, BuildFilter, ['distinguishedName', 'objectClass', 'gPLink', 'name', 'gPOptions']) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllError, 'Fail to refresh ADUCTreeNode(%): %', [Node.Text, Ldap.ResultString], Self);
+          fLog.Add.Log(sllError, 'Fail to refresh ADUCTreeNode(%): %', [Node.Text, Ldap.ResultString], Self);
         Exit;
       end;
 
@@ -3224,7 +3303,6 @@ var
   NewColumn: TTisGridColumn;
   item: TLdapResult;
   a: TLdapAttribute;
-  OnSearch: TNotifyEvent;
   Filter: RawUtf8;
 begin
   Columns := fModuleAduc.ADUCOption.GridAttributesFilter;
@@ -3248,12 +3326,10 @@ begin
   Filter := FormatUtf8('(|%)', [Filter]);
 
   try
-    OnSearch := FrmRSAT.LdapClient.OnSearch;
-    FrmRSAT.LdapClient.OnSearch := nil;
-    if not FrmRSAT.LdapClient.Search(FrmRSAT.LdapClient.SchemaDN, False, Filter, ['lDAPDisplayName', 'name']) then
+    if not LdapClient.Search(LdapClient.SchemaDN, False, Filter, ['lDAPDisplayName', 'name']) then
        exit;
 
-    for item in FrmRSAT.LdapClient.SearchResult.Items do
+    for item in LdapClient.SearchResult.Items do
     begin
       if not Assigned(item) then
         continue;
@@ -3268,7 +3344,6 @@ begin
       end;
     end;
   finally
-    FrmRSAT.LdapClient.OnSearch := OnSearch;
   end;
 end;
 
@@ -3287,7 +3362,7 @@ begin
   if not Assigned(ANode) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllError, '% - No node assigned.', [GridADUC.Name]);
+      fLog.Add.Log(sllError, '% - No node assigned.', [GridADUC.Name]);
     Exit;
   end;
 
@@ -3295,7 +3370,7 @@ begin
   if not Assigned(NodeData) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'No node data', Self);
+      fLog.Add.Log(sllWarning, 'No node data', Self);
     Exit;
   end;
 
@@ -3312,7 +3387,7 @@ begin
   PageCount := 0;
 
   Filter := '';
-  if not FrmRSAT.RSATOption.AdvancedView then
+  if not fModuleAduc.RSAT.RSATOption.AdvancedView then
     Filter := FormatUtf8('%(|(!(showInAdvancedViewOnly=*))(showInAdvancedViewOnly=FALSE))', [Filter]);
   if TisSearchEdit_GridADUC.Text <> '' then
   begin
@@ -3326,21 +3401,19 @@ begin
   if (Filter <> '') then
     Filter := FormatUtf8('(&%)', [Filter]);
 
-  FrmRSAT.LdapClient.SearchBegin(fModuleAduc.ADUCOption.SearchPageSize);
+  LdapClient.SearchBegin();
   try
     if CheckBox_IncludeSubContainer.Checked then
-      FrmRSAT.LdapClient.SearchScope := lssWholeSubtree
+      LdapClient.SearchScope := lssWholeSubtree
     else
-      FrmRSAT.LdapClient.SearchScope := lssSingleLevel;
-    FrmRSAT.LdapClient.OnSearch := @OnSearchEventFillGrid;
+      LdapClient.SearchScope := lssSingleLevel;
     repeat
-      if not FrmRSAT.LdapClient.Search(DistinguishedName, False, Filter, Concat(fModuleAduc.ADUCOption.GridAttributesFilter, ['userAccountControl'])) then
+      if not LdapClient.Search(DistinguishedName, False, Filter, Concat(fModuleAduc.ADUCOption.GridAttributesFilter, ['userAccountControl'])) then
         Exit;
-      Inc(PageCount);
-    until (FrmRSAT.LdapClient.SearchCookie = '') or (PageCount = fModuleAduc.ADUCOption.SearchPageNumber);
+      OnSearchEventFillGrid(LdapClient);
+    until (LdapClient.SearchCookie = '') or (LdapClient.SearchPageCount >= fModuleAduc.ADUCOption.SearchPageSize);
   finally
-    FrmRSAT.LdapClient.OnSearch := nil;
-    FrmRSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
   end;
 
   UpdateGridColumns;
@@ -3379,12 +3452,12 @@ var
   begin
     result := nil;
     if Assigned(fLog) then
-      fLog.Log(sllTrace, 'Focus on Grid', Self);
+      fLog.Add.Log(sllTrace, 'Focus on Grid', Self);
 
     if (GridADUC.SelectedCount <= 0) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No selected item', Self);
+        fLog.Add.Log(sllTrace, 'No selected item', Self);
       Exit;
     end;
 
@@ -3425,12 +3498,12 @@ var
   begin
     result := nil;
     if Assigned(fLog) then
-      fLog.Log(sllTrace, 'Focus on TreeView', Self);
+      fLog.Add.Log(sllTrace, 'Focus on TreeView', Self);
 
     if not Assigned(TreeADUC.Selected) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No selected node.', Self);
+        fLog.Add.Log(sllTrace, 'No selected node.', Self);
       Exit;
     end;
 
@@ -3438,7 +3511,7 @@ var
     if not Assigned(NodeData) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No node data', Self);
+        fLog.Add.Log(sllTrace, 'No node data', Self);
       Exit;
     end;
     Insert(NodeData.DistinguishedName, result, 0);
@@ -3458,7 +3531,7 @@ begin
   else
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
+      fLog.Add.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
   end;
 end;
 
@@ -3476,7 +3549,7 @@ var
     if not Assigned(Row) or not Row^.Exists('objectName') then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No focused Row on Grid', Self);
+        fLog.Add.Log(sllTrace, 'No focused Row on Grid', Self);
       Exit;
     end;
 
@@ -3494,7 +3567,7 @@ var
     if not Assigned(TreeADUC.Selected) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No node selected on TreeView', Self);
+        fLog.Add.Log(sllTrace, 'No node selected on TreeView', Self);
       Exit;
     end;
 
@@ -3502,7 +3575,7 @@ var
     if not Assigned(NodeData) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No node data on TreeView', Self);
+        fLog.Add.Log(sllTrace, 'No node data on TreeView', Self);
       Exit;
     end;
 
@@ -3526,7 +3599,7 @@ begin
   else
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
+      fLog.Add.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
     Exit;
   end;
 
@@ -3545,7 +3618,7 @@ var
     if not Assigned(TreeADUC.Selected) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No node selected', Self);
+        fLog.Add.Log(sllTrace, 'No node selected', Self);
       Exit;
     end;
 
@@ -3553,7 +3626,7 @@ var
     if not Assigned(NodeData) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No data assigned to selected node', Self);
+        fLog.Add.Log(sllTrace, 'No data assigned to selected node', Self);
       Exit;
     end;
 
@@ -3569,7 +3642,7 @@ var
     if not Assigned(Row) or not Row^.Exists('objectClass') then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No objectClass in row', Self);
+        fLog.Add.Log(sllTrace, 'No objectClass in row', Self);
       Exit;
     end;
 
@@ -3588,7 +3661,7 @@ begin
     if not Assigned(Row) or not Row^.Exists('objectClass') then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'Not assigned Row in grid or no objectClass', Self);
+        fLog.Add.Log(sllTrace, 'Not assigned Row in grid or no objectClass', Self);
       result := GetFocusedObjectClassInTree;
     end
     else
@@ -3601,7 +3674,7 @@ begin
   else
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
+      fLog.Add.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
     Exit;
   end;
 end;
@@ -3614,7 +3687,7 @@ var
   Attribute: TLdapAttribute;
 begin
   Result := nil;
-  Ldap := FrmRSAT.LdapClient;
+  Ldap := LdapClient;
   Ldap.SearchBegin();
   try
     Ldap.SearchScope := lssWholeSubtree;
@@ -3689,7 +3762,7 @@ end;
 
 procedure TFrmModuleADUC.LdapConnectEvent(Sender: TObject);
 begin
-  RefreshADUCTreeNode(fADUCDomainNode);
+  fModuleAduc.NeedRefresh := True;
 end;
 
 procedure TFrmModuleADUC.LdapCloseEvent(Sender: TObject);
@@ -3715,7 +3788,7 @@ begin
     if MessageDlg('Dangererous action', 'Be carefull, this action is dangerous. Do you want to perform a reset password on a computer ?', mtWarning, mbYesNoCancel, 0) <> mrYes then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllInfo, 'User cancel', Self);
+        fLog.Add.Log(sllInfo, 'User cancel', Self);
       Exit;
     end;
   end;
@@ -3724,13 +3797,11 @@ end;
 procedure TFrmModuleADUC.OnModifyEventAccountUnlock(Sender: TObject);
 begin
   MessageDlg(rsAccountUnlocked, rsAccountUnlockedMessage, mtInformation, [mbOK], 0);
-  (Sender as TRsatLdapClient).OnModify := nil;
 end;
 
 procedure TFrmModuleADUC.OnModifyEventPasswordChanged(Sender: TObject);
 begin
   MessageDlg(rsResetPassword, rsResetPasswordMessage, mtInformation, [mbOK], 0);
-  (Sender as TRsatLdapClient).OnModify := nil;
 end;
 
 procedure TFrmModuleADUC.OnSearchEventFillGrid(Sender: TObject);
@@ -3821,19 +3892,21 @@ begin
   end;
 end;
 
-constructor TFrmModuleADUC.Create(TheOwner: TComponent);
+constructor TFrmModuleADUC.Create(Context: IOpenRSATUIContext);
 begin
-  inherited Create(TheOwner);
+  inherited Create(Context.ComponentOwner);
 
   Action_TaskBatchMoveOU.Caption := rsADUCBatchMoveOU;
 
-  fLog := TSynLog.Add;
+  fLog := TADUCLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Create', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - Create', [Self.Name]);
+
+  fIContext := Context;
 
   fEnabled := True;
 
-  fModuleAduc := TModuleADUC.Create(FrmRSAT.RSAT);
+  fModuleAduc := TModuleADUC.Create(fIContext.RSAT);
   fTreeSelectionHistory := TTreeSelectionHistory.Create;
 
   fADUCRootNode := (TreeADUC.Items.Add(nil, rsADUCRootNode) as TADUCTreeNode);
@@ -3849,17 +3922,23 @@ begin
   Image1.Visible := not IsDarkMode;
   Image2.Visible := not Image1.Visible;
 
-  FrmRSAT.IniPropStorage1.IniSection := Name;
-  CheckBox_IncludeSubContainer.Checked := FrmRSAT.IniPropStorage1.ReadBoolean(CheckBox_IncludeSubContainer.Name, False);
+  RegisterNewMenuActions('domainDNS', [Action_NewComputer, Action_NewContact, Action_NewGroup, Action_NewInetOrgPerson, Action_NewMsDSShadowPrincipalContainer, Action_NewMsImagingPSPs, Action_NewOU, Action_NewPrinter, Action_NewUser, Action_NewSharedFolder]);
+  RegisterNewMenuActions('builtinDomain', [Action_NewComputer, Action_NewGroup, Action_NewInetOrgPerson, Action_NewUser]);
+  RegisterNewMenuActions('organizationalUnit', [Action_NewComputer, Action_NewContact, Action_NewGroup, Action_NewInetOrgPerson, Action_NewMsDSShadowPrincipalContainer, Action_NewMsImagingPSPs, Action_NewOU, Action_NewPrinter, Action_NewUser, Action_NewSharedFolder]);
+  RegisterNewMenuActions('container', [Action_NewComputer, Action_NewContact, Action_NewGroup, Action_NewInetOrgPerson, Action_NewMsDSKeyCredential, Action_NewResourcePropertyList, Action_NewMsDSShadowPrincipalContainer, Action_NewMsImagingPSPs, Action_NewOU, Action_NewPrinter, Action_NewUser, Action_NewSharedFolder]);
+  RegisterNewMenuActions('lostAndFound', [Action_NewComputer, Action_NewContact, Action_NewGroup, Action_NewInetOrgPerson, Action_NewMsDSKeyCredential, Action_NewResourcePropertyList, Action_NewMsDSShadowPrincipalContainer, Action_NewMsImagingPSPs, Action_NewOU, Action_NewPrinter, Action_NewUser, Action_NewSharedFolder]);
+  RegisterNewMenuActions('msDS-PasswordSettingsContainer', [Action_NewPasswordSettings]);
+  fIContext.IniPropStorage.IniSection := Name;
+  CheckBox_IncludeSubContainer.Checked := fIContext.IniPropStorage.ReadBoolean(CheckBox_IncludeSubContainer.Name, False);
 end;
 
 destructor TFrmModuleADUC.Destroy;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Destroy', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - Destroy', [Self.Name]);
 
-  FrmRSAT.IniPropStorage1.IniSection := Name;
-  FrmRSAT.IniPropStorage1.WriteBoolean(CheckBox_IncludeSubContainer.Name, CheckBox_IncludeSubContainer.Checked);
+  fIContext.IniPropStorage.IniSection := Name;
+  fIContext.IniPropStorage.WriteBoolean(CheckBox_IncludeSubContainer.Name, CheckBox_IncludeSubContainer.Checked);
 
   FreeAndNil(fTreeSelectionHistory);
   FreeAndNil(fModuleAduc);
@@ -3913,7 +3992,7 @@ var
     if not Assigned(Node) then
       Exit;
 
-    if DN = FrmRSAT.LdapClient.DefaultDN() then
+    if DN = LdapClient.DefaultDN() then
     begin
       result := Node;
       Exit;
@@ -3921,7 +4000,7 @@ var
 
     CurrentDN := DN;
     SetLength(Path, 0);
-    while (CurrentDN <> '') and (CurrentDN <> FrmRSAT.LdapClient.DefaultDN()) do
+    while (CurrentDN <> '') and (CurrentDN <> LdapClient.DefaultDN()) do
     begin
       Insert(CurrentDN, Path, 0);
       CurrentDN := GetParentDN(CurrentDN);
@@ -3941,10 +4020,10 @@ var
 begin
   Result := False;
 
-  if not Assigned(FrmRSAT) or not Assigned(FrmRSAT.LdapClient) then
+  if not Assigned(fIContext) or not Assigned(LdapClient) then
     Exit;
 
-  if not SameText(DistinguishedName, FrmRSAT.LdapClient.DefaultDN()) then
+  if not SameText(DistinguishedName, LdapClient.DefaultDN()) then
     parentDN := GetParentDN(DistinguishedName);
 
   FoundNode := FindChild(fADUCDomainNode, DistinguishedName);

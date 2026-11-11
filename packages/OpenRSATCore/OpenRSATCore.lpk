@@ -8,6 +8,7 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
+        <OtherUnitFiles Value="network;services"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
@@ -120,11 +121,57 @@
         <Filename Value="unewsitelink.pas"/>
         <UnitName Value="unewsitelink"/>
       </Item>
+      <Item>
+        <Filename Value="ugeneralpropertysitelink.pas"/>
+        <UnitName Value="ugeneralpropertysitelink"/>
+      </Item>
+      <Item>
+        <Filename Value="ugeneralpropertysitelinkbridge.pas"/>
+        <UnitName Value="ugeneralpropertysitelinkbridge"/>
+      </Item>
+      <Item>
+        <Filename Value="udoublelistlogic.pas"/>
+        <UnitName Value="udoublelistlogic"/>
+      </Item>
+      <Item>
+        <Filename Value="unewsitelinkbridge.pas"/>
+        <UnitName Value="unewsitelinkbridge"/>
+      </Item>
+      <Item>
+        <Filename Value="ulog.pas"/>
+        <UnitName Value="ulog"/>
+      </Item>
+      <Item>
+        <Filename Value="ugeneralpropertyserver.pas"/>
+        <UnitName Value="ugeneralpropertyserver"/>
+      </Item>
+      <Item>
+        <Filename Value="ugeneralpropertyntdsdsa.pas"/>
+        <UnitName Value="ugeneralpropertyntdsdsa"/>
+      </Item>
+      <Item>
+        <Filename Value="uschedulinglogic.pas"/>
+        <UnitName Value="uschedulinglogic"/>
+      </Item>
+      <Item>
+        <Filename Value="ugeneralpropertyntds.pas"/>
+        <UnitName Value="ugeneralpropertyntds"/>
+      </Item>
+      <Item>
+        <Filename Value="uwindows.ncrypt.pas"/>
+        <UnitName Value="uwindows.ncrypt"/>
+      </Item>
+      <Item>
+        <Filename Value="network\uldapclient.pas"/>
+        <UnitName Value="uldapclient"/>
+      </Item>
+      <Item>
+        <Filename Value="services\udnsservice.pas"/>
+        <UnitName Value="udnsservice"/>
+      </Item>
     </Files>
     <i18n>
-      <EnableI18N Value="True"/>
       <OutDir Value="languages"/>
-      <EnableI18NForLFM Value="True"/>
     </i18n>
     <RequiredPkgs>
       <Item>

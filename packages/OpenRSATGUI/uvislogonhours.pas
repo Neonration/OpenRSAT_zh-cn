@@ -11,58 +11,121 @@ uses
   ComCtrls,
   Controls,
   ExtCtrls,
+  Dialogs,
   Forms,
   Grids,
   SpinEx,
   StdCtrls,
   Types,
+  uschedulinglogic,
   ucommon;
 
 type
 
-  { TVisLogonHours }
+  TSchedulePageKind = (
+    spkLogonHours,
+    spkSiteLinkSchedule,
+    spkNTDSSchedule
+  );
 
+  { TScheduleValue }
+  TScheduleValue = (svDenied, svAvailable, svOnce, svTwice);
+  TScheduleValueGetter = function(i: Integer): TScheduleValue of object;
+  TScheduleValueSetter = procedure(i: Integer; Value: TScheduleValue) of object;
+
+  TCheckButtonInConstructor = procedure of object;
+  TApplyColorOnTile = function(aCol, aRow: Integer): Integer of object;
+  TSetRadioButtonsAfterSelection = procedure(defRect: TRect) of object;
+  TUpdateColor = procedure(Sender: TObject; defRect: TRect) of object;
+
+  { TVisLogonHours }
   TVisLogonHours = class(TForm)
     Label_Title: TLabel;
+    Panel1: TPanel;
+    Panel10: TPanel;
+    Panel11: TPanel;
+    Panel12: TPanel;
+    Panel13: TPanel;
+    Panel14: TPanel;
+    Panel15: TPanel;
+    Panel16: TPanel;
+    Panel17: TPanel;
+    Panel18: TPanel;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Panel4: TPanel;
+    Panel5: TPanel;
+    Panel6: TPanel;
+    Panel7: TPanel;
+    Panel8: TPanel;
+    Panel9: TPanel;
+    Panel_LogonHours: TPanel;
+    Panel_NTDSSchedule: TPanel;
+    Panel_SiteLinkSchedule: TPanel;
+    RadioButton_LogonPermitted: TRadioButton;
+    RadioButton_LogonDenied: TRadioButton;
+    RadioButton_FourTimesPerHour: TRadioButton;
+    RadioButton_TwicePerHour: TRadioButton;
+    RadioButton_OncePerHour: TRadioButton;
+    RadioButton_None: TRadioButton;
+    RadioButton_ReplicationAvailable: TRadioButton;
+    RadioButton_ReplicationNotAvailable: TRadioButton;
     RadioButton_Secret: TRadioButton;
     SpinEdit_UTC: TSpinEditEx;
     DrawGrid: TDrawGrid;
     Btn_OK: TBitBtn;
     Btn_Cancel: TBitBtn;
-    Panel_Allowed: TPanel;
-    RadioButton_Allowed: TRadioButton;
-    Panel_Denied: TPanel;
-    RadioButton_Denied: TRadioButton;
     Label_Recap: TLabel;
-    Timer_Fix: TTimer;
-    ActionList: TActionList;
-      Action_OK: TAction;
-    procedure Action_OKExecute(Sender: TObject);
-    procedure Action_OKUpdate(Sender: TObject);
     procedure DrawGridAfterSelection(Sender: TObject; aCol, aRow: Integer);
     procedure DrawGridDrawCell(Sender: TObject; aCol, aRow: Integer; aRect: TRect; aState: TGridDrawState);
-    procedure DrawGridExit(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure RadioButton_Click(Sender: TObject);
+    procedure RadioButtonChange(Sender: TObject);
     procedure SpinEdit_UTCChange(Sender: TObject);
-    procedure Timer_FixTimer(Sender: TObject);
+
   private
-    PHours: PRawByteString;
-    HoursUTC: RawByteString;
-    ReadingData: Boolean;
-    function GetBit(i: Integer): Boolean;
-    procedure SetBit(i: Integer; b: Boolean);
+    function GetUpdating: Boolean;
+  private
+    fUpdating: Integer;
+
+    fSchedulePageKind: TSchedulePageKind;
+    fPresenter: TSchedulePresenter;
+
+    procedure SetupLogonHoursPage;
+    procedure SetupSiteLinkSchedulePage;
+    procedure SetupNTDSSchedulePage;
+
+    function GetTileFilledPercentage(ACol, ARow: Integer): Integer;
+    function GetSelection: TGridRect;
+
+    procedure SetFirstColWidth;
+    procedure SetRadioButtonFromSelection(Rect: TGridRect);
+    procedure RefreshGrid;
+    procedure DrawSelection;
+    procedure UpdateRecapCaptionFromSelection(Rect: TGridRect);
+
+    procedure BeginUpdate;
+    procedure EndUpdate;
+
+    property Updating: Boolean read GetUpdating;
+
+    function GetRawValue: RawByteString;
+    procedure SetRawValue(AValue: RawByteString);
+
   public
-    constructor Create(TheOwner: TComponent; _PHours: PRawByteString); reintroduce;
+    constructor Create(TheOwner: TComponent; ASchedulePageKind: TSchedulePageKind); reintroduce;
+    destructor Destroy; override;
+
+    property RawValue: RawByteString read GetRawValue write SetRawValue;
   end;
 
 const
-  days: array[0..6] of String = (rsMonday, rsTuesday, rsWednesday, rsThursday, rsFriday, rsSaturday, rsSunday);
+  days: array[0..6] of String = (rsMonday, rsTuesday, rsWednesday, rsThursday, rsFriday, rsSaturday,rsSunday);
 
 implementation
 uses
   Graphics,
   SysUtils,
+  Math,
   ucommonui,
   mormot.core.text;
 {$R *.lfm}
@@ -70,43 +133,118 @@ uses
 { TVisLogonHours }
 
 // Form
-constructor TVisLogonHours.Create(TheOwner: TComponent; _PHours: PRawByteString);
-var
-  colWidth, max: Integer;
-  s: String;
+constructor TVisLogonHours.Create(TheOwner: TComponent;
+  ASchedulePageKind: TSchedulePageKind);
 begin
-  ReadingData := True;
   Inherited Create(TheOwner);
 
-  // Timezone
-  SpinEdit_UTC.Value := -(GetLocalTimeOffset() div 60);
+  fUpdating := 0;
 
-  // Data
-  PHours := _PHours;
-  HoursUTC := _PHours^;
+  fSchedulePageKind := ASchedulePageKind;
 
-  // DrawGrid
-  max := 0;
-  for s in days do
-  begin
-    colWidth := DrawGrid.Canvas.TextWidth(s);
-    if max < colWidth then
-      max := colWidth;
+  case fSchedulePageKind of
+    spkLogonHours: SetupLogonHoursPage;
+    spkSiteLinkSchedule: SetupSiteLinkSchedulePage;
+    spkNTDSSchedule: SetupNTDSSchedulePage;
   end;
-  DrawGrid.Columns.Items[0].MinSize := max + 8;
-  DrawGrid.Selection := Rect(1, 1, 0, 0);
 
-  // Buttons
-  RadioButton_Allowed.Checked := GetBit(-Integer(SpinEdit_UTC.Value));
-  RadioButton_Denied.Checked  := not RadioButton_Allowed.Checked;
+  BeginUpdate;
+  try
+    SpinEdit_UTC.Value := fPresenter.UTCOffset;
+    SetFirstColWidth;
+  finally
+    EndUpdate;
+  end;
+
   UnifyButtonsWidth([Btn_OK, Btn_Cancel]);
+end;
+
+destructor TVisLogonHours.Destroy;
+begin
+  FreeAndNil(fPresenter);
+
+  inherited Destroy;
+end;
+
+procedure TVisLogonHours.SetFirstColWidth;
+var
+  m, i: Integer;
+begin
+  m := 0;
+
+  for i := 0 to High(days) do
+    m := Max(m, DrawGrid.Canvas.TextWidth(days[i]));
+
+  DrawGrid.Columns.Items[0].MinSize := m + 8;
+  DrawGrid.Selection := Rect(1, 1, 0, 0);
+end;
+
+procedure TVisLogonHours.SetRadioButtonFromSelection(Rect: TGridRect);
+var
+  v, prev: Integer;
+  row, col: LongInt;
+begin
+  prev := -1;
+  BeginUpdate;
+  try
+    case fSchedulePageKind of
+      spkLogonHours:
+      begin
+        RadioButton_LogonPermitted.Checked := False;
+        RadioButton_LogonDenied.Checked := False;
+      end;
+      spkNTDSSchedule:
+      begin
+        RadioButton_None.Checked := False;
+        RadioButton_OncePerHour.Checked := False;
+        RadioButton_TwicePerHour.Checked := False;
+        RadioButton_FourTimesPerHour.Checked := False;
+      end;
+      spkSiteLinkSchedule:
+      begin
+        RadioButton_ReplicationAvailable.Checked := False;
+        RadioButton_ReplicationNotAvailable.Checked := False;
+      end;
+    end;
+
+    for row := Rect.Top to Rect.Bottom do
+      for col := Rect.Left to Rect.Right do
+      begin
+        v := fPresenter.GetLocalValue(row - 1, col - 1);
+        if (prev >= 0) and (v <> prev) then
+          Exit;
+        prev := v;
+      end;
+    case fSchedulePageKind of
+      spkLogonHours:
+      begin
+        RadioButton_LogonDenied.Checked := v = 0;
+        RadioButton_LogonPermitted.Checked := v = 1;
+      end;
+      spkNTDSSchedule:
+      begin
+        RadioButton_None.Checked := v = 0;
+        RadioButton_OncePerHour.Checked := v = $08;
+        RadioButton_TwicePerHour.Checked := v = $06;
+        RadioButton_FourTimesPerHour.Checked := v = $0f;
+      end;
+      spkSiteLinkSchedule:
+      begin
+        RadioButton_ReplicationAvailable.Checked := v <> 0;
+        RadioButton_ReplicationNotAvailable.Checked := v = 0;
+      end;
+    end;
+  finally
+    EndUpdate;
+  end;
 end;
 
 // Draw
 procedure TVisLogonHours.DrawGridDrawCell(Sender: TObject; aCol, aRow: Integer; aRect: TRect; aState: TGridDrawState);
 var
   style: TTextStyle;
-  newRect: TRect;
+  newRect, innerRect: TRect;
+  Percent: Integer;
 begin
   // Header rows
   if aCol = 0 then
@@ -166,21 +304,19 @@ begin
   // Cells
   if (aRow > 0) and (aCol > 0) then
   begin
-    if GetBit((aRow) * HoursPerDay + aCol-1 - Integer(SpinEdit_UTC.Value)) then
-      DrawGrid.Canvas.Brush.Color := clBlue
-    else
-      DrawGrid.Canvas.Brush.Color := clBtnShadow;
+    DrawGrid.Canvas.Brush.Color := clBtnShadow;
     DrawGrid.Canvas.Rectangle(aRect);
+
+    Percent := GetTileFilledPercentage(ACol - 1, ARow - 1);
+    if Percent > 0 then
+    begin
+      innerRect := aRect;
+      innerRect.Top := aRect.Bottom - ((aRect.Bottom - aRect.Top) * Percent div 100);
+
+      DrawGrid.Canvas.Brush.Color := clBlue;
+      DrawGrid.Canvas.Rectangle(innerRect);
+    end;
   end;
-
-  // Fix draw selection
-  if (aRow = 7) and (aCol = HoursPerDay) then
-    Timer_Fix.Enabled := True;
-end;
-
-procedure TVisLogonHours.DrawGridExit(Sender: TObject);
-begin
-  DrawGridAfterSelection(DrawGrid, 0, 0);
 end;
 
 procedure TVisLogonHours.FormKeyDown(Sender: TObject; var Key: Word;
@@ -191,126 +327,168 @@ begin
   end;
 end;
 
-procedure TVisLogonHours.Timer_FixTimer(Sender: TObject);
+procedure TVisLogonHours.RadioButtonChange(Sender: TObject);
+var
+  v: Integer;
+  Sel: TGridRect;
 begin
-  DrawGridAfterSelection(DrawGrid, 0, 0);
-  Timer_Fix.Enabled := False;
+  if Updating then
+    Exit;
+
+  Sel := GetSelection;
+
+  v := $00;
+  if Sender = RadioButton_None then
+    v := $00
+  else if Sender = RadioButton_OncePerHour then
+    v := $08
+  else if Sender = RadioButton_TwicePerHour then
+    v := $06
+  else if Sender = RadioButton_FourTimesPerHour then
+    v := $0f
+  else if Sender = RadioButton_LogonDenied then
+    v := $00
+  else if Sender = RadioButton_LogonPermitted then
+    v := $01
+  else if Sender = RadioButton_ReplicationAvailable then
+    v := $0f
+  else if Sender = RadioButton_ReplicationNotAvailable then
+    v := $00
+  else
+    raise Exception.Create('Sender not supported.');
+
+  fPresenter.SetLocalValues(Sel.Top - 1, Sel.Bottom - 1, Sel.Left - 1, Sel.Right - 1, v);
+  RefreshGrid;
 end;
 
-procedure TVisLogonHours.DrawGridAfterSelection(Sender: TObject; aCol, aRow: Integer);
-var
-  row, col, l, w: Integer;
-  defRect, rect: TRect;
-  AllBlue, AllGrey, bit: Boolean;
+function TVisLogonHours.GetUpdating: Boolean;
 begin
-  defRect := DrawGrid.Selection;
-  // Row Select
-  if DrawGrid.Selection.Left = 0 then
-  begin
-    defRect.Left := 1;
-    if DrawGrid.Selection.Width = 0 then
-      defRect.Width := DrawGrid.ColCount - 2;
+  result := fUpdating > 0;
+end;
+
+procedure TVisLogonHours.SetupLogonHoursPage;
+begin
+  fPresenter := TSchedulePresenter.Create(sakLogonHour);
+
+  Panel_LogonHours.Visible := True;
+end;
+
+procedure TVisLogonHours.SetupSiteLinkSchedulePage;
+begin
+  fPresenter := TSchedulePresenter.Create(sakSchedule);
+
+  Panel_SiteLinkSchedule.Visible := True;
+end;
+
+procedure TVisLogonHours.SetupNTDSSchedulePage;
+begin
+  fPresenter := TSchedulePresenter.Create(sakSchedule);
+
+  Panel_NTDSSchedule.Visible := True;
+end;
+
+function TVisLogonHours.GetTileFilledPercentage(ACol, ARow: Integer): Integer;
+var
+  v: Integer;
+begin
+  result := 0;
+
+  v := fPresenter.GetLocalValue(ARow, ACol);
+  case fSchedulePageKind of
+    spkLogonHours:
+      if v <> 0 then
+        result := 100
+      else
+        result := 0;
+    spkSiteLinkSchedule, spkNTDSSchedule:
+    begin
+      if v = $00 then
+        result := 0
+      else if v = $08 then
+        result := 33
+      else if (v = $06) or (v = $0a) then
+        result := 67
+      else
+        result := 100
+    end;
   end;
-  if DrawGrid.Selection.Top = 0 then
+end;
+
+function TVisLogonHours.GetSelection: TGridRect;
+begin
+  result := DrawGrid.Selection;
+
+  if result.Left = 0 then
   begin
-    defRect.Top := 1;
-    if DrawGrid.Selection.Height = 0 then
-      defRect.Height := DrawGrid.RowCount - 2;
+    result.Left := 1;
+    if result.Width <= 0 then
+      result.Width := DrawGrid.ColCount - 2;
   end;
 
-  {$IfDEF WINDOWS}
-  // Draw Selection rect
-  DrawGrid.Repaint(); // Fix flickering
-  {$ENDIF}
+  if result.Top = 0 then
+  begin
+    result.Top := 1;
+    if result.Height <= 0 then
+      result.Height := DrawGrid.RowCount - 2;
+  end;
+end;
 
-  l:= DrawGrid.ColWidths[0];
-  for col := 1 to defRect.Left -1 do
+procedure TVisLogonHours.RefreshGrid;
+begin
+  DrawGrid.Repaint;
+  DrawSelection;
+end;
+
+procedure TVisLogonHours.DrawSelection;
+var
+  Sel: TGridRect;
+  l, w, col: Integer;
+  rect: TRect;
+begin
+  Sel := GetSelection;
+
+  l := DrawGrid.ColWidths[0];
+  for col := 1 to Sel.Left - 1 do
     l += DrawGrid.ColWidths[col];
-  rect.Left   := l;
+  rect.Left := l;
 
-  w := DrawGrid.ColWidths[defRect.Left];
-  for col := 1 + defRect.Left to defRect.Right do
+  w := DrawGrid.ColWidths[Sel.Left];
+  for col := 1 + Sel.Left to Sel.Right do
     w += DrawGrid.ColWidths[col];
-  rect.Width  := w;
+  rect.Width := w;
 
-  rect.Top    := (defRect.Top    - 1) * DrawGrid.DefaultRowHeight + DrawGrid.RowHeights[0];
-  rect.Height := (defRect.Height + 1) * DrawGrid.DefaultRowHeight;
+  rect.Top    := (Sel.Top    - 1) * DrawGrid.DefaultRowHeight + DrawGrid.RowHeights[0];
+  rect.Height := (Sel.Height + 1) * DrawGrid.DefaultRowHeight;
   DrawGrid.Canvas.Brush.Color := clRed;
   DrawGrid.Canvas.FrameRect(rect);
 
-  // Set RadioButtons
-  ReadingData := True;
-  AllBlue := True;
-  AllGrey := True;
-  for row := defRect.Top to defRect.Bottom do
-    if AllBlue or AllGrey then
-      for col := defRect.Left to defRect.Right do
-      begin
-        bit     := GetBit((row - 1) * HoursPerDay + col - 1 - Integer(SpinEdit_UTC.Value));
-        AllBlue := AllBlue and bit;
-        AllGrey := AllGrey and not bit;
-        if not (AllBlue or AllGrey) then
-          break;
-      end
-    else
-      break;
-  RadioButton_Allowed.Checked := AllBlue;
-  RadioButton_Denied.Checked  := AllGrey;
-  RadioButton_Secret.Checked  := not (AllBlue or AllGrey);
-  ReadingData := False;
+  SetRadioButtonFromSelection(Sel);
 
+  UpdateRecapCaptionFromSelection(Sel);
+end;
+
+procedure TVisLogonHours.UpdateRecapCaptionFromSelection(Rect: TGridRect);
+begin
   // Set Label_Recap
-  if defRect.Top = defRect.Bottom then
-    Label_Recap.Caption := FormatUtf8('On % from %:00 to %:59', [days[defRect.Top - 1], defRect.Left - 1, defRect.Right - 1])
+  if Rect.Top = Rect.Bottom then
+    Label_Recap.Caption := FormatUtf8('On % from %:00 to %:59', [days[Rect.Top - 1], Rect.Left - 1, Rect.Right - 1])
   else
-    Label_Recap.Caption := FormatUtf8('On % to % from %:00 to %:59', [days[defRect.Top - 1], days[defRect.Bottom - 1], defRect.Left - 1, defRect.Right - 1]);
+    Label_Recap.Caption := FormatUtf8('On % through % from %:00 to %:59', [days[Rect.Top - 1], days[Rect.Bottom - 1], Rect.Left - 1, Rect.Right - 1]);
 end;
 
-// Buttons
-procedure TVisLogonHours.Action_OKExecute(Sender: TObject); // OK
+procedure TVisLogonHours.BeginUpdate;
 begin
-  PHours^ := HoursUTC;
+  Inc(fUpdating);
 end;
 
-procedure TVisLogonHours.Action_OKUpdate(Sender: TObject);
+procedure TVisLogonHours.EndUpdate;
 begin
-  Action_OK.Enabled  := HoursUTC <> PHours^;
-  Btn_OK.Default     := Action_OK.Enabled;
-  Btn_Cancel.Default := not Action_OK.Enabled;
+  Dec(fUpdating);
 end;
 
-procedure TVisLogonHours.RadioButton_Click(Sender: TObject);
-var
-  defRect: TGridRect;
-  b: Boolean;
-  aRow, aCol: LongInt;
+procedure TVisLogonHours.DrawGridAfterSelection(Sender: TObject; aCol, aRow: Integer);
 begin
-  if ReadingData then
-    Exit;
-  defRect := DrawGrid.Selection;
-  // Row Select
-  if DrawGrid.Selection.Left = 0 then
-  begin
-    defRect.Left := 1;
-    if DrawGrid.Selection.Width = 0 then
-      defRect.Width := DrawGrid.ColCount - 2;
-  end;
-  if DrawGrid.Selection.Top = 0 then
-  begin
-    defRect.Top := 1;
-    if DrawGrid.Selection.Height = 0 then
-      defRect.Height := DrawGrid.RowCount - 2;
-  end;
-
-  // color
-  b := (Sender as TRadioButton).Name = RadioButton_Allowed.Name;
-  for aRow := defRect.Top to defRect.Bottom do
-    for aCol := defRect.Left to defRect.Right do
-      SetBit((aRow-1) * HoursPerDay + aCol-1 - Integer(SpinEdit_UTC.Value), b);
-
-  // Paint
-  DrawGrid.Repaint();
-  DrawGridAfterSelection(DrawGrid, 0, 0);
+  RefreshGrid;
 end;
 
 procedure TVisLogonHours.SpinEdit_UTCChange(Sender: TObject);
@@ -324,27 +502,21 @@ begin
   s += Abs(Integer(SpinEdit_UTC.Value)).ToString();
   SpinEdit_UTC.Text := s;
 
-  // Shift data
-  Timer_Fix.Enabled := True;
+  fPresenter.UTCOffset := SpinEdit_UTC.Value;
+
+  if not Updating then
+    RefreshGrid;
 end;
 
-// Bits
-function TVisLogonHours.GetBit(i: Integer): Boolean;
+function TVisLogonHours.GetRawValue: RawByteString;
 begin
-  if i < 0 then
-    i += 168; // 7days * 24hours
-  i := i mod 168;
-  // Warning: bits are set right-to-left
-  result := Boolean(Byte(HoursUTC[1 + i div 8]) and Byte(1 Shl (i mod 8)));
+  result := fPresenter.RawValue;
 end;
 
-procedure TVisLogonHours.SetBit(i: Integer; b: Boolean);
+
+procedure TVisLogonHours.SetRawValue(AValue: RawByteString);
 begin
-  if i < 0 then
-    i += 168; // 7days * 24hours
-  i := i mod 168;
-  // Warning: bits are set right-to-left
-  HoursUTC[1 + i div 8] := Char(Byte(HoursUTC[1 + i div 8]) and not (Byte(1) Shl (i mod 8)) or (Byte(b) Shl (i mod 8)))
+  fPresenter.RawValue := AValue;
 end;
 
 end.

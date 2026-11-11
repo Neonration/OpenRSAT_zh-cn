@@ -17,7 +17,8 @@ uses
   mormot.core.base,
   mormot.core.log,
   uproperty,
-  upropertyframe;
+  upropertyframe,
+  ulog;
 
 type
 
@@ -78,7 +79,7 @@ type
     procedure Action_v2_ExpireNowExecute(Sender: TObject);
     procedure Action_v2_ShowPasswordExecute(Sender: TObject);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fProperty: TProperty;
   public
     constructor Create(TheOwner: TComponent); override;
@@ -93,20 +94,26 @@ uses
   mormot.net.ldap,
   ucommon,
   DateUtils,
+  {$IFDEF WINDOWS}
+  uwindows.ncrypt,
+  {$ENDIF WINDOWS}
   uhelpersui;
 
 {$R *.lfm}
 
 { TFrmPropertyLAPS }
-function DateTimeToFileTime(ADateTime: TDateTime): QWord;
+function fDateTimeToFileTime(ADateTime: TDateTime): QWord;
+var
+  FileTime: TFileTime;
 begin
-  result := UnixMSTimeToWindowsFileTime64(DateTimeToUnixMSTime(ADateTime));
+  DateTimeToFileTime(ADateTime, FileTime);
+  result := QWord(FileTime);
 end;
 
 procedure TFrmPropertyLAPS.Action_v2_ExpireNowExecute(Sender: TObject);
 begin
   DateTimePicker_v2_NewExpiration.DateTime := Now;
-  fProperty.Add('msLAPS-PasswordExpirationTime', IntToStr(DateTimeToFileTime(LocalTimeToUniversal(DateTimePicker_v2_NewExpiration.DateTime))));
+  fProperty.Add('msLAPS-PasswordExpirationTime', IntToStr(fDateTimeToFileTime(LocalTimeToUniversal(DateTimePicker_v2_NewExpiration.DateTime))));
 end;
 
 procedure ShowPassword(AEdit: TEdit; AAction: TAction);
@@ -148,7 +155,7 @@ end;
 procedure TFrmPropertyLAPS.Action_v1_ExpireNowExecute(Sender: TObject);
 begin
   DateTimePicker_v1_NewExpiration.DateTime := Now;
-  fProperty.Add('ms-Mcs-AdmPwdExpirationTime', IntToStr(DateTimeToFileTime(LocalTimeToUniversal(DateTimePicker_v1_NewExpiration.DateTime))));
+  fProperty.Add('ms-Mcs-AdmPwdExpirationTime', IntToStr(fDateTimeToFileTime(LocalTimeToUniversal(DateTimePicker_v1_NewExpiration.DateTime))));
 end;
 
 procedure TFrmPropertyLAPS.Action_v1_ShowPasswordExecute(Sender: TObject);
@@ -165,9 +172,9 @@ constructor TFrmPropertyLAPS.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Caption := 'LAPS';
 end;
@@ -175,9 +182,14 @@ end;
 procedure TFrmPropertyLAPS.Update(Props: TProperty);
 var
   LAPSInformation: PLAPSInformation;
+  {$IFDEF WINDOWS}
+  Account, Password: RawUtf8;
+  WhenChanged: TDateTime;
+  UnencryptedData: RawByteString;
+  {$ENDIF WINDOWS}
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Update', Self);
+    fLog.Add.Log(sllTrace, 'Update', Self);
 
   fProperty := Props;
 
@@ -187,7 +199,7 @@ begin
   if not Assigned(LAPSInformation) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllTrace, 'No laps information.', Self);
+      fLog.Add.Log(sllTrace, 'No laps information.', Self);
     Exit;
   end;
 
@@ -210,6 +222,31 @@ begin
     if GroupBox_LAPSEncrypted.Visible then
     begin
       Edit_v2_EncryptedPasswordData.CaptionNoChange := LAPSInformation^.LAPSV2.EncryptedPassword;
+      {$IFDEF WINDOWS}
+      if LAPSInformation^.LAPSV2.EncryptedPassword <> '' then
+      begin
+        try
+          UnencryptedData := DecryptDpapiNgWindows(LAPSInformation^.LAPSV2.EncryptedPassword);
+          if ConvertLAPSPassword(UnencryptedData, Account, Password, WhenChanged) then
+          begin
+            Label_v2_EncryptedLocalAdminAccountName.Enabled := True;
+            Edit_v2_EncryptedLocalAdminAccountName.Enabled := True;
+            Edit_v2_EncryptedLocalAdminAccountName.CaptionNoChange := Account;
+            Label_v2_EncryptedLocalAdminPassword.Enabled := True;
+            Edit_v2_EncryptedLocalAdminAccountPassword.Enabled := True;
+            Edit_v2_EncryptedLocalAdminAccountPassword.CaptionNoChange := Password;
+            Action_v2_EncryptedCopyPassword.Enabled := True;
+            Action_v2_EncryptedShowPassword.Enabled := True;
+          end;
+        Except
+          On E: Exception do
+          begin
+            fLog.Add.Log(sllError, E.Message);
+            Exit;
+          end;
+        end;
+      end;
+      {$ENDIF WINDOWS}
     end;
   end;
 end;

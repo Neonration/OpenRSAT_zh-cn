@@ -18,7 +18,10 @@ uses
   mormot.core.base,
   mormot.core.log,
   mormot.net.ldap,
-  upropertyframe;
+  uopenrsatuicontextinterface,
+  uvisobjectsselector,
+  upropertyframe,
+  ulog;
 
 type
 
@@ -26,7 +29,7 @@ type
 
   TPropertyManagedBy = class
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fManagerAttributes: TLdapAttributeList;
   public
     constructor Create;
@@ -79,7 +82,7 @@ type
     procedure Action_PropertyExecute(Sender: TObject);
     procedure Action_PropertyUpdate(Sender: TObject);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fPropertyManagedBy: TPropertyManagedBy;
     fProperty: TProperty;
   public
@@ -98,9 +101,7 @@ uses
   mormot.core.text,
   ucommon,
   ucommonui,
-  ursatldapclientui,
-  uOmniselect,
-  ufrmrsat;
+  ursatldapclientui;
 
 {$R *.lfm}
 
@@ -108,9 +109,9 @@ uses
 
 constructor TPropertyManagedBy.Create;
 begin
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 end;
 
 destructor TPropertyManagedBy.Destroy;
@@ -133,7 +134,7 @@ begin
   if not Assigned(PSecDesc) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllTrace, 'Cannot retrieve nTSecurityDescriptor', Self);
+      fLog.Add.Log(sllTrace, 'Cannot retrieve nTSecurityDescriptor', Self);
     Exit;
   end;
 
@@ -146,9 +147,9 @@ begin
     begin
       if Assigned(fLog) then
       begin
-        fLog.Log(sllWarning, 'Cannot add ace to nTSecurityDescriptor', Self);
-        fLog.Log(sllDebug, 'Guid: %', [SELF_MEMBERSHIP_TEXT_GUID], Self);
-        fLog.Log(sllDebug, 'Sid: %', [ManagedBySid], Self);
+        fLog.Add.Log(sllWarning, 'Cannot add ace to nTSecurityDescriptor', Self);
+        fLog.Add.Log(sllDebug, 'Guid: %', [SELF_MEMBERSHIP_TEXT_GUID], Self);
+        fLog.Add.Log(sllDebug, 'Sid: %', [ManagedBySid], Self);
       end;
       Exit;
     end;
@@ -159,9 +160,9 @@ begin
     begin
       if Assigned(fLog) then
       begin
-        fLog.Log(sllWarning, 'Cannot delete ace to nTSecurityDescriptor', Self);
-        fLog.Log(sllDebug, 'Guid: %', [SELF_MEMBERSHIP_TEXT_GUID], Self);
-        fLog.Log(sllDebug, 'Sid: %', [ManagedBySid], Self);
+        fLog.Add.Log(sllWarning, 'Cannot delete ace to nTSecurityDescriptor', Self);
+        fLog.Add.Log(sllDebug, 'Guid: %', [SELF_MEMBERSHIP_TEXT_GUID], Self);
+        fLog.Add.Log(sllDebug, 'Sid: %', [ManagedBySid], Self);
       end;
       Exit;
     end;
@@ -184,7 +185,7 @@ begin
   if not Assigned(PSecDesc) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Cannot retrieve nTSecurityDescriptor');
+      fLog.Add.Log(sllWarning, 'Cannot retrieve nTSecurityDescriptor');
     Exit;
   end;
 
@@ -232,7 +233,7 @@ begin
     if not Assigned(LdapResult) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllError, 'Ldap Search Error: "%"', [Props.RSAT.LdapClient.ResultString], Self);
+        fLog.Add.Log(sllError, 'Ldap Search Error: "%"', [Props.RSAT.LdapClient.ResultString], Self);
       Exit;
     end;
     fManagerAttributes := TLdapAttributeList(LdapResult.Attributes.Clone);
@@ -268,7 +269,7 @@ end;
 
 procedure TFrmPropertyManagedBy.Action_PropertyExecute(Sender: TObject);
 begin
-  FrmRSAT.OpenProperty(fProperty.managedBy);
+  fIContext.OpenProperty(fProperty.managedBy);
 end;
 
 procedure TFrmPropertyManagedBy.Action_PropertyUpdate(Sender: TObject);
@@ -278,40 +279,38 @@ end;
 
 procedure TFrmPropertyManagedBy.Action_ChangeExecute(Sender: TObject);
 var
-  Filter, ManagerDN: RawUtf8;
-  Omniselect: TVisOmniselect;
-  DNarr: TRawUtf8DynArray;
+  SelectedObjects: TRawUtf8DynArray;
+  Vis: TVisObjectsSelector;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Change managedBy', Self);
+    fLog.Add.Log(sllTrace, 'Change managedBy', Self);
 
-  // Set Filter
-  Filter := FormatUtf8('(!(distinguishedName=%))', [LdapEscape(fProperty.distinguishedName)]); // Dont allow self
-
-  // Omniselect
-  DNarr := [''];
-  Omniselect := TVisOmniselect.Create(self, fProperty.RSAT.LdapClient, ['user', 'group', 'contacts'], fProperty.RSAT.LdapClient.DefaultDN(), False, Filter);
+  Vis := TVisObjectsSelector.Create(Self);
   try
-    Omniselect.Caption := rsTitleSelectNewManager;
-    if Omniselect.ShowModal() <> mrOK then
+    Vis.LdapClient := fProperty.RSAT.LdapClient;
+    Vis.AllowedObjectTypes := [otfUser, otfGroup, otfContact];
+    Vis.SelectedObjectTypes := [otfUser, otfGroup, otfContact];
+    Vis.ExcludedObjects := [fProperty.distinguishedName];
+    Vis.AllowMultiSelect := False;
+    if (Vis.ShowModal <> mrOK) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllInfo, 'Action cancel by user', Self);
+        fLog.Add.Log(sllInfo, 'Action cancel by user', Self);
       Exit;
     end;
-    DNarr := Omniselect.SelectedObjects;
-    if (Length(DNarr) <> 1) then
-    begin
-      if Assigned(fLog) then
-        fLog.Log(sllInfo, 'Invalid number of selected DN');
-      Exit;
-    end;
-    ManagerDN := DNarr[0];
+    SelectedObjects := Vis.SelectedObjects;
   finally
-    FreeAndNil(Omniselect);
+    FreeAndNil(Vis);
   end;
 
-  fPropertyManagedBy.ChangeManagedBy(ManagerDN, fProperty);
+  if Length(SelectedObjects) <> 1 then
+  begin
+    if Assigned(fLog) then
+      fLog.Add.Log(sllInfo, 'Invalid number of selected DN');
+    Exit;
+  end;
+
+  fPropertyManagedBy.ChangeManagedBy(SelectedObjects[0], fProperty);
   Update(fProperty);
 end;
 
@@ -321,9 +320,9 @@ begin
 
   fPropertyManagedBy := TPropertyManagedBy.Create;
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Caption := 'Managed By';
 
@@ -343,7 +342,7 @@ var
   ManagedByAttributes: TLdapAttributeList;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Update', Self);
+    fLog.Add.Log(sllTrace, 'Update', Self);
 
   fProperty := Props;
 

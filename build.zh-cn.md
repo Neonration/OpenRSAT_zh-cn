@@ -18,7 +18,7 @@
 - macOS Intel: <https://github.com/LongDirtyAnimAlf/fpcupdeluxe/releases/latest/download/fpcupdeluxe-x86_64-darwin-cocoa.zip>
 - macOS arm64: <https://github.com/LongDirtyAnimAlf/fpcupdeluxe/releases/latest/download/fpcupdeluxe-aarch64-darwin-cocoa.zip>
 
-本地已验证的环境示例：
+旧版 macOS 包使用过的环境示例（本次尚未用此环境验证 0.4.594）：
 
 - Lazarus: `/Users/zhaoyiqing/Applications/lazarus`
 - FPC: `/Users/zhaoyiqing/.local/openrsat/fpc-root/usr/local/bin/fpc`
@@ -32,7 +32,7 @@ cd OpenRSAT_zh-cn
 git submodule update --init
 ```
 
-如果从上游仓库构建，可替换为上游地址。
+这里只初始化一级子模块，与 CI 的 `submodules: true` 一致。不要添加 `--recursive`：`pltis_djoin` 的嵌套子模块包含私有依赖，本项目构建不需要递归获取它们。如果从上游仓库构建，可替换为上游地址。
 
 ## 安装 mORMot2 statics
 
@@ -116,7 +116,32 @@ PATH=/path/to/fpc/bin:$PATH \
 bin/macosx-arm64/OpenRSAT
 ```
 
+## 语言资源
+
+语言文件沿用上游的外置 PO 机制。打包时保留 `languages/OpenRSAT.*.po` 的全部语言，并包含新增的 `OpenRSAT.zh.po`。Windows 解压目录示例：
+
+```text
+OpenRSAT.exe
+locale/
+  OpenRSAT.en.po
+  OpenRSAT.fr.po
+  OpenRSAT.el.po
+  OpenRSAT.pl.po
+  OpenRSAT.zh.po
+```
+
+简体中文是设置中的额外语言选项，不改写用户已保存的语言偏好。不要再合并或嵌入旧 `Translation.*.po` 文件。
+
+Windows 编译后，在仓库根目录复制全部语言文件：
+
+```powershell
+New-Item -ItemType Directory -Force bin\win64\locale | Out-Null
+Copy-Item languages\OpenRSAT.*.po bin\win64\locale\
+```
+
 ## 打包 macOS app
+
+仓库现有的 `dist/OpenRSAT-macos-arm64.zip` 是历史构建，未包含本次合并上游 0.4.594 后的增强。下面是重新构建和打包的步骤，本次未生成或验证新版 macOS 包。
 
 本仓库的可分发包结构：
 
@@ -134,14 +159,17 @@ OpenRSAT.app/Contents/MacOS/lib/libssl.dylib
 OpenRSAT.app/Contents/MacOS/lib/libssl.1.1.dylib
 OpenRSAT.app/Contents/MacOS/lib/libcrypto.dylib
 OpenRSAT.app/Contents/MacOS/lib/libcrypto.1.1.dylib
+OpenRSAT.app/Contents/Resources/locale/OpenRSAT.*.po
 ```
 
 打包步骤示例：
 
 ```bash
 mkdir -p dist/OpenRSAT.app/Contents/MacOS/lib
+mkdir -p dist/OpenRSAT.app/Contents/Resources/locale
 cp bin/macosx-arm64/OpenRSAT dist/OpenRSAT.app/Contents/MacOS/OpenRSAT
 cp bin/macosx-arm64/lib/*.dylib dist/OpenRSAT.app/Contents/MacOS/lib/
+cp languages/OpenRSAT.*.po dist/OpenRSAT.app/Contents/Resources/locale/
 chmod +x dist/OpenRSAT.app/Contents/MacOS/OpenRSAT
 codesign --force --deep --sign - dist/OpenRSAT.app
 

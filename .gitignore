@@ -16,7 +16,6 @@ openrsattests
 .tgitconfig
 configure_lazarus.bat
 graph.txt
-update_language.py
 update_version.py
 
 # Folder
@@ -26,3 +25,7 @@ bin
 doc
 lib
 log
+
+# Lazarus generates these; maintained catalogs live in /languages.
+/packages/OpenRSATCore/languages/*.pot
+/packages/OpenRSATGUI/languages/*.pot

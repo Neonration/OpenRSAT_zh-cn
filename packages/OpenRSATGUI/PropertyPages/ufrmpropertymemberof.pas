@@ -20,8 +20,12 @@ uses
   mormot.net.ldap,
   tis.ui.grid.core,
   ursatldapclient,
-  uproperty, VirtualTrees,
-  upropertyframe;
+  uproperty,
+  VirtualTrees,
+  uopenrsatuicontextinterface,
+  upropertyframe,
+  uvisobjectsselector,
+  ulog;
 
 type
 
@@ -29,7 +33,7 @@ type
 
   TPropertyMemberOf = class
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
   public
     constructor Create;
     destructor Destroy; override;
@@ -73,7 +77,7 @@ type
       aRows: PDocVariantData; var aAskUser, aAbort: Boolean);
     procedure Grid_MemberOfDblClick(Sender: TObject);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fPropertyMemberOf: TPropertyMemberOf;
     fProperty: TProperty;
 
@@ -96,9 +100,7 @@ uses
   mormot.core.os.security,
   mormot.core.text,
   ucommon,
-  ursatldapclientui,
-  uOmniselect,
-  ufrmrsat;
+  ursatldapclientui;
 
 {$R *.lfm}
 
@@ -106,9 +108,9 @@ uses
 
 constructor TPropertyMemberOf.Create;
 begin
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 end;
 
 destructor TPropertyMemberOf.Destroy;
@@ -208,9 +210,9 @@ begin
 
   fPropertyMemberOf := TPropertyMemberOf.Create;
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Caption := 'Member Of';
 end;
@@ -292,8 +294,8 @@ end;
 
 procedure TFrmPropertyMemberOf.Grid_MemberOfDblClick(Sender: TObject);
 begin
-  if Assigned(FrmRSAT) and Assigned(Grid_MemberOf.FocusedRow) then
-    FrmRSAT.OpenProperty(Grid_MemberOf.FocusedRow^.S['distinguishedName']);
+  if Assigned(Grid_MemberOf.FocusedRow) then
+    fIContext.OpenProperty(Grid_MemberOf.FocusedRow^.S['distinguishedName']);
 end;
 
 procedure TFrmPropertyMemberOf.FillMemberOf;
@@ -342,34 +344,36 @@ end;
 
 function TFrmPropertyMemberOf.GetGroupToAdd(): TRawUtf8DynArray;
 var
-  Filter: RawUtf8;
-  VisSelect: TVisOmniselect;
   Row: PDocVariantData;
+  Vis: TVisObjectsSelector;
+  ExcludedObjects: TRawUtf8DynArray;
+  i: Integer;
 begin
   result := nil;
 
-  // Exclude self being a member of a group
-  // Do not use member=[self] cause it doesn't take care of the current modification.
-  // Filter := FormatUtf8('(!(member=%))', [LdapEscape(fProperty.distinguishedName)]);
-  Filter := '';
-  for Row in Grid_MemberOf.Data.Objects do
+  ExcludedObjects := nil;
+  SetLength(ExcludedObjects, Grid_MemberOf.Data.Count);
+  for i := 0 to Grid_MemberOf.Data.Count - 1 do
   begin
-    if not Assigned(Row) then
+    Row := Grid_MemberOf.Data._[i];
+    if not Assigned(Row) or not Row^.Exists('distinguishedName') then
       continue;
-    Filter := FormatUtf8('%(distinguishedName=%)', [Filter, LdapEscape(Row^.S['distinguishedName'])]);
+    ExcludedObjects[i] := Row^.U['distinguishedName'];
   end;
-  if Filter <> '' then
-    Filter := FormatUtf8('(!(|%))', [Filter]);
 
   // Select groups to add
-  VisSelect := TVisOmniselect.Create(self, fProperty.LdapClient, ['group'], fProperty.LdapClient.DefaultDN(), True, Filter);
+  Vis := TVisObjectsSelector.Create(Self);
   try
-    VisSelect.Caption := rsTitleSelectGroups;
-    if VisSelect.ShowModal() <> mrOK then
+    Vis.LdapClient := fProperty.LdapClient;
+    Vis.AllowedObjectTypes := [otfGroup];
+    Vis.SelectedObjectTypes := [otfGroup];
+    Vis.ExcludedObjects := ExcludedObjects;
+    Vis.AllowMultiSelect := True;
+    if (Vis.ShowModal <> mrOK) then
       Exit;
-    result := VisSelect.SelectedObjects;
+    result := Vis.SelectedObjects;
   finally
-    FreeAndNil(VisSelect);
+    FreeAndNil(Vis);
   end;
 end;
 

@@ -19,7 +19,9 @@ uses
   mormot.net.ldap,
   VirtualTrees,
   Controls,
-  ufrmmoduleaduc;
+  uopenrsatuicontextinterface,
+  ufrmmoduleaduc,
+  ulog;
 
 type
 
@@ -116,11 +118,16 @@ type
   private
     SearchWord: RawUtf8;
     fModule: TFrmModuleADUC;
+    fIContext: IOpenRSATUIContext;
+
     function GetFocusedResultDN: RawUtf8;
     function GetFocusedResultObjectClass: RawUtf8;
     function GetSelectedResultDNs: TRawUtf8DynArray;
+    function GetLdapClient: TLdapClient;
   public
-    constructor Create(TheOwner: TComponent; AModule: TFrmModuleADUC); reintroduce;
+    constructor Create(Context: IOpenRSATUIContext; AModule: TFrmModuleADUC); reintroduce;
+
+    property LdapClient: TLdapClient read GetLdapClient;
   end;
 
 implementation
@@ -134,10 +141,8 @@ uses
   ucommon,
   ucommonui,
   ucoredatamodule,
-  ursatldapclient,
   ursatldapclientui,
-  uvischangedn,
-  ufrmrsat;
+  uvischangedn;
 
 {$R *.lfm}
 
@@ -228,15 +233,15 @@ begin
 
   TisSearchEdit_AdvKey.Clear;
   TisSearchEdit_AdvKey.Items.BeginUpdate;
-  FrmRSAT.RSAT.LdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
-    FrmRSAT.RSAT.LdapClient.SearchScope := lssWholeSubtree;
+    LdapClient.SearchScope := lssWholeSubtree;
 
     repeat
-      if not FrmRSAT.RSAT.LdapClient.Search(FrmRSAT.RSAT.LdapClient.SchemaDN, False, '', ['lDAPDisplayName']) then
+      if not LdapClient.Search(LdapClient.SchemaDN, False, '', ['lDAPDisplayName']) then
         Exit;
 
-      for SearchResult in FrmRSAT.RSAT.LdapClient.SearchResult.Items do
+      for SearchResult in LdapClient.SearchResult.Items do
       begin
         if not Assigned(SearchResult) then
           continue;
@@ -245,9 +250,9 @@ begin
           continue;
         TisSearchEdit_AdvKey.Items.Add(LdapDisplayName);
       end;
-    until FrmRSAT.RSAT.LdapClient.SearchCookie = '';
+    until LdapClient.SearchCookie = '';
   finally
-    FrmRSAT.RSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
     TisSearchEdit_AdvKey.Items.EndUpdate;
   end;
 end;
@@ -289,6 +294,11 @@ begin
   Timer_SearchInGrid.Enabled := True;
 end;
 
+function TVisSearch.GetLdapClient: TLdapClient;
+begin
+  result := fIContext.RSAT.LdapClient;
+end;
+
 procedure TVisSearch.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
   CloseAction := caFree;
@@ -302,9 +312,12 @@ begin
   end;
 end;
 
-constructor TVisSearch.Create(TheOwner: TComponent; AModule: TFrmModuleADUC);
+constructor TVisSearch.Create(Context: IOpenRSATUIContext;
+  AModule: TFrmModuleADUC);
 begin
-  inherited Create(TheOwner);
+  inherited Create(Context.ComponentOwner);
+
+  fIContext := Context;
 
   fModule := AModule;
 end;
@@ -379,7 +392,7 @@ end;
 procedure TVisSearch.Action_BatchMoveOUUpdate(Sender: TObject);
 begin
   Action_BatchMoveOU.Enabled :=
-    Assigned(fModule) and Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and
+    Assigned(fModule) and Assigned(LdapClient) and LdapClient.Connected and
     (Length(GetSelectedResultDNs) >= 2);
 end;
 
@@ -391,8 +404,8 @@ end;
 
 procedure TVisSearch.Action_DeleteUpdate(Sender: TObject);
 begin
-  Action_Delete.Enabled := Assigned(fModule) and Assigned(FrmRSAT.LdapClient) and
-    FrmRSAT.LdapClient.Connected and (Length(GetSelectedResultDNs) > 0);
+  Action_Delete.Enabled := Assigned(fModule) and Assigned(LdapClient) and
+    LdapClient.Connected and (Length(GetSelectedResultDNs) > 0);
 end;
 
 procedure TVisSearch.Action_ShowInViewExecute(Sender: TObject);
@@ -400,7 +413,7 @@ var
   aLog: ISynLog;
   DN: RawUtf8;
 begin
-  aLog := TSynLog.Enter('Show in view', []);
+  aLog := TOpenRSATLog.Enter('Show in view', []);
 
   if not Assigned(TisGrid_Result.FocusedRow) or
      not TisGrid_Result.FocusedRow^.Exists('distinguishedName') then
@@ -433,7 +446,7 @@ var
 begin
   Action_DeleteComputerFromAllDC.Enabled := False;
   if not Assigned(fModule) or not fModule.MultiDCDeleteEnabled or
-    not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected or
+    not Assigned(LdapClient) or not LdapClient.Connected or
     (TisGrid_Result.SelectedCount = 0) then
     Exit;
   Rows := TisGrid_Result.SelectedRows;
@@ -452,7 +465,7 @@ end;
 
 procedure TVisSearch.Action_ChangeDNExecute(Sender: TObject); // ChangeDN
 begin
-  with TVisChangeDN.create(self, FrmRSAT.RSAT.LdapClient, Edit_Path.Text, FrmRSAT.RSAT.LdapClient.DefaultDN) do
+  with TVisChangeDN.create(self, LdapClient, Edit_Path.Text, LdapClient.DefaultDN) do
   try
     if ShowModal = mrOk then
       Edit_Path.Text := SelectedDN;
@@ -491,16 +504,9 @@ begin
 end;
 
 procedure TVisSearch.Action_PropertiesExecute(Sender: TObject);
-var
-  Vis: TForm;
 begin
-  Vis := FrmRSAT.OpenProperty(TisGrid_Result.FocusedRow^.S['distinguishedName'], TisGrid_Result.FocusedRow^.S['name']);
-  if Assigned(Vis) then
-  begin
-    Vis.Show;
-    Vis.BringToFront;
-    Vis.SetFocus;
-  end;
+  Action_ShowInView.Execute;
+  fIContext.OpenProperty(TisGrid_Result.FocusedRow^.S['distinguishedName']);
 end;
 
 procedure TVisSearch.Action_PropertiesUpdate(Sender: TObject);
@@ -533,7 +539,7 @@ begin
       if (Filter <> '') then
         // https://ldapwiki.com/wiki/Wiki.jsp?page=Ambiguous%20Name%20Resolution
         // Ambiguous Name Resolution (aNR) is a search algorithm in Microsoft Active Directory that permits a client to search multiple Naming Attributes on objects via a single clause in a search filter
-        Filter := FormatUtf8('(anr=%*)', [LdapEscape(Filter)])
+        Filter := FormatUtf8('(anr=%*)', [LdapEscape(Filter, true)])
       else
         Filter := 'name=*';
     end;
@@ -574,24 +580,24 @@ begin
       Exit;
   end;
 
-  aLog := TSynLog.Enter('Search', []);
+  aLog := TOpenRSATLog.Enter('Search', []);
   if not TryStrToInt(Edit_PageSize.Text, pageSize) or
      not TryStrToInt(Edit_PageCount.Text, pageCount) then
     aLog.Log(sllWarning, 'Cannot search.');
 
-  FrmRSAT.RSAT.LdapClient.SearchBegin(pageSize);
+  LdapClient.SearchBegin(pageSize);
   case ComboBox_SearchScope.ItemIndex of
-    0: FrmRSAT.RSAT.LdapClient.SearchScope := lssBaseObject;
-    1: FrmRSAT.RSAT.LdapClient.SearchScope := lssSingleLevel;
-    2: FrmRSAT.RSAT.LdapClient.SearchScope := lssWholeSubtree;
+    0: LdapClient.SearchScope := lssBaseObject;
+    1: LdapClient.SearchScope := lssSingleLevel;
+    2: LdapClient.SearchScope := lssWholeSubtree;
   end;
 
   TisGrid_Result.BeginUpdate;
   try
     repeat
-      if not FrmRSAT.RSAT.LdapClient.Search(Trim(Edit_Path.Text), False, Filter, Attributes) then
+      if not LdapClient.Search(Trim(Edit_Path.Text), False, Filter, Attributes) then
         Exit;
-      for item in FrmRSAT.RSAT.LdapClient.SearchResult.Items do
+      for item in LdapClient.SearchResult.Items do
       begin
         if not Assigned(item) or (item.Attributes.Count <= 0) then
           continue;
@@ -614,9 +620,9 @@ begin
         data.Clear;
       end;
       Inc(count);
-    until (FrmRSAT.RSAT.LdapClient.SearchCookie = '') or (count = pageCount);
+    until (LdapClient.SearchCookie = '') or (count = pageCount);
   finally
-    FrmRSAT.RSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
     TisGrid_Result.EndUpdate;
     TisGrid_Result.LoadData;
   end;

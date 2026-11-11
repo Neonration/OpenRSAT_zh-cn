@@ -29,10 +29,6 @@ type
     property ADSSOption: TModuleADSSOption read GetADSSOption;
     // Expose Option
     property ShowService: Boolean read GetShowService;
-
-    /// TModule
-  protected
-    procedure SetEnabled(AValue: Boolean); override;
   end;
 
 implementation
@@ -53,9 +49,8 @@ end;
 
 constructor TModuleADSS.Create(ARSAT: TRSAT);
 begin
-  inherited Create(rsModuleADSSName, rsModuleADSSDisplayName);
+  inherited Create('SitesAndServices', rsModuleADSSDisplayName);
 
-  fEnabled := True;
   fOption := TModuleADSSOption.Create;
   fRSAT := ARSAT;
   fOption.Load;
@@ -66,13 +61,6 @@ begin
   FreeAndNil(fOption);
 
   inherited Destroy;
-end;
-
-procedure TModuleADSS.SetEnabled(AValue: Boolean);
-begin
-  if AValue = fEnabled then
-    Exit;
-  fEnabled := AValue;
 end;
 
 end.

@@ -14,7 +14,8 @@ uses
   mormot.core.log,
   ufrmoption,
   ursatoption,
-  uoption;
+  uoption,
+  ulog;
 
 type
 
@@ -30,7 +31,7 @@ type
     procedure ComboBox2Change(Sender: TObject);
     procedure ComboBox3Change(Sender: TObject);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fChanged: Boolean;
 
     fRSATOption: TRSATOption;
@@ -53,17 +54,19 @@ uses
   Dialogs,
   mormot.core.text,
   mormot.core.base,
-  ucommon,
-  ufrmrsat;
+  ucommon;
 
 {$R *.lfm}
+
+const
+  SimplifiedChineseIndex = 5;
 
 { TFrmRSATOption }
 
 procedure TFrmRSATOption.ComboBox3Change(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Change AdvancedView (%)', [ComboBox3.Text], Self);
+    fLog.Add.Log(sllTrace, 'Change AdvancedView (%)', [ComboBox3.Text], Self);
 
   fChanged := True;
 end;
@@ -71,7 +74,7 @@ end;
 procedure TFrmRSATOption.ComboBox2Change(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Change Lang (%)', [ComboBox2.Text], Self);
+    fLog.Add.Log(sllTrace, 'Change Lang (%)', [ComboBox2.Text], Self);
 
   fChanged := True;
 end;
@@ -83,15 +86,15 @@ begin
   fChanged := False;
   fRSATOption := TRSATOption(Option);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllInfo, 'Create', Self);
+    fLog.Add.Log(sllInfo, 'Create', Self);
 end;
 
 function TFrmRSATOption.OptionChanged: Boolean;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'OptionChanged (%)', [fChanged], Self);
+    fLog.Add.Log(sllTrace, 'OptionChanged (%)', [fChanged], Self);
 
   result := fChanged;
 end;
@@ -99,17 +102,21 @@ end;
 procedure TFrmRSATOption.Load;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Load', Self);
+    fLog.Add.Log(sllTrace, 'Load', Self);
 
   if not Assigned(Self) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Could not be loaded: Self or Options not assigned.', Self);
+      fLog.Add.Log(sllWarning, 'Could not be loaded: Self or Options not assigned.', Self);
     Exit;
   end;
 
   ComboBox1.ItemIndex := Ord(RSATOption.Theme);
-  ComboBox2.Text := RSATOption.Lang;
+  if SameText(RSATOption.Lang, 'zh') or SameText(RSATOption.Lang, 'zh_CN') or
+    SameText(RSATOption.Lang, 'zh-CN') then
+    ComboBox2.ItemIndex := SimplifiedChineseIndex
+  else
+    ComboBox2.Text := RSATOption.Lang;
   ComboBox3.ItemIndex := Ord(RSATOption.AdvancedView);
 
   fChanged := False;
@@ -118,30 +125,35 @@ end;
 procedure TFrmRSATOption.Save;
 var
   ShouldRestart: Boolean;
+  LanguageCode: String;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Save', Self);
+    fLog.Add.Log(sllTrace, 'Save', Self);
 
   if not Assigned(Self) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Could not be saved: Self or Options not assigned.', Self);
+      fLog.Add.Log(sllWarning, 'Could not be saved: Self or Options not assigned.', Self);
     Exit;
   end;
 
-  ShouldRestart := (ComboBox2.Text <> RSATOption.Lang);
+  LanguageCode := ComboBox2.Text;
+  if ComboBox2.ItemIndex = SimplifiedChineseIndex then
+    LanguageCode := 'zh';
+  ShouldRestart := (LanguageCode <> RSATOption.Lang);
 
   RSATOption.BeginUpdate;
   try
     RSATOption.Theme := TThemeMode(ComboBox1.ItemIndex);
-    RSATOption.Lang := ComboBox2.Text;
+    RSATOption.Lang := LanguageCode;
     RSATOption.AdvancedView := Boolean(ComboBox3.ItemIndex);
   finally
-    RSATOption.Save;
+    RSATOption.EndUpdate;
   end;
+  RSATOption.Save;
 
   if ShouldRestart and (MessageDlg(rsRestartTitle, rsChangeOptionRequiredRestart, mtConfirmation, mbYesNoCancel, 0) = mrYes) then
-    FrmRSAT.Restart;
+    ((Owner as TForm).Owner as TForm).close;
 
   fChanged := False;
 end;
@@ -149,7 +161,7 @@ end;
 destructor TFrmRSATOption.Destroy;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Destroy', Self);
+    fLog.Add.Log(sllTrace, 'Destroy', Self);
 
   inherited Destroy;
 end;

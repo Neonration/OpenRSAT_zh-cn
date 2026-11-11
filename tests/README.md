@@ -20,16 +20,22 @@ lazbuild --build-mode=test tests\openrsattests.lpi
 .\tests\openrsattests.exe --test TUnitTestDNOperations
 .\tests\openrsattests.exe --test TUnitTestModuleADUCOption
 .\tests\openrsattests.exe --test TUnitTestComputerDelete
+.\tests\openrsattests.exe --test TUnitTestDoubleListLogic
+.\tests\openrsattests.exe --test TUnitTestRSATOption
 ```
 
-On 2026-11-11, these tests passed under Free Pascal 3.2.2 on Windows 64-bit with 61 assertions and no failures:
+After merging upstream 0.4.594, these tests passed on 2026-11-11 under Free Pascal 3.2.2 on Windows 64-bit with 91 assertions and no failures:
 
 | Test class | Assertions | Coverage |
 | --- | ---: | --- |
-| `TUnitTestDNOperations` | 23 | Chinese names, escaped DN separators, target validation |
+| `TUnitTestDNOperations` | 32 | Chinese names, escaped DN separators, target validation, overlapping parent/child ordering |
 | `TUnitTestModuleADUCOption` | 8 | Disabled default, save/reopen, preserving scope when disabled |
 | `TUnitTestComputerDelete` | 30 | Controller allowlist, deduplication, GUID identity, rejecting DC accounts |
+| `TUnitTestDoubleListLogic` | 13 | Upstream dual-list selection behavior |
+| `TUnitTestRSATOption` | 8 | System language default, language save/reopen including Chinese aliases, preserving other settings |
 
 These commands do not connect to Active Directory. They do not verify real LDAP deletion, replication, delegated permissions or TLS/Kerberos authentication. Integration tests require a dedicated AD test domain and are not included in this result. Run only the named classes above when an AD environment has not been configured.
 
 GUI checks and Windows compilation are separate from these unit assertions. No automated daily test run is configured by this change.
+
+The merged win64 executable was also launched offline: the Chinese main window, Simplified Chinese language option, and multi-controller settings were displayed correctly. Enabling the multi-controller option enabled its host list. Restarting with a saved `zh` configuration loaded Chinese. Clicking through language selection and saving in the modal dialog was not verified end to end; persistence is covered by the tests above.

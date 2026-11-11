@@ -53,7 +53,7 @@ type
 
   TLAPSV2Inforamtion = record
     Expiration: TDateTime;
-    EncryptedPassword: RawUtf8;
+    EncryptedPassword: RawByteString;
     WhenChanged: TDateTime;
     Account: RawUtf8;
     Password: SpiUtf8;
@@ -118,6 +118,8 @@ type
     function GetRaw(Name: RawUtf8; index: Integer = 0): RawByteString;
     /// Retrieve an attribute by name.
     function Get(Name: RawUtf8): TLdapAttribute;
+    /// Retrieve a variant value of an attribute.
+    function GetVariant(Name: RawUtf8): variant;
 
     /// Add a value to an attribute by name.
     procedure Add(Name: RawUtf8; Value: RawUtf8; Option: TLdapAddOption = aoReplaceValue);
@@ -216,7 +218,7 @@ type
   end;
 
 
-function ConvertLAPSPassword(const LAPSPassword: RawUtf8; out Account: RawUtf8; out Password: RawUtf8; out WhenChanged: TDateTime): Boolean;
+function ConvertLAPSPassword(const LAPSPassword: RawByteString; out Account: RawUtf8; out Password: RawUtf8; out WhenChanged: TDateTime): Boolean;
 /// Invalid function (missing time)
 function BuildLAPSPassword(const Account: RawUtf8; const Password: RawUtf8; const WhenChanged: TDateTime): RawUtf8;
 
@@ -234,8 +236,8 @@ begin
   result := Iso8601ToDateTime(FileTime);
 end;
 
-function ConvertLAPSPassword(const LAPSPassword: RawUtf8; out Account: RawUtf8;
-  out Password: RawUtf8; out WhenChanged: TDateTime): Boolean;
+function ConvertLAPSPassword(const LAPSPassword: RawByteString; out
+  Account: RawUtf8; out Password: RawUtf8; out WhenChanged: TDateTime): Boolean;
 var
   PasswordData: TDocVariantData;
 begin
@@ -832,6 +834,16 @@ begin
     result := fAttributes.Find(Name);
 end;
 
+function TProperty.GetVariant(Name: RawUtf8): variant;
+var
+  Attribute: TLdapAttribute;
+begin
+  Attribute := fModifiedAttributes.Find(Name);
+  if not Assigned(Attribute) then
+    Attribute := fAttributes.Find(Name);
+  result := Attribute.GetVariant();
+end;
+
 procedure TProperty.Add(Name: RawUtf8; Value: RawUtf8; Option: TLdapAddOption);
 var
   Attribute, BaseAttribute: TLdapAttribute;
@@ -920,11 +932,18 @@ function TProperty.GetSiteFromServerReference: RawUtf8;
 var
   Attribute: TLdapAttribute;
   Pairs: TNameValueDNs;
+  OnErrorBak: TNotifyEvent;
 begin
   result := '';
   if not Assigned(LdapClient) then
     Exit;
-  Attribute := LdapClient.SearchObject(LdapClient.ConfigDN, FormatUtf8('(serverReference=%)', [LdapEscape(distinguishedName)]), 'distinguishedName', lssWholeSubtree);
+  OnErrorBak := LdapClient.OnError;
+  try
+    LdapClient.OnError := nil;
+    Attribute := LdapClient.SearchObject(LdapClient.ConfigDN, FormatUtf8('(serverReference=%)', [LdapEscape(distinguishedName)]), 'distinguishedName', lssWholeSubtree);
+  finally
+    LdapClient.OnError := OnErrorBak;
+  end;
   if not Assigned(Attribute) then
     Exit;
   if not ParseDN(Attribute.GetReadable(), Pairs, True) then
@@ -1034,7 +1053,7 @@ begin
   fLAPSInformation.LAPSV1.Password := GetReadable('ms-Mcs-AdmPwd');
 
   fLAPSInformation.LAPSV2.Expiration := ExpirationTimeToDateTime(GetReadable('msLAPS-PasswordExpirationTime'));
-  fLAPSInformation.LAPSV2.EncryptedPassword := GetReadable('msLAPS-EncryptedPassword');
+  fLAPSInformation.LAPSV2.EncryptedPassword := GetRaw('msLAPS-EncryptedPassword');
 
   ConvertLAPSPassword(GetReadable('msLAPS-Password'), AAccount, APassword, AWhenChanged);
 
@@ -1335,15 +1354,19 @@ end;
 function TProperty.UPNSuffixes: TRawUtf8DynArray;
 var
   Attribute: TLdapAttribute;
+  OnErrorBak: TNotifyEvent;
 begin
   if not Assigned(LdapClient) then
     Exit;
   LdapClient.SearchRangeBegin;
+  OnErrorBak := LdapClient.OnError;
   try
+    LdapClient.OnError := nil;
     Attribute := LdapClient.SearchObject(FormatUtf8('CN=Partitions,%', [LdapClient.ConfigDN]), '', 'uPNSuffixes');
     if not Assigned(Attribute) and (LdapClient.ResultCode > 0) then
       Exit;
   finally
+    LdapClient.OnError := OnErrorBak;
     LdapClient.SearchRangeEnd;
   end;
   result := Attribute.GetAllReadable;
@@ -1484,11 +1507,18 @@ var
   Attribute: TLdapAttribute;
   i, j: Integer;
   TempArr: TRawByteStringDynArray;
+  Bak: TNotifyEvent;
 begin
   result := nil;
-  Attribute := RSAT.LdapClient.SearchObject(NTAuthCertificatesDN, '', 'cACertificate');
-  if not Assigned(Attribute) then
-    Exit;
+  Bak := RSAT.LdapClient.OnError;
+  RSAT.LdapClient.OnError := nil;
+  try
+    Attribute := RSAT.LdapClient.SearchObject(NTAuthCertificatesDN, '', 'cACertificate');
+    if not Assigned(Attribute) then
+      Exit;
+  finally
+    RSAT.LdapClient.OnError := Bak;
+  end;
 
   SetLength(result, Attribute.Count);
   for i := 0 to Pred(Attribute.Count) do

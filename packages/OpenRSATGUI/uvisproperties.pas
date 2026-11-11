@@ -31,9 +31,12 @@ uses
   mormot.net.ldap,
   Controls,
   ucommon,
+  uopenrsatuicontextinterface,
   ucoredatamodule,
   upropertyframe,
-  uproperty;
+  uproperty,
+  ulog,
+  ursat;
 
 type
 
@@ -104,6 +107,8 @@ type
       ): Boolean;
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormShow(Sender: TObject);
+    procedure IniPropStorage1RestoreProperties(Sender: TObject);
+    procedure IniPropStorage1SaveProperties(Sender: TObject);
 
     procedure PageControlChange(Sender: TObject);
 
@@ -111,19 +116,24 @@ type
     procedure SetFocus; reintroduce;
   private
     fProperty: TProperty;
+    fIContext: IOpenRSATUIContext;
     fPropertyFrameList: Array of TPropertyFrame;
     fDistinguishedName: RawUtf8;
 
+    function DoBeforeApply: Boolean;
+    procedure DoAfterApply;
+    function GetLdapClient: TLdapClient;
     function LoadAttributes: Boolean;
     procedure OnSearchEventFillAttributes(Sender: TObject);
     procedure LoadView;
     procedure UpdateTabs;
     procedure NewTab(NewFrameClass: TPropertyFrameClass);
   public
-    constructor Create(TheOwner: TComponent; ADistinguishedName: RawUtf8); reintroduce;
+    constructor Create(Context: IOpenRSATUIContext; ADistinguishedName: RawUtf8); reintroduce;
     destructor Destroy(); override;
 
     property DistinguishedName: RawUtf8 read fDistinguishedName;
+    property LdapClient: TLdapClient read GetLdapClient;
   end;
 
 const
@@ -264,14 +274,12 @@ uses
   mormot.core.text,
   mormot.core.os,
   mormot.crypt.secure,
-  uOmniselect,
   uvispropertieslist,
   uvisadvancedsecurity,
   uvislogonhours,
   uvislogonworkstation,
   uvislistother,
   uvisattributeeditor,
-  ufrmrsat,
   ufrmpropertyattributes,
   ufrmpropertyunixattributes,
   ufrmpropertyaccount,
@@ -292,6 +300,7 @@ uses
   ufrmpropertygeneralntdsdsa,
   ufrmpropertygeneralintersitetransport,
   ufrmpropertygeneralserver,
+  ufrmpropertygeneralgpo,
   ufrmpropertylaps,
   ufrmpropertylocation,
   ufrmpropertymanagedby,
@@ -303,8 +312,10 @@ uses
   ufrmpropertypublishedcertificates,
   ufrmpropertyprofile,
   ufrmpropertyntauthcertificates,
+  ufrmpropertygplinks,
   ufrmpropertysecurity,
   ufrmpropertytelephone,
+  ufrmpropertypso,
   ursatldapclient,
   ursatldapclientui,
   uconfig,
@@ -312,28 +323,6 @@ uses
   udns;
 
 {$R *.lfm}
-
-resourcestring
-  rsPropertyTabGeneral = 'General';
-  rsPropertyTabAddress = 'Address';
-  rsPropertyTabAccount = 'Account';
-  rsPropertyTabProfile = 'Profile';
-  rsPropertyTabTelephone = 'Telephone';
-  rsPropertyTabOrganization = 'Organization';
-  rsPropertyTabPublishedCertificates = 'Published Certificates';
-  rsPropertyTabMemberOf = 'Member Of';
-  rsPropertyTabMember = 'Member';
-  rsPropertyTabManagedBy = 'Managed By';
-  rsPropertyTabOperatingSystem = 'Operating System';
-  rsPropertyTabLAPS = 'LAPS';
-  rsPropertyTabBitLocker = 'BitLocker';
-  rsPropertyTabLocation = 'Location';
-  rsPropertyTabObject = 'Object';
-  rsPropertyTabSecurity = 'Security';
-  rsPropertyTabAttributes = 'Attributes';
-  rsPropertyTabUnixAttributes = 'UNIX Attributes';
-  rsPropertyTabNTAuthCertificates = 'NTAuthCertificates';
-  rsPropertyTabConnections = 'Connections';
 
 const
   PROPERTY_USER: Array of TPropertyFrameClass = (
@@ -346,6 +335,7 @@ const
     TFrmPropertyPublishedCertificates,
     TFrmPropertyMemberOf,
     TFrmPropertyObject,
+    TFrmPropertyGPLinks,
     TFrmPropertySecurity,
     TFrmPropertyAttributes,
     TFrmPropertyUnixAttributes
@@ -357,6 +347,7 @@ const
     TFrmPropertyMemberOf,
     TFrmPropertyManagedBy,
     TFrmPropertyObject,
+    TFrmPropertyGPLinks,
     TFrmPropertySecurity,
     TFrmPropertyAttributes,
     TFrmPropertyUnixAttributes
@@ -371,6 +362,7 @@ const
     TFrmPropertyLocation,
     TFrmPropertyManagedBy,
     TFrmPropertyObject,
+    TFrmPropertyGPLinks,
     TFrmPropertySecurity,
     TFrmPropertyAttributes
   );
@@ -379,6 +371,7 @@ const
     TFrmPropertyGeneralOU,
     TFrmPropertyManagedBy,
     TFrmPropertyObject,
+    TFrmPropertyGPLinks,
     TFrmPropertySecurity,
     TFrmPropertyAttributes
   );
@@ -406,6 +399,7 @@ const
     TFrmPropertyGeneralSite,
     TFrmPropertyLocation,
     TFrmPropertyObject,
+    TFrmPropertyGPLinks,
     TFrmPropertySecurity,
     TFrmPropertyAttributes
   );
@@ -454,8 +448,10 @@ const
 
   PROPERTY_DOMAIN_DNS: Array of TPropertyFrameClass = (
     TFrmPropertyGeneralDefault,
+    TFrmPropertyManagedBy,
     TFrmPropertyObject,
     TFrmPropertyNTAuthCertificates,
+    TFrmPropertyGPLinks,
     TFrmPropertySecurity,
     TFrmPropertyAttributes
   );
@@ -471,6 +467,29 @@ const
     TFrmPropertyGeneralNTDSDSA,
     TFrmPropertyConnections,
     TFrmPropertyObject,
+    TFrmPropertySecurity,
+    TFrmPropertyAttributes
+  );
+
+  PROPERTY_GPO: Array of TPropertyFrameClass = (
+    TFrmPropertyGeneralGPO,
+    TFrmPropertyObject,
+    TFrmPropertySecurity,
+    TFrmPropertyAttributes
+  );
+
+  PROPERTY_CERTIFICATION_AUTHORITY: Array of TPropertyFrameClass = (
+    TFrmPropertyGeneralDefault,
+    TFrmPropertyPublishedCertificates,
+    TFrmPropertyObject,
+    TFrmPropertySecurity,
+    TFrmPropertyAttributes
+  );
+
+  PROPERTY_PSO: Array of TPropertyFrameClass = (
+    TFrmPropertyGeneralDefault,
+    TFrmPropertyObject,
+    TFrmPropertyPSO,
     TFrmPropertySecurity,
     TFrmPropertyAttributes
   );
@@ -562,52 +581,22 @@ const
 
 { TVisProperties }
 
-function TranslatePropertyTabCaption(const ACaption: String): String;
-begin
-  case ACaption of
-    'General': Result := rsPropertyTabGeneral;
-    'Address': Result := rsPropertyTabAddress;
-    'Account': Result := rsPropertyTabAccount;
-    'Profile': Result := rsPropertyTabProfile;
-    'Telephone': Result := rsPropertyTabTelephone;
-    'Organization': Result := rsPropertyTabOrganization;
-    'Published Certificates': Result := rsPropertyTabPublishedCertificates;
-    'Member Of': Result := rsPropertyTabMemberOf;
-    'Member': Result := rsPropertyTabMember;
-    'Managed By': Result := rsPropertyTabManagedBy;
-    'Operating System': Result := rsPropertyTabOperatingSystem;
-    'LAPS': Result := rsPropertyTabLAPS;
-    'BitLocker': Result := rsPropertyTabBitLocker;
-    'Location': Result := rsPropertyTabLocation;
-    'Object': Result := rsPropertyTabObject;
-    'Security': Result := rsPropertyTabSecurity;
-    'Attributes': Result := rsPropertyTabAttributes;
-    'UNIX Attributes': Result := rsPropertyTabUnixAttributes;
-    'NTAuthCertificates': Result := rsPropertyTabNTAuthCertificates;
-    'Connections': Result := rsPropertyTabConnections;
-    else Result := ACaption;
-  end;
-end;
-
-constructor TVisProperties.Create(TheOwner: TComponent;
+constructor TVisProperties.Create(Context: IOpenRSATUIContext;
   ADistinguishedName: RawUtf8);
 begin
-  Inherited Create(TheOwner);
+  Inherited Create(Context.ComponentOwner);
 
   fDistinguishedName := ADistinguishedName;
+  fIContext := Context;
 
-  if not Assigned(FrmRSAT) or
-     not Assigned(FrmRSAT.LdapClient) or
-     not FrmRSAT.LdapClient.Connected or
+  fProperty := TProperty.Create(Context.RSAT);
+  if not Assigned(LdapClient) or
+     not LdapClient.Connected or
      (fDistinguishedName = '') then
     Exit;
 
   IniPropStorage1.IniFileName := VisBakFilePath;
   UnifyButtonsWidth([Btn_BottomApply, Btn_BottomCancel, Btn_BottomOK]);
-  Width := 480;
-  Height := 504;
-
-  fProperty := TProperty.Create(FrmRSAT.RSAT);
 end;
 
 destructor TVisProperties.Destroy();
@@ -620,7 +609,7 @@ end;
 procedure TVisProperties.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
   CloseAction := caFree;
-  FrmRSAT.CloseProperty(Self);
+  fIContext.CloseProperty(Self.DistinguishedName);
 end;
 
 procedure TVisProperties.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -661,10 +650,32 @@ begin
   MakeFullyVisible;
 end;
 
+procedure TVisProperties.IniPropStorage1RestoreProperties(Sender: TObject);
+begin
+  IniPropStorage1.IniSection := Name;
+  Width := MulDiv(IniPropStorage1.ReadInteger(FormatUtf8('%_Width', [Name]), Width), PixelsPerInch, 96);
+  Top := MulDiv(IniPropStorage1.ReadInteger(FormatUtf8('%_Top', [Name]), Top), PixelsPerInch, 96);
+  Left := MulDiv(IniPropStorage1.ReadInteger(FormatUtf8('%_Left', [Name]), Left), PixelsPerInch, 96);
+  Height := MulDiv(IniPropStorage1.ReadInteger(FormatUtf8('%_Height', [Name]), Height), PixelsPerInch, 96);
+  IniPropStorage1.IniSection := '';
+end;
+
+procedure TVisProperties.IniPropStorage1SaveProperties(Sender: TObject);
+begin
+  IniPropStorage1.IniSection := Name;
+  IniPropStorage1.WriteInteger(FormatUtf8('%_Width', [Name]), MulDiv(Width, 96, PixelsPerInch));
+  IniPropStorage1.WriteInteger(FormatUtf8('%_Top', [Name]), MulDiv(Top, 96, PixelsPerInch));
+  IniPropStorage1.WriteInteger(FormatUtf8('%_Left', [Name]), MulDiv(Left, 96, PixelsPerInch));
+  IniPropStorage1.WriteInteger(FormatUtf8('%_Height', [Name]), MulDiv(Height, 96, PixelsPerInch));
+  IniPropStorage1.IniSection := '';
+end;
+
 procedure TVisProperties.Show;
 begin
   {$ifndef OPENRSATTESTS}
   inherited Show();
+  BringToFront;
+  SetFocus;
   {$endif}
 end;
 
@@ -673,6 +684,31 @@ begin
   {$ifndef OPENRSATTESTS}
   inherited SetFocus;
   {$endif}
+end;
+
+function TVisProperties.DoBeforeApply: Boolean;
+var
+  Cancel: Boolean;
+  i: Integer;
+begin
+  result := False;
+  Cancel := False;
+
+  for i := 0 to Length(fPropertyFrameList) - 1 do
+  begin
+    fPropertyFrameList[i].DoBeforeApply(Cancel);
+    if Cancel then
+      Exit;
+  end;
+  result := True;
+end;
+
+procedure TVisProperties.DoAfterApply;
+var
+  i: Integer;
+begin
+  for i := 0 to Length(fPropertyFrameList) - 1 do
+    fPropertyFrameList[i].DoAfterApply;
 end;
 
 function TVisProperties.LoadAttributes: Boolean;
@@ -696,16 +732,20 @@ begin
   result := True;
 end;
 
+function TVisProperties.GetLdapClient: TLdapClient;
+begin
+  result := fProperty.RSAT.LdapClient;
+end;
+
 procedure TVisProperties.OnSearchEventFillAttributes(Sender: TObject);
 var
-  LdapClient: TRsatLdapClient;
+  Ldap: TRsatLdapClient;
 begin
-  LdapClient := (Sender as TRsatLdapClient);
+  Ldap := (Sender as TRsatLdapClient);
 
   // Fill Attributes
-  if LdapClient.SearchResult.Count > 0 then
-    fProperty.Attributes := LdapClient.SearchResult.Items[0].Attributes;
-  fProperty.RSAT.LdapClient.OnSearch := nil;
+  if Ldap.SearchResult.Count > 0 then
+    fProperty.Attributes := Ldap.SearchResult.Items[0].Attributes;
 end;
 
 procedure TVisProperties.LoadView;
@@ -746,15 +786,12 @@ begin
   'mSMQEnterpriseSettings': property_tabs := PROPERTY_NO_GENERAL;
   'nTDSSiteSettings': property_tabs := PROPERTY_NTDS_SITE_SETTINGS;
   'nTDSDSA': property_tabs := PROPERTY_NTDSDSA;
-  'server':
-  begin
-    if not Assigned(fProperty.Attributes.Find('dNSHostName')) then
-      property_tabs := PROPERTY_NO_GENERAL
-    else
-      property_tabs := PROPERTY_SERVER;
-  end;
+  'server': property_tabs := PROPERTY_SERVER;
   'subnet': property_tabs := PROPERTY_SUBNET;
   'interSiteTransport': property_tabs := PROPERTY_INTER_SITE_TRANSPORT;
+  'groupPolicyContainer': property_tabs := PROPERTY_GPO;
+  'certificationAuthority': property_tabs := PROPERTY_CERTIFICATION_AUTHORITY;
+  'msDS-PasswordSettings': property_tabs := PROPERTY_PSO;
   end;
 
   for property_tab in property_tabs do
@@ -776,21 +813,24 @@ var
   Frame: TPropertyFrame;
 begin
   Tab := PageControl.AddTabSheet;
-  Frame := NewFrameClass.Create(Self);
+  Frame := NewFrameClass.Create(Self, fIContext);
   Frame.Parent := Tab;
   Frame.Align := alClient;
-  Tab.Caption := TranslatePropertyTabCaption(Frame.Caption);
+  Tab.Caption := Frame.Caption;
   Insert(Frame, fPropertyFrameList, High(fPropertyFrameList));
 end;
 
 procedure TVisProperties.PageControlChange(Sender: TObject);
 begin
-  TSynLog.Add.Log(sllDebug, FormatUtf8('TVisProperties: PageControlChange: %', [PageControl.ActivePage.Name]));
+  TOpenRSATLog.Add.Log(sllDebug, FormatUtf8('TVisProperties: PageControlChange: %', [PageControl.ActivePage.Name]));
 end;
 
 procedure TVisProperties.Action_ApplyExecute(Sender: TObject);
 begin
+  if not DoBeforeApply then
+    Exit;
   fProperty.ApplyModification;
+  DoAfterApply;
 end;
 
 procedure TVisProperties.Action_ApplyUpdate(Sender: TObject);

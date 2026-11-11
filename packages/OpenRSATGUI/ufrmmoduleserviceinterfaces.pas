@@ -15,7 +15,8 @@ uses
   ExtCtrls,
   ActnList,
   Menus,
-  tis.ui.grid.core, tis.ui.searchedit,
+  tis.ui.grid.core,
+  tis.ui.searchedit,
   mormot.core.log,
   mormot.core.base,
   mormot.net.ldap,
@@ -24,7 +25,11 @@ uses
   ufrmmodule,
   ufrmoption,
   umodule,
-  umoduleadsi;
+  uopenrsatuicontextinterface,
+  ursatldapclient,
+  umoduleadsi,
+  ursat,
+  ulog;
 
 type
 
@@ -112,12 +117,13 @@ type
       var AllowExpansion: Boolean);
     procedure TreeView1GetImageIndex(Sender: TObject; Node: TTreeNode);
   private
-    fLog: TSynLog;
-
+    fLog: TSynLogClass;
+    fIContext: IOpenRSATUIContext;
     fModule: TModuleADSI;
 
     fSearchWord: RawUtf8;
 
+    function GetLdapClient: TRsatLdapClient;
     procedure RefreshNode(Node: TADSITreeNode);
     procedure UpdateGrid(Node: TADSITreeNode);
     procedure UpdateGridAttribute(Node: TADSITreeNode); overload;
@@ -126,8 +132,10 @@ type
     procedure LdapConnectEvent(Sender: TObject);
     procedure LdapCloseEvent(Sender: TObject);
   public
-    constructor Create(TheOwner: TComponent); override;
+    constructor Create(Context: IOpenRSATUIContext);
     destructor Destroy; override;
+
+    property LdapClient: TRsatLdapClient read GetLdapClient;
   protected
     function GetModule: TModule; override;
     function GetFrmOptionClass: TFrameOptionClass; override;
@@ -145,8 +153,7 @@ uses
   ucommonui,
   utheme,
   ursatldapclientui,
-  uvisnewobject,
-  ufrmrsat;
+  uvisnewobject;
 
 {$R *.lfm}
 
@@ -192,9 +199,9 @@ begin
   TreeView1.BeginUpdate;
   try
     RootNode := (TreeView1.Items.Add(nil, 'RootDSE') as TADSITreeNode);
-    for Context in FrmRSAT.LdapClient.NamingContexts do
+    for Context in LdapClient.NamingContexts do
     begin
-      SearchResult := FrmRSAT.LdapClient.SearchObject(Context, '', ['description', 'distinguishedName', 'name', 'objectClass']);
+      SearchResult := LdapClient.SearchObject(Context, '', ['description', 'distinguishedName', 'name', 'objectClass']);
       if not Assigned(SearchResult) then
         continue;
       NodeName := DNToCN(SearchResult.ObjectName);
@@ -212,7 +219,7 @@ end;
 procedure TFrmModuleADSI.Timer_TreeChangeNodeTimer(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Timer Tree Change', Self);
+    fLog.Add.Log(sllTrace, 'Timer Tree Change', Self);
 
   Timer_TreeChangeNode.Enabled := False;
 
@@ -233,27 +240,25 @@ begin
   if TisGrid1.SelectedCount = 1 then
   begin
     NodeData := TisGrid1.GetNodeAsPDocVariantData(TisGrid1.GetFirstSelected());
-    FrmRSAT.OpenProperty(NodeData^.S['distinguishedName'], NodeData^.S['name']);
+    fIContext.OpenProperty(NodeData^.S['distinguishedName']);
   end
   else if Assigned(TreeView1.Selected) then
   begin
-    FrmRSAT.OpenProperty((TreeView1.Selected as TADSITreeNode).DistinguishedName, TreeView1.Selected.Text);
+    fIContext.OpenProperty((TreeView1.Selected as TADSITreeNode).DistinguishedName);
   end;
 end;
 
 procedure TFrmModuleADSI.Action_PropertyUpdate(Sender: TObject);
 begin
-  Action_Property.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and (TisGrid1.SelectedCount > 0);
+  Action_Property.Enabled := Assigned(LdapClient) and LdapClient.Connected and (TisGrid1.SelectedCount > 0);
 end;
 
 procedure TFrmModuleADSI.Action_NewObjectExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotNone, FrmRSAT.LdapClient.DefaultDN, FrmRSAT.LdapClient.DefaultDN);
-
+  vis := TVisNewObject.Create(Self, vnotNone, LdapClient.DefaultDN, LdapClient.DefaultDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
   finally
     FreeAndNil(vis);
@@ -282,14 +287,14 @@ begin
     if not SelectedObject^.Exists('distinguishedName') then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllWarning, 'No distinguishedName');
+        fLog.Add.Log(sllWarning, 'No distinguishedName');
       continue;
     end;
 
-    if not FrmRSAT.LdapClient.Delete(SelectedObject^.S['distinguishedName']) then
+    if not LdapClient.Delete(SelectedObject^.S['distinguishedName']) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllError, FrmRSAT.LdapClient.ResultString);
+        fLog.Add.Log(sllError, LdapClient.ResultString);
       continue;
     end;
   end;
@@ -298,7 +303,7 @@ end;
 
 procedure TFrmModuleADSI.Action_DeleteObjectUpdate(Sender: TObject);
 begin
-  Action_DeleteObject.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and (TisGrid1.SelectedCount > 0);
+  Action_DeleteObject.Enabled := Assigned(LdapClient) and LdapClient.Connected and (TisGrid1.SelectedCount > 0);
 end;
 
 procedure TFrmModuleADSI.TisGrid1Change(Sender: TBaseVirtualTree;
@@ -336,7 +341,7 @@ begin
   end
   else
   begin
-    FrmRSAT.OpenProperty(NodeData^.S['distinguishedName'], NodeData^.S['name']);
+    fIContext.OpenProperty(NodeData^.S['distinguishedName']);
   end;
 end;
 
@@ -460,7 +465,7 @@ end;
 procedure TFrmModuleADSI.TreeView1Change(Sender: TObject; Node: TTreeNode);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Tree Change', Self);
+    fLog.Add.Log(sllTrace, 'Tree Change', Self);
 
   if Timer_TreeChangeNode.Enabled then
     Timer_TreeChangeNode.Enabled := False;
@@ -511,19 +516,19 @@ begin
 
   NodeCache.Init();
   TreeView1.Items.BeginUpdate;
-  FrmRSAT.LdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
-    FrmRSAT.LdapClient.SearchScope := lssSingleLevel;
+    LdapClient.SearchScope := lssSingleLevel;
 
     repeat
-      if not FrmRSAT.LdapClient.Search(Node.DistinguishedName, False, '', ['description', 'distinguishedName', 'name', 'objectClass']) then
+      if not LdapClient.Search(Node.DistinguishedName, False, '', ['description', 'distinguishedName', 'name', 'objectClass']) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllError, '% - Ldap Search Error: "%"', [Self.Name, FrmRSAT.LdapClient.ResultString]);
+          fLog.Add.Log(sllError, '% - Ldap Search Error: "%"', [Self.Name, LdapClient.ResultString]);
         Exit;
       end;
 
-      for SearchResult in FrmRSAT.LdapClient.SearchResult.Items do
+      for SearchResult in LdapClient.SearchResult.Items do
       begin
         if not Assigned(SearchResult) then
           continue;
@@ -547,7 +552,7 @@ begin
         NodeCache.B[NodeName] := True;
         ChildNode.fAttributes := TLdapAttributeList(SearchResult.Attributes.Clone);
       end;
-    until FrmRSAT.LdapClient.SearchCookie = '';
+    until LdapClient.SearchCookie = '';
 
     Count := Node.Count;
     for i := 0 to Node.Count - 1 do
@@ -558,10 +563,15 @@ begin
     Node.AlphaSort;
     Node.HasChildren := Node.Count > 0;
   finally
-    FrmRSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
     TreeView1.Items.EndUpdate;
     Screen.Cursor := c;
   end;
+end;
+
+function TFrmModuleADSI.GetLdapClient: TRsatLdapClient;
+begin
+  result := fModule.RSAT.LdapClient;
 end;
 
 procedure TFrmModuleADSI.UpdateGrid(Node: TADSITreeNode);
@@ -581,21 +591,21 @@ begin
 
   TisGrid1.Clear;
   TisGrid1.BeginUpdate;
-  FrmRSAT.LdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
     if (Node.DistinguishedName = '') then
       Exit;
-    FrmRSAT.LdapClient.SearchScope := lssSingleLevel;
+    LdapClient.SearchScope := lssSingleLevel;
 
     repeat
-      if not FrmRSAT.LdapClient.Search(Node.DistinguishedName, False, '', ['description', 'distinguishedName', 'name', 'objectClass']) then
+      if not LdapClient.Search(Node.DistinguishedName, False, '', ['description', 'distinguishedName', 'name', 'objectClass']) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllError, '% - Ldap Search Error: "%"', [Self.Name, FrmRSAT.LdapClient.ResultString]);
+          fLog.Add.Log(sllError, '% - Ldap Search Error: "%"', [Self.Name, LdapClient.ResultString]);
         Exit;
       end;
 
-      for SearchResult in FrmRSAT.LdapClient.SearchResult.Items do
+      for SearchResult in LdapClient.SearchResult.Items do
       begin
         if not Assigned(SearchResult) then
           continue;
@@ -622,9 +632,9 @@ begin
         TisGrid1.Data.AddItem(data);
         data.Clear;
       end;
-    until FrmRSAT.LdapClient.SearchCookie = '';
+    until LdapClient.SearchCookie = '';
   finally
-    FrmRSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
     TisGrid1.EndUpdate;
     TisGrid1.LoadData();
     TisGrid1.ClearSelection;
@@ -655,11 +665,11 @@ begin
   TisGrid2.Clear;
   TisGrid2.BeginUpdate;
   try
-    Attributes := FrmRSAT.LdapClient.SearchObject(DistinguishedName, '', ['*']);
+    Attributes := LdapClient.SearchObject(DistinguishedName, '', ['*']);
     if not Assigned(Attributes) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllError, '% - Ldap Search Object Error: "%"', [Self.Name, FrmRSAT.LdapClient.ResultString]);
+        fLog.Add.Log(sllError, '% - Ldap Search Object Error: "%"', [Self.Name, LdapClient.ResultString]);
       Exit;
     end;
 
@@ -693,21 +703,23 @@ begin
   TisGrid1.Clear;
 end;
 
-constructor TFrmModuleADSI.Create(TheOwner: TComponent);
+constructor TFrmModuleADSI.Create(Context: IOpenRSATUIContext);
 begin
-  Inherited Create(TheOwner);
+  Inherited Create(Context.ComponentOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TADSILog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Create', [Self.Name]);
+    fLog.Add.Log(sllTrace, '% - Create', [Self.Name]);
 
-  fModule := TModuleADSI.Create(FrmRSAT.RSAT);
+  fIContext := Context;
 
-  fLog.Log(sllTrace, 'Created');
+  fModule := TModuleADSI.Create(Context.RSAT);
+
+  fLog.Add.Log(sllTrace, 'Created');
   Image1.Visible := not IsDarkMode;
-  fLog.Log(sllTrace, 'visible1');
+  fLog.Add.Log(sllTrace, 'visible1');
   Image2.Visible := not Image1.Visible;
-  fLog.Log(sllTrace, 'visible2');
+  fLog.Add.Log(sllTrace, 'visible2');
 end;
 
 destructor TFrmModuleADSI.Destroy;

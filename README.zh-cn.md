@@ -2,7 +2,7 @@
 
 OpenRSAT 是一个使用 Object Pascal/Lazarus 编写的 Active Directory 管理工具，界面和使用方式接近 Microsoft RSAT。它可在 Windows、Linux 和 macOS 上运行，用于管理用户、计算机、组、OU、DNS、站点和服务等 AD 对象。
 
-本仓库维护 OpenRSAT 的简体中文本地化、Windows 构建和 macOS arm64 构建。英文原文文档保留在 [README.en.md](./README.en.md)，构建步骤见 [build.zh-cn.md](./build.zh-cn.md)。
+本仓库基于上游 OpenRSAT 0.4.594，保留最新功能，并维护额外的简体中文选项、批量操作、Windows 构建和 macOS arm64 构建。上游功能介绍见 [README.md](./README.md)，构建步骤见 [build.zh-cn.md](./build.zh-cn.md)。
 
 ## 下载
 
@@ -11,13 +11,17 @@ OpenRSAT 是一个使用 Object Pascal/Lazarus 编写的 Active Directory 管理
 - `OpenRSAT-win64.zip`：Windows 64 位版本，包含 `OpenRSAT.exe`。
 - `OpenRSAT-macos-arm64.zip`：Apple Silicon / macOS arm64 版本，包含 `OpenRSAT.app` 和 `fix-and-open.command`。
 
-Windows 版本解压后直接运行 `OpenRSAT.exe`。如果重新覆盖旧版本，请先关闭正在运行的 OpenRSAT，否则 Windows 可能会拒绝写入 exe。
+下载时请核对 Release 的版本说明。仓库内现有的 `dist/OpenRSAT-macos-arm64.zip` 是历史构建，未包含本次上游 0.4.594 合并和增强；本次尚未重新构建或验证 macOS 包。
+
+Windows 版本解压后保留同级 `locale` 目录，直接运行 `OpenRSAT.exe`。如果重新覆盖旧版本，请先关闭正在运行的 OpenRSAT，否则 Windows 可能会拒绝写入 exe。
 
 macOS 版本首次运行时请保持 `OpenRSAT.app` 和 `fix-and-open.command` 在同一目录。如果系统提示无法验证应用，可以运行 `fix-and-open.command`，脚本会移除隔离属性、执行本机 ad-hoc 签名并打开应用。更详细说明见 [macos-signing.zh-cn.md](./macos-signing.zh-cn.md)。
 
 ## 当前中文增强
 
+- 使用上游的语言切换和外置 PO 目录机制，新增可见的“简体中文”选项；英语、法语、希腊语和波兰语选项保留，默认跟随系统语言。
 - 增加并修正简体中文界面文本，覆盖主菜单、右键菜单、对象属性页、搜索页、BitLocker、LAPS 等常用入口。
+- 补充上游新增的精细密码策略、GPO 属性及链接、站点复制计划、全局编录、对象选择器和新版 LAPS 界面翻译。
 - 列表中的常见对象类型和默认描述会显示为中文，例如“计算机”“组织单位”“容器”等。
 - 增加“查找 BitLocker 恢复密码”入口，可按恢复密钥 ID 前 8 位搜索。
 - 多域控制器计算机删除可在选项中启用，并指定域控制器范围；执行前展示对象和控制器列表，执行后逐项报告结果。
@@ -61,13 +65,13 @@ macOS 版本首次运行时请保持 `OpenRSAT.app` 和 `fix-and-open.command` �
 
 ## 中文界面
 
-未指定语言时默认使用简体中文。已有配置若使用英文，在“文件 → 选项”的全局设置中将语言设为 `zh`，保存并按提示重启。中文 OU、对象名称和属性值保留原始内容，界面翻译不会重命名目录对象。
+默认采用上游的系统语言行为，不强制中文。在“文件 → 选项 → 全局”（英文界面为 File → Options → Global）中将语言设为“简体中文”，保存并按提示重启。英语 `en`、法语 `fr`、希腊语 `el` 和波兰语 `pl` 仍可选择；空选项表示系统默认。旧配置中的 `zh`、`zh_CN` 和 `zh-CN` 均可加载简体中文。中文 OU、对象名称和属性值保留原始内容，界面翻译不会重命名目录对象。
 
-开发时修改 `packages/OpenRSATGUI/languages/OpenRSATGUI.zh.po` 后，还需同步 `languages/Translation.zh.po` 并重新构建。后者作为 `TRANSLATION.ZH` 资源嵌入程序，旧安装包不会自动获得源码中的新翻译或功能。
+翻译统一维护在 `languages/OpenRSAT.zh.po`，与上游 `OpenRSAT.en.po` 等目录并列。Windows 发布包将这些 PO 文件放在 `OpenRSAT.exe` 同级的 `locale` 目录；macOS 放在 `OpenRSAT.app/Contents/Resources/locale`；Linux 安装到 `/usr/share/openrsat/locale`。修改 PO 后同步发布包中的对应文件并重新启动程序即可，不再使用内嵌 `Translation.zh.po` 资源。模板更新使用上游 `update_language.py`。
 
 ## 验证范围
 
-2026-11-11 在 Windows 64 位、FPC 3.2.2 下完成 61 项离线断言：DN 处理 23 项、选项持久化 8 项、域控范围与计算机身份检查 30 项，全部通过。复现命令见 [测试说明](./tests/README.md)。这些测试不连接 AD，也不代表已验证实际删除或复制行为。
+合并上游 0.4.594 后，2026-11-11 在 Windows 64 位、FPC 3.2.2 下完成 91 项离线断言：DN 与批量顺序处理 32 项、ADUC 选项持久化 8 项、域控范围与计算机身份检查 30 项、上游双列表选择逻辑 13 项、系统默认与中文等语言保存/重载 8 项，全部通过。复现命令见 [测试说明](./tests/README.md)。这些测试不连接 AD，也不代表已验证实际删除或复制行为。
 
 真实目录中的权限、删除保护、中文 DN、复制延迟和不可达域控制器行为，需要在隔离的 AD 测试域中验收。测试时先使用专用 OU 和临时计算机对象；离线测试不能替代实际域环境验证。
 
@@ -83,6 +87,8 @@ Windows win64 构建：
 
 ```powershell
 C:\lazarus\lazbuild.exe sources\OpenRSAT.lpi --bm=win64
+New-Item -ItemType Directory -Force bin\win64\locale | Out-Null
+Copy-Item languages\OpenRSAT.*.po bin\win64\locale\
 ```
 
 输出位置：
@@ -91,7 +97,7 @@ C:\lazarus\lazbuild.exe sources\OpenRSAT.lpi --bm=win64
 bin/win64/OpenRSAT.exe
 ```
 
-macOS arm64 构建输出通常为：
+重新编译并按构建文档打包后，macOS arm64 包输出为（仓库已有同名文件仍为历史版本）：
 
 ```text
 dist/OpenRSAT-macos-arm64.zip

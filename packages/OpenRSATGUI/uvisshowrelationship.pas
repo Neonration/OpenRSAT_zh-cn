@@ -25,7 +25,10 @@ uses
   mormot.core.log,
   mormot.core.variants,
   mormot.net.ldap,
-  ursatldapclient, VirtualTrees;
+  ursatldapclient,
+  VirtualTrees,
+  uopenrsatuicontextinterface,
+  ulog;
 
 type
 
@@ -37,7 +40,7 @@ type
 
   TRelationStorage = class
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fCount: Integer;
     fCapacity: Integer;
 
@@ -157,11 +160,11 @@ type
     procedure TisSearchEdit1Search(Sender: TObject; const aText: string);
     procedure TisSearchEdit2Search(Sender: TObject; const aText: string);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fMoving: Boolean;
     fOriginX, fOriginY: Integer;
 
-    fLdapClient: TRsatLdapClient;
+    fIContext: IOpenRSATUIContext;
 
     fNodesFound: Array of TLvlGraphNode;
     fNodesFoundIdx: Integer;
@@ -181,7 +184,7 @@ type
     procedure SaveToPNG(FileName: RawUtf8);
     procedure SaveToDOT(FileName: RawUtf8);
   public
-    constructor Create(TheOwner: TComponent; ALdapClient: TRsatLdapClient; ADistinguishedName: RawUtf8); reintroduce;
+    constructor Create(Context: IOpenRSATUIContext; ADistinguishedName: RawUtf8); reintroduce;
     destructor Destroy; override;
     procedure ClearView();
     procedure CreateView(ADistinguishedName: RawUtf8);
@@ -192,7 +195,6 @@ uses
   FPWritePNG,
   mormot.core.text,
   uhelpers,
-  ufrmrsat,
   utheme,
   ucoredatamodule;
 
@@ -322,15 +324,15 @@ begin
     AddMembers(ID, Item.Find('member').GetAllReadable);
     AddObjectClass(ID, Item.Find('objectClass').GetAllReadable);
   end;
-  TSynLog.Add.Log(sllInfo, 'Time spent: %', [FormatDateTime('hh:nn:ss zzz', Now - Start)]);
+  TOpenRSATLog.Add.Log(sllInfo, 'Time spent: %', [FormatDateTime('hh:nn:ss zzz', Now - Start)]);
 end;
 
 constructor TRelationStorage.Create;
 begin
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
 
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Clear;
   fDocVariantData.Init();
@@ -471,21 +473,21 @@ function TRelationStorage.ValidIndex(AID: StorageID): Boolean;
 begin
   result := (AID >= 0) and (AID < fCount);
   if Assigned(fLog) and not result then
-    fLog.Log(sllTrace, 'Invalid index (%)', [AID], Self);
+    fLog.Add.Log(sllTrace, 'Invalid index (%)', [AID], Self);
 end;
 
 function TRelationStorage.EmptyArray(AArray: TRawUtf8DynArray): Boolean;
 begin
   result := not Assigned(AArray);
   if Assigned(fLog) and result then
-    fLog.Log(sllTrace, 'No members', Self);
+    fLog.Add.Log(sllTrace, 'No members', Self);
 end;
 
 function TRelationStorage.EmptyRawUtf8(ARawUtf8: RawUtf8): Boolean;
 begin
   result := (ARawUtf8 = '');
   if Assigned(fLog) and result then
-    fLog.Log(sllTrace, 'Empty rawUtf8');
+    fLog.Add.Log(sllTrace, 'Empty rawUtf8');
 end;
 
 procedure TRelationStorage.IncreaseCapacity(ACount: Integer);
@@ -644,7 +646,7 @@ begin
   idx := fStorage.GetByName(LvlGraphControl.SelectedNode.Caption);
   if idx < 0 then
     Exit;
-  FrmRSAT.OpenProperty(fStorage.fDistinguishedNames[idx], fStorage.fNames[idx]);
+  fIContext.OpenProperty(fStorage.fDistinguishedNames[idx]);
 end;
 
 procedure TVisShowRelationship.Action_PropertyUpdate(Sender: TObject);
@@ -730,17 +732,19 @@ end;
 procedure TVisShowRelationship.SynchronizeFullAD;
 var
   Data: PDocVariantData;
+  LdapClient: TRsatLdapClient;
 begin
-  fLdapClient.SearchBegin();
+  LdapClient := fIContext.RSAT.LdapClient;
+  LdapClient.SearchBegin();
   try
-    fLdapClient.SearchScope := lssWholeSubtree;
+    LdapClient.SearchScope := lssWholeSubtree;
     repeat
-      if not fLdapClient.Search(fLdapClient.DefaultDN(), False, '(|(objectClass=group)(objectClass=user))', ['name', 'member', 'objectClass']) then
+      if not LdapClient.Search(LdapClient.DefaultDN(), False, '(|(objectClass=group)(objectClass=user))', ['name', 'member', 'objectClass']) then
         Exit;
-      fStorage.FillFromResultList(fLdapClient.SearchResult);
-    until fLdapClient.SearchCookie = '';
+      fStorage.FillFromResultList(LdapClient.SearchResult);
+    until LdapClient.SearchCookie = '';
   finally
-    fLdapClient.SearchEnd;
+    LdapClient.SearchEnd;
     Data := fStorage.AsDocVariantData;
     TisGrid_GroupData.LoadData(Data);
   end;
@@ -749,47 +753,48 @@ end;
 procedure TVisShowRelationship.SynchronizeGroup(ADistinguishedName: RawUtf8);
 var
   Filter: RawUtf8;
+  LdapClient: TRsatLdapClient;
 begin
-
-  fLdapClient.SearchObject(ADistinguishedName, '', ['name', 'member', 'objectClass']);
-  fStorage.FillFromResultList(fLdapClient.SearchResult);
+  LdapClient := fIContext.RSAT.LdapClient;
+  LdapClient.SearchObject(ADistinguishedName, '', ['name', 'member', 'objectClass']);
+  fStorage.FillFromResultList(LdapClient.SearchResult);
 
   Filter := FormatUtf8('member:1.2.840.113556.1.4.1941:=%', [LdapEscape(ADistinguishedName)]);
 
-  fLdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
-    fLdapClient.SearchScope := lssWholeSubtree;
+    LdapClient.SearchScope := lssWholeSubtree;
     repeat
-      fLdapClient.SearchRangeBegin;
+      LdapClient.SearchRangeBegin;
       try
-        if not fLdapClient.Search(fLdapClient.DefaultDN(), False, Filter, ['name', 'member', 'objectClass']) then
+        if not LdapClient.Search(LdapClient.DefaultDN(), False, Filter, ['name', 'member', 'objectClass']) then
           Exit;
       finally
-        fLdapClient.SearchRangeEnd;
+        LdapClient.SearchRangeEnd;
       end;
-      fStorage.FillFromResultList(fLdapClient.SearchResult);
-    until fLdapClient.SearchCookie = '';
+      fStorage.FillFromResultList(LdapClient.SearchResult);
+    until LdapClient.SearchCookie = '';
   finally
-    fLdapClient.SearchEnd;
+    LdapClient.SearchEnd;
   end;
 
   Filter := FormatUtf8('memberOf:1.2.840.113556.1.4.1941:=%', [LdapEscape(ADistinguishedName)]);
 
-  fLdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
-    fLdapClient.SearchScope := lssWholeSubtree;
+    LdapClient.SearchScope := lssWholeSubtree;
     repeat
-      fLdapClient.SearchRangeBegin;
+      LdapClient.SearchRangeBegin;
       try
-        if not fLdapClient.Search(fLdapClient.DefaultDN(), False, Filter, ['name', 'member', 'objectClass']) then
+        if not LdapClient.Search(LdapClient.DefaultDN(), False, Filter, ['name', 'member', 'objectClass']) then
           Exit;
       finally
-        fLdapClient.SearchRangeEnd;
+        LdapClient.SearchRangeEnd;
       end;
-      fStorage.FillFromResultList(fLdapClient.SearchResult);
-    until fLdapClient.SearchCookie = '';
+      fStorage.FillFromResultList(LdapClient.SearchResult);
+    until LdapClient.SearchCookie = '';
   finally
-    fLdapClient.SearchEnd;
+    LdapClient.SearchEnd;
   end;
   TisGrid_GroupData.LoadData(fStorage.AsDocVariantData);
 end;
@@ -901,7 +906,7 @@ var
     end;
   end;
 begin
-  aLog := TSynLog.Enter('Start refresh', []);
+  aLog := TOpenRSATLog.Enter('Start refresh', []);
   LvlGraphControl.Clear;
 
   ID := fStorage.Get(ADistinguishedName);
@@ -1089,16 +1094,16 @@ begin
   end;
 end;
 
-constructor TVisShowRelationship.Create(TheOwner: TComponent;
-  ALdapClient: TRsatLdapClient; ADistinguishedName: RawUtf8);
+constructor TVisShowRelationship.Create(Context: IOpenRSATUIContext;
+  ADistinguishedName: RawUtf8);
 begin
-  inherited Create(TheOwner);
+  inherited Create(Context.ComponentOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
-  fLdapClient := ALdapClient;
+  fIContext := Context;
   Edit1.Text := ADistinguishedName;
   fStorage := TRelationStorage.Create;
   fMoving := False;

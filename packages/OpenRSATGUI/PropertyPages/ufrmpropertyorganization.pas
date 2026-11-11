@@ -10,12 +10,17 @@ uses
   Forms,
   Controls,
   StdCtrls,
-  Buttons, ExtCtrls, ActnList,
+  Buttons,
+  ExtCtrls,
+  ActnList,
   mormot.core.base,
   mormot.core.log,
   uproperty,
   tis.ui.grid.core,
-  upropertyframe;
+  uopenrsatuicontextinterface,
+  upropertyframe,
+  uvisobjectsselector,
+  ulog;
 
 type
 
@@ -51,7 +56,7 @@ type
     procedure Edit_DepartmentChange(Sender: TObject);
     procedure Edit_TitleChange(Sender: TObject);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fProperty: TProperty;
   public
     constructor Create(TheOwner: TComponent); override;
@@ -66,9 +71,7 @@ uses
   mormot.net.ldap,
   ucommon,
   ucommonui,
-  uhelpersui,
-  uOmniselect,
-  ufrmrsat;
+  uhelpersui;
 
 {$R *.lfm}
 
@@ -91,26 +94,25 @@ end;
 
 procedure TFrmPropertyOrganization.Action_ChangeExecute(Sender: TObject);
 var
-  Filter: RawUtf8;
-  Omniselect: TVisOmniselect;
-  DNarr: TRawUtf8DynArray;
+  SelectedObjects: TRawUtf8DynArray;
+  Vis: TVisObjectsSelector;
 begin
-  // Set Filter
-  Filter := FormatUtf8('(!(distinguishedName=%))', [LdapEscape(fProperty.DistinguishedName)]); // Dont allow self
-
-  // Omniselect
-  Omniselect := TVisOmniselect.Create(self, fProperty.LdapClient, ['user'], fProperty.LdapClient.DefaultDN, False, Filter);
+  Vis := TVisObjectsSelector.Create(Self);
   try
-    Omniselect.Caption := rsTitleSelectNewManager;
-    if Omniselect.ShowModal() <> mrOK then
+    Vis.LdapClient := fProperty.LdapClient;
+    Vis.AllowedObjectTypes := [otfUser];
+    Vis.SelectedObjectTypes := [otfUser];
+    Vis.AllowMultiSelect := False;
+    Vis.ExcludedObjects := [fProperty.distinguishedName]; // Dont allow self
+    if (Vis.ShowModal <> mrOK) then
       Exit;
-    DNarr := Omniselect.SelectedObjects;
-    if Length(DNarr) <> 1 then
-      Exit;
-    fProperty.Add('manager', DNarr[0]);
+    SelectedObjects := Vis.SelectedObjects;
   finally
-    FreeAndNil(Omniselect);
+    FreeAndNil(Vis);
   end;
+  if Length(SelectedObjects) <> 1 then
+    Exit;
+  fProperty.Add('manager', SelectedObjects[0]);
   Update(fProperty);
 end;
 
@@ -127,7 +129,7 @@ end;
 
 procedure TFrmPropertyOrganization.Action_PropertiesExecute(Sender: TObject);
 begin
-  FrmRSAT.OpenProperty(fProperty.GetReadable('manager'));
+  fIContext.OpenProperty(fProperty.GetReadable('manager'));
 end;
 
 procedure TFrmPropertyOrganization.Action_PropertiesUpdate(Sender: TObject);
@@ -139,9 +141,9 @@ constructor TFrmPropertyOrganization.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Caption := 'Organization';
 
@@ -154,7 +156,7 @@ var
   DirectReport: RawUtf8;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Update', Self);
+    fLog.Add.Log(sllTrace, 'Update', Self);
 
   fProperty := Props;
 

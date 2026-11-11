@@ -17,7 +17,8 @@ uses
   mormot.core.log,
   umoduleaducoption,
   uoption,
-  ufrmoption;
+  ufrmoption,
+  ulog;
 
 type
 
@@ -27,7 +28,6 @@ type
     CheckBox_EnableMultiDCDelete: TCheckBox;
     CheckBox_ShowGPO: TCheckBox;
     CheckListBox2: TCheckListBox;
-    Edit_SearchPageNumber: TEdit;
     Edit_SearchPageSize: TEdit;
     Label1: TLabel;
     Label2: TLabel;
@@ -35,7 +35,6 @@ type
     Label4: TLabel;
     Label_ShowGPO: TLabel;
     Label_Filter: TLabel;
-    Label_SearchPageNumber: TLabel;
     Label_SearchPageSize: TLabel;
     Label_DeleteDomainControllers: TLabel;
     Label_MultiDCDeleteWarning: TLabel;
@@ -55,19 +54,17 @@ type
     procedure MultiDCDeleteChange(Sender: TObject);
   private
     fSection: String;
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fChanged: Boolean;
 
     fADUCOption: TModuleADUCOption;
 
     function GetGridFilter: RawUtf8;
-    function GetSearchPageNumber: Integer;
     function GetSearchPageSize: Integer;
     function GetShowGPO: Boolean;
     function GetTreeFilter: RawUtf8;
     function GetTreeObjectClasses: TRawUtf8DynArray;
     procedure SetGridFilter(AValue: RawUtf8);
-    procedure SetSearchPageNumber(AValue: Integer);
     procedure SetSearchPageSize(AValue: Integer);
     procedure SetShowGPO(AValue: Boolean);
     procedure SetTreeFilter(AValue: RawUtf8);
@@ -83,7 +80,6 @@ type
     procedure Save; override;
 
     property SearchPageSize: Integer read GetSearchPageSize write SetSearchPageSize;
-    property SearchPageNumber: Integer read GetSearchPageNumber write SetSearchPageNumber;
     property GridFilter: RawUtf8 read GetGridFilter write SetGridFilter;
     property TreeFilter: RawUtf8 read GetTreeFilter write SetTreeFilter;
     property TreeObjectClasses: TRawUtf8DynArray read GetTreeObjectClasses write SetTreeObjectClasses;
@@ -148,11 +144,6 @@ begin
   result := Memo_Filter.Text;
 end;
 
-function TFrmModuleADUCOption.GetSearchPageNumber: Integer;
-begin
-  TryStrToInt(Edit_SearchPageNumber.Text, result);
-end;
-
 function TFrmModuleADUCOption.GetSearchPageSize: Integer;
 begin
   TryStrToInt(Edit_SearchPageSize.Text, result);
@@ -176,11 +167,6 @@ begin
   for i := 0 to CheckListBox2.Count - 1 do
     if CheckListBox2.Checked[i] then
       Insert(CheckListBox2.Items[i], result, 0);
-end;
-
-procedure TFrmModuleADUCOption.SetSearchPageNumber(AValue: Integer);
-begin
-  Edit_SearchPageNumber.Text := IntToStr(AValue);
 end;
 
 procedure TFrmModuleADUCOption.SetSearchPageSize(AValue: Integer);
@@ -226,12 +212,12 @@ constructor TFrmModuleADUCOption.Create(TheOwner: TComponent; Option: TOption);
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TADUCLog;
 
   fADUCOption := (Option as TModuleADUCOption);
 
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   fSection := 'ADUC';
   fChanged := False;
@@ -247,12 +233,12 @@ var
   IniFile: TIniFile;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Load', Self);
+    fLog.Add.Log(sllTrace, 'Load', Self);
 
   if not Assigned(Self) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Could not be loaded: Self or Options not assigned.', Self);
+      fLog.Add.Log(sllWarning, 'Could not be loaded: Self or Options not assigned.', Self);
     Exit;
   end;
 
@@ -264,7 +250,6 @@ begin
   end;
 
   SearchPageSize := ADUCOption.SearchPageSize;
-  SearchPageNumber := ADUCOption.SearchPageNumber;
   GridFilter := ADUCOption.GridFilter;
   TreeFilter := ADUCOption.TreeFilter;
   TreeObjectClasses := ADUCOption.TreeObjectClasses;
@@ -282,17 +267,16 @@ var
   IniFile: TIniFile;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Save', Self);
+    fLog.Add.Log(sllTrace, 'Save', Self);
 
   if not Assigned(Self) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Could not be saved: Self or Options not assigned.', Self);
+      fLog.Add.Log(sllWarning, 'Could not be saved: Self or Options not assigned.', Self);
     Exit;
   end;
 
   ADUCOption.SearchPageSize := SearchPageSize;
-  ADUCOption.SearchPageNumber := SearchPageNumber;
   ADUCOption.GridFilter := GridFilter;
   ADUCOption.TreeFilter := TreeFilter;
   ADUCOption.TreeObjectClasses := TreeObjectClasses;

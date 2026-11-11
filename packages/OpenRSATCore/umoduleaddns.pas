@@ -1,6 +1,7 @@
 unit umoduleaddns;
 
 {$mode objfpc}{$H+}
+{$WARN 6058 OFF}
 
 interface
 
@@ -20,37 +21,40 @@ type
 
   TZoneDnsStorage = class;
 
-  TThreadUpdateZoneFinished = procedure() of object;
-  TThreadUpdateZoneStatus = procedure(const status: string) of object;
+  TThreadRefreshDNSZoneEvent = procedure(const ZoneStorage: TZoneDnsStorage) of object;
 
-  { TThreadUpdateZone }
+  { TThreadRefreshDNSZone }
 
   /// This thread retrieve all children of a dnsZone.
   /// It's usefull to provide GUI feedback while retrieving all nodes on huge domains.
-  TThreadUpdateZone = class(TThread)
+  TThreadRefreshDNSZone = class(TThread)
   private
     /// Ldap Client instance to perform LDAP operations.
     fLdapClient: TLdapClient;
     /// Zone Storage instance where dnsZone children data are located.
     fCurrentZoneStorage: TZoneDnsStorage;
-    /// Callback when LDAP operations finished.
-    fOnFinished: TThreadUpdateZoneFinished;
-    /// Callback for each search operation to give feedback on GUI.
-    fOnStatus: TThreadUpdateZoneStatus;
-    /// Status message. Used to provide item count.
-    fStatus: String;
 
-    /// Method to sync status with main thread.
-    procedure StatusChange;
-    /// Method to sync data when thread finished.
-    procedure SyncFinished;
-    /// Update the status message and call sync method.
-    procedure ReportStatus(const status: String);
+    fOnStart: TThreadRefreshDNSZoneEvent;
+    fOnFinish: TThreadRefreshDNSZoneEvent;
+    fOnUpdate: TThreadRefreshDNSZoneEvent;
+    fOnError: TThreadRefreshDNSZoneEvent;
+
+    procedure OnSearchPage(Sender: TLdapClient);
   protected
     procedure Execute; override;
+
+    procedure DoNotifyStart;
+    procedure DoNotifyFinish;
+    procedure DoNotifyUpdate;
+    procedure DoNotifyError;
   public
-    constructor Create(ALdapClient: TLdapClient; ACurrentZone: TZoneDnsStorage; AOnFinished: TThreadUpdateZoneFinished;
-      AOnStatus: TThreadUpdateZoneStatus); reintroduce;
+    constructor Create(ALdapClient: TLdapClient; ACurrentZone: TZoneDnsStorage); reintroduce;
+    destructor Destroy; override;
+
+    property OnStart: TThreadRefreshDNSZoneEvent read fOnStart write fOnStart;
+    property OnFinish: TThreadRefreshDNSZoneEvent read fOnFinish write fOnFinish;
+    property OnUpdate: TThreadRefreshDNSZoneEvent read fOnUpdate write fOnUpdate;
+    property OnError: TThreadRefreshDNSZoneEvent read fOnError write fOnError;
   end;
 
   { TZoneDnsStorage }
@@ -61,6 +65,7 @@ type
   /// To retrieve the index of a dnsNode, you need its name or objectName.
   TZoneDnsStorage = class
   private
+    fErrorMessage: RawUtf8;
     /// DNSZone objectName.
     fZoneObjectName: RawUtf8;
     /// DNSZone dc
@@ -87,6 +92,8 @@ type
     fWhenChanged: TRawUtf8DynArray;
 
     fDocVariantData: TDocVariantData;
+    function GetCountRecords: Integer;
+    function GetIsReverseZone: Boolean;
   public
     constructor Create(AZoneObjectName: RawUtf8);
 
@@ -96,7 +103,8 @@ type
     /// Empty the storage.
     procedure Clear;
 
-    function ToDocVariantData: PDocVariantData;
+    function ToDocVariantData(): PDocVariantData; overload;
+    function ToDocVariantData(const Path: RawUtf8): PDocVariantData; overload;
 
     /// Get a dnsNode index in storage from its objectName.
     function GetByObjectName(AObjectName: RawUtf8): Integer;
@@ -135,12 +143,15 @@ type
 
     /// Read-only property to know the number of object in the storage.
     property Count: Integer read fCount;
+    property CountRecords: Integer read GetCountRecords;
     /// Read-only property to know the storage objectName.
     property ZoneObjectName: RawUtf8 read fZoneObjectName;
 
     property DC: RawUtf8 read fDC write fDC;
     property DnsProperties: TRawByteStringDynArray read fDnsProperties write fDnsProperties;
     property Name: RawUtf8 read fName write fName;
+    property IsReverseZone: Boolean read GetIsReverseZone;
+    property ErrorMessage: RawUtf8 read fErrorMessage write fErrorMessage;
   end;
 
   TZoneDnsStorageDynArray = Array of TZoneDnsStorage;
@@ -151,13 +162,16 @@ type
   private
     fZoneStorages: TZoneDnsStorageDynArray;
 
-    fUpdateZoneOnStatus: TThreadUpdateZoneStatus;
-    fUpdateZoneOnFinished: TThreadUpdateZoneFinished;
-
-    fUpdateZoneThread: TThreadUpdateZone;
+    fUpdateZoneThread: TThreadRefreshDNSZone;
     fCurrentZoneStorage: TZoneDnsStorage;
 
     fDocVariantData: TDocVariantData;
+
+    fOnStart: TThreadRefreshDNSZoneEvent;
+    fOnFinish: TThreadRefreshDNSZoneEvent;
+    fOnUpdate: TThreadRefreshDNSZoneEvent;
+    fOnError: TThreadRefreshDNSZoneEvent;
+
     function GetADDNSOption: TModuleADDNSOption;
   public
     constructor Create(ARSAT: TRSAT); reintroduce;
@@ -177,14 +191,13 @@ type
     procedure AfterUpdateZoneStorage(UpdatedStorages: TRawUtf8DynArray);
     function GetZoneNames: TRawUtf8DynArray;
 
-    property CurrentZoneStorage: TZoneDnsStorage read fCurrentZoneStorage;
-    property UpdateZoneOnStatus: TThreadUpdateZoneStatus read fUpdateZoneOnStatus write fUpdateZoneOnStatus;
-    property UpdateZoneOnFinished: TThreadUpdateZoneFinished read fUpdateZoneOnFinished write fUpdateZoneOnFinished;
+    property OnStart: TThreadRefreshDNSZoneEvent read fOnStart write fOnStart;
+    property OnFinish: TThreadRefreshDNSZoneEvent read fOnFinish write fOnFinish;
+    property OnUpdate: TThreadRefreshDNSZoneEvent read fOnUpdate write fOnUpdate;
+    property OnError: TThreadRefreshDNSZoneEvent read fOnError write fOnError;
 
+    property CurrentZoneStorage: TZoneDnsStorage read fCurrentZoneStorage;
     property ADDNSOption: TModuleADDNSOption read GetADDNSOption;
-    /// TModule
-  protected
-    procedure SetEnabled(AValue: Boolean); override;
   end;
 
 implementation
@@ -198,83 +211,121 @@ const
   DOMAIN_DNS_ZONES: String = 'CN=MicrosoftDNS,DC=DomainDnsZones';
   FOREST_DNS_ZONES: String = 'CN=MicrosoftDNS,DC=ForestDnsZones';
 
-{ TThreadUpdateZone }
+{ TThreadRefreshDNSZone }
 
-procedure TThreadUpdateZone.StatusChange;
-begin
-  if Assigned(fOnStatus) then
-    fOnStatus(fStatus);
-end;
-
-procedure TThreadUpdateZone.SyncFinished;
-begin
-  if Assigned(fOnFinished) then
-    fOnFinished();
-end;
-
-procedure TThreadUpdateZone.ReportStatus(const status: String);
-begin
-  fStatus := status;
-  Synchronize(@StatusChange);
-end;
-
-procedure TThreadUpdateZone.Execute;
+procedure TThreadRefreshDNSZone.OnSearchPage(Sender: TLdapClient);
 var
-  Count, idx: Integer;
   Item: TLdapResult;
+  idx: Integer;
 begin
+  if (sender.SearchPageCount = 0) then
+    Exit;
+  if Terminated then
+    Sender.SearchAllAbort;
+
+  fCurrentZoneStorage.IncreaseStorageCapacity(Sender.SearchResult.Count);
+  for Item in Sender.SearchResult.Items do
+  begin
+    if not Assigned(Item) then
+      continue;
+
+    idx := fCurrentZoneStorage.AddByObjectName(Item.ObjectName);
+    fCurrentZoneStorage.UpdateName(idx, Item.Find('name').GetReadable());
+    fCurrentZoneStorage.UpdateObjectClass(idx, Item.Find('objectClass').GetAllReadable);
+    fCurrentZoneStorage.UpdateWhenChanged(idx, Item.Find('whenChanged').GetReadable());
+    fCurrentZoneStorage.UpdateDnsRecord(idx, Item.Find('dnsRecord'));
+  end;
+  Synchronize(@DoNotifyUpdate);
+end;
+
+procedure TThreadRefreshDNSZone.Execute;
+var
+  Bak: TOnLdapClientEvent;
+  SearchResult: TDocVariantData;
+begin
+  Synchronize(@DoNotifyStart);
   try
     fCurrentZoneStorage.Clear;
 
-    Count := 0;
-    fLdapClient.SearchBegin();
+    Bak := fLdapClient.OnSearchPage;
     try
+      fLdapClient.SearchBegin();
       fLdapClient.SearchScope := lssSingleLevel;
+      fLdapClient.OnSearchPage := @OnSearchPage;
       repeat
         if not fLdapClient.Search(fCurrentZoneStorage.ZoneObjectName, False, '', ['name', 'dnsRecord', 'whenChanged']) then
-          raise Exception.Create(FormatUtf8('Ldap Search Failed: %', [fLdapClient.ResultString]));
-
-        if Terminated then
-          Exit;
-
-        Inc(Count, fLdapClient.SearchResult.Count);
-        ReportStatus(IntToString(Count));
-
-        fCurrentZoneStorage.IncreaseStorageCapacity(fLdapClient.SearchResult.Count);
-        for Item in fLdapClient.SearchResult.Items do
         begin
-          if not Assigned(Item) then
-            continue;
-
-          idx := fCurrentZoneStorage.AddByObjectName(Item.ObjectName);
-          fCurrentZoneStorage.UpdateName(idx, Item.Find('name').GetReadable());
-          fCurrentZoneStorage.UpdateObjectClass(idx, Item.Find('objectClass').GetAllReadable);
-          fCurrentZoneStorage.UpdateWhenChanged(idx, Item.Find('whenChanged').GetReadable());
-          fCurrentZoneStorage.UpdateDnsRecord(idx, Item.Find('dnsRecord'));
+          fCurrentZoneStorage.ErrorMessage := FormatUtf8('LDAP: Search (%): %', [fLdapClient.ResultCode, fLdapClient.ResultString]);
+          Synchronize(@DoNotifyError);
+          Exit;
         end;
-      until fLdapClient.SearchCookie = '';
+      until (fLdapClient.SearchCookie = '') or (Terminated);
     finally
+      fLdapClient.OnSearchPage := Bak;
       fLdapClient.SearchEnd;
     end;
   finally
-    Synchronize(@SyncFinished);
+    Synchronize(@DoNotifyFinish);
   end;
 end;
 
-constructor TThreadUpdateZone.Create(ALdapClient: TLdapClient;
-  ACurrentZone: TZoneDnsStorage; AOnFinished: TThreadUpdateZoneFinished;
-  AOnStatus: TThreadUpdateZoneStatus);
+procedure TThreadRefreshDNSZone.DoNotifyStart;
+begin
+  if Assigned(fOnStart) then
+    fOnStart(fCurrentZoneStorage);
+end;
+
+procedure TThreadRefreshDNSZone.DoNotifyFinish;
+begin
+  if Assigned(fOnFinish) then
+    fOnFinish(fCurrentZoneStorage);
+end;
+
+procedure TThreadRefreshDNSZone.DoNotifyUpdate;
+begin
+  if Assigned(fOnUpdate) then
+    fOnUpdate(fCurrentZoneStorage);
+end;
+
+procedure TThreadRefreshDNSZone.DoNotifyError;
+begin
+  if Assigned(fOnError) then
+    fOnError(fCurrentZoneStorage);;
+end;
+
+constructor TThreadRefreshDNSZone.Create(ALdapClient: TLdapClient;
+  ACurrentZone: TZoneDnsStorage);
 begin
   inherited Create(True);
 
   FreeOnTerminate := False;
-  fOnFinished := AOnFinished;
-  fOnStatus := AOnStatus;
-  fLdapClient := ALdapClient;
+  fLdapClient := TLdapClient.Create(ALdapClient.Settings);
+  fLdapClient.Connect();
   fCurrentZoneStorage := ACurrentZone;
 end;
 
+destructor TThreadRefreshDNSZone.Destroy;
+begin
+  FreeAndNil(fLdapClient);
+
+  inherited Destroy;
+end;
+
 { TZoneDnsStorage }
+
+function TZoneDnsStorage.GetIsReverseZone: Boolean;
+begin
+  result := String(Name).EndsWith('in-addr.arpa');
+end;
+
+function TZoneDnsStorage.GetCountRecords: Integer;
+var
+  i: Integer;
+begin
+  result := 0;
+  for i := 0 to Count - 1 do
+    Inc(result, Length(fDnsRecords[i]));
+end;
 
 constructor TZoneDnsStorage.Create(AZoneObjectName: RawUtf8);
 begin
@@ -317,31 +368,155 @@ begin
   fWhenChanged := nil;
 end;
 
+function ReverseDnsToIP(const AZone, ARecord: RawUtf8): RawUtf8;
+var
+  Parts: TRawUtf8DynArray;
+  i: Integer;
+
+  function EndsWithText(const Value, Suffix: RawUtf8): Boolean;
+  begin
+    result := False;
+    if Length(Value) < Length(Suffix) then
+      Exit;
+    result := Copy(Value, Length(Value) - Length(Suffix) + 1, Length(Suffix)) = Suffix;
+  end;
+
+  procedure AddParts(const Value: RawUtf8);
+  begin
+    Parts := Concat(Parts ,TRawUtf8DynArray(String(Value).Split('.')));
+  end;
+
+begin
+  result := '';
+  Parts := nil;
+  if EndsWithText(AZone, 'in-addr.arpa') then
+  begin
+    AddParts(ARecord);
+    AddParts(Copy(AZone, 0, Length(AZone) - Length('in-addr.arpa')));
+
+    for i := 0 to 3 do
+    begin
+      if i > 0 then
+        result := FormatUtf8('.%', [result]);
+      result := FormatUtf8('%%', [parts[i], result]);
+    end;
+  end
+  else if EndsWithText(AZone, 'ip6.arpa') then
+  begin
+
+  end;
+end;
+
+procedure DNSRecordToData(out D: TDocVariantData; const ZoneN, NodeN, ObjectN: RawUtf8; const R: RawByteString);
+var
+  DNSRecord: TDNSRecord;
+begin
+  D.Init(JSON_FAST);
+  if not DNSRecordBytesToRecord(DNSRecord, PByteArray(R)^) then
+    Exit;
+  if TDnsResourceRecord(DNSRecord.RecType) = drrPTR then
+    D.AddValue('name', ReverseDnsToIP(ZoneN, NodeN))
+  else
+    D.AddValue('name', NodeN);
+  D.AddValue('data', DNSRecordDataToString(DNSRecord));
+  D.AddValue('_type', DNSRecord.RecType);
+  D.AddValue('type',  DnsResourceRecordToStr(TDnsResourceRecord(dnsRecord.RecType)));
+  D.AddValue('timestamp', '');
+  D.AddValue('rawdata', R);
+  D.AddValue('objectName', ObjectN);
+end;
+
 function TZoneDnsStorage.ToDocVariantData(): PDocVariantData;
 var
   i: Integer;
   RawDnsRecord: RawByteString;
-  DNSRecord: TDNSRecord;
   newRaw: TDocVariantData;
   DNSName, DNSObjectName: RawUtf8;
 begin
-  newRaw.Init();
+  newRaw.Init(JSON_FAST);
   fDocVariantData.Clear;
   for i := 0 to Pred(Count) do
   begin
     DNSName := GetName(i);
+    if DNSName = '@' then
+      DNSName := '(Same as parent folder)';
     DNSObjectName := GetObjectName(i);
     for RawDnsRecord in GetDnsRecord(i) do
     begin
-      if not DNSRecordBytesToRecord(DNSRecord, PByteArray(RawDnsRecord)^) then
-        Continue;
-      newRaw.AddValue('name', DNSName);
-      newRaw.AddValue('data', DNSRecordDataToString(DNSRecord));
-      newRaw.AddValue('_type', DNSRecord.RecType);
-      newRaw.AddValue('type',  DnsResourceRecordToStr(TDnsResourceRecord(dnsRecord.RecType)));
-      newRaw.AddValue('timestamp', '');
-      newRaw.AddValue('rawdata', RawDnsRecord);
-      newRaw.AddValue('objectName', DNSObjectName);
+      DNSRecordToData(NewRaw, Name, DNSName, DNSObjectName, RawDnsRecord);
+      fDocVariantData.AddItem(newRaw);
+      newRaw.Clear;
+    end;
+  end;
+  result := @fDocVariantData;
+end;
+
+function TZoneDnsStorage.ToDocVariantData(const Path: RawUtf8): PDocVariantData;
+var
+  RawDnsRecord: RawByteString;
+  i, p: Integer;
+  DNSObjectName, DNSFullName, DNSRelativeName: RawUtf8;
+  NewRaw, Folders: TDocVariantData;
+  tmp: String;
+
+  function GetParentDNSName(const DNSName: RawUtf8): RawUtf8;
+  var
+    Idx: SizeInt;
+  begin
+    Idx := Pos('.', DNSName);
+    result := Copy(DNSName, Idx + 1, Length(DNSName) - Idx);
+  end;
+
+begin
+  if IsReverseZone then
+  begin
+    result := ToDocVariantData();
+    Exit;
+  end;
+  Folders.Init(JSON_FAST);
+  fDocVariantData.Clear;
+  for i := 0 to Count - 1 do
+  begin
+    DNSFullName := GetName(i);
+    if (DNSFullName = '@') or not String(DNSFullName).EndsWith(Path) then
+    begin
+      tmp := Copy(Path, 2, Length(Path) - 1);
+      if (DNSFullName = '@') or (DNSFullName = tmp) then
+      begin
+        DNSObjectName := GetObjectName(i);
+        for RawDnsRecord in GetDnsRecord(i) do
+        begin
+          DNSRecordToData(NewRaw, Name, '(Same as parent folder)', DNSObjectName, RawDnsRecord);
+          fDocVariantData.AddItem(newRaw);
+          newRaw.Clear;
+        end;
+      end;
+      Continue;
+    end;
+
+    DNSRelativeName := Copy(DNSFullName, 0, Length(DNSFullName) - Length(Path));
+    p := Pos('.', DNSRelativeName);
+    if p <> 0 then
+    begin
+      p := Length(DNSRelativeName);
+      while (DNSRelativeName[p] <> '.') and (P > 0) do
+        Dec(p);
+      DNSRelativeName := Copy(DNSRelativeName, p + 1, Length(DNSRelativeName) - p);
+      if not Folders.Exists(DNSRelativeName) then
+      begin
+        Folders.AddValue(DNSRelativeName, True);
+        NewRaw.Init(JSON_FAST);
+        NewRaw.AddValue('name', DNSRelativeName);
+        fDocVariantData.AddItem(newRaw);
+        newRaw.Clear;
+      end;
+      Continue;
+    end;
+
+    DNSObjectName := GetObjectName(i);
+    for RawDnsRecord in GetDnsRecord(i) do
+    begin
+      DNSRecordToData(NewRaw, Name, DNSRelativeName, DNSObjectName, RawDnsRecord);
       fDocVariantData.AddItem(newRaw);
       newRaw.Clear;
     end;
@@ -399,12 +574,12 @@ end;
 
 function TZoneDnsStorage.DelByObjectName(AObjectName: RawUtf8): Integer;
 begin
-
+  result := -1;
 end;
 
 function TZoneDnsStorage.DelByName(AName: RawUtf8): Integer;
 begin
-
+  result := -1;
 end;
 
 procedure TZoneDnsStorage.UpdateName(AIndex: Integer; AName: RawUtf8);
@@ -470,9 +645,8 @@ end;
 
 constructor TModuleADDNS.Create(ARSAT: TRSAT);
 begin
-  inherited Create(rsModuleDNSName, rsModuleDNSDisplayName);
+  inherited Create('DomainNameSystem', rsModuleDNSDisplayName);
 
-  fEnabled := True;
   fOption := TModuleADDNSOption.Create;
   fRSAT := ARSAT;
 
@@ -551,7 +725,11 @@ begin
   fCurrentZoneStorage := GetOrAddZoneDnsStorage(ADistinguishedName);
   if not Assigned(fCurrentZoneStorage) then
     Exit;
-  fUpdateZoneThread := TThreadUpdateZone.Create(fRSAT.LdapClient, fCurrentZoneStorage, fUpdateZoneOnFinished, fUpdateZoneOnStatus);
+  fUpdateZoneThread := TThreadRefreshDNSZone.Create(fRSAT.LdapClient, fCurrentZoneStorage);
+  fUpdateZoneThread.OnStart := fOnStart;
+  fUpdateZoneThread.OnFinish := fOnFinish;
+  fUpdateZoneThread.OnUpdate := fOnUpdate;
+  fUpdateZoneThread.OnError := fOnError;
   fUpdateZoneThread.Start;
 end;
 
@@ -575,7 +753,7 @@ begin
       continue;
     if (fZoneStorages[i].Name = 'RootDNSServers') then
       continue;
-    IsReverseZone := String(fZoneStorages[i].ZoneObjectName).EndsWith('in-addr.arpa');
+    IsReverseZone := String(fZoneStorages[i].DC).EndsWith('in-addr.arpa') or String(fZoneStorages[i].DC).EndsWith('ip6.arpa');
     if not (IsReverseZone = AReverseZone) then
       continue;
     NewRow.AddValue('name', fZoneStorages[i].Name);
@@ -642,6 +820,7 @@ begin
         Attribute := SearchResult.Find('dNSProperty');
         if Assigned(Attribute) then
         begin
+          DnsProperties := nil;
           SetLength(DnsProperties, Attribute.Count);
           for i := 0 to Pred(Attribute.Count) do
             DnsProperties[i] := Attribute.GetRaw(i);
@@ -683,16 +862,11 @@ var
   i: Integer;
   Len: SizeInt;
 begin
+  result := nil;
   Len := Length(fZoneStorages);
   SetLength(result, Len);
   for i := 0 to Pred(Len) do
     result[i] := fZoneStorages[i].Name;
-end;
-
-procedure TModuleADDNS.SetEnabled(AValue: Boolean);
-begin
-  if AValue = fEnabled then
-    Exit;
 end;
 
 end.

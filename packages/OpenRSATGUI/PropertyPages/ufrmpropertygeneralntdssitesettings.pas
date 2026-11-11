@@ -15,7 +15,11 @@ uses
   mormot.core.log,
   uhelpersui,
   uproperty,
-  upropertyframe;
+  upropertyframe,
+  ugeneralpropertyntds,
+  uvislogonhours,
+  uschedulinglogic,
+  ulog;
 
 type
 
@@ -40,13 +44,16 @@ type
     Panel2: TPanel;
     Panel3: TPanel;
     Shape1: TShape;
+    procedure Button_ScheduleClick(Sender: TObject);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fProperty: TProperty;
+    fLogic: TGeneralPropertyNTDSLogic;
     function GetArgByPosition(Attribute: RawUtf8; n: Integer): RawUtf8;
     function RemoveCN(Value: RawUtf8): RawUtf8;
   public
     constructor Create(TheOwner: TComponent); override;
+    destructor Destroy; override;
     procedure Update(Props: TProperty); override;
   end;
 
@@ -61,11 +68,18 @@ constructor TFrmPropertyGeneralNTDSSiteSettings.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Caption := 'General';
+  fLogic := TGeneralPropertyNTDSLogic.Create;
+end;
+
+destructor TFrmPropertyGeneralNTDSSiteSettings.Destroy;
+begin
+  FreeAndNil(fLogic);
+  inherited Destroy;
 end;
 
 procedure TFrmPropertyGeneralNTDSSiteSettings.Update(Props: TProperty);
@@ -73,9 +87,11 @@ var
   att: TLdapAttribute;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Update', Self);
+    fLog.Add.Log(sllTrace, 'Update', Self);
 
   fProperty := Props;
+  fLogic.Props := fProperty;
+  fLogic.Ldap := fProperty.LdapClient;
 
   Edit_Name.Text := fProperty.name;
   Edit_Description.Text := fProperty.description;
@@ -84,6 +100,24 @@ begin
   begin
     Edit_Server.Text := RemoveCN(GetArgByPosition(att.GetReadable, 2));
     Edit_Site.Text := RemoveCN(GetArgByPosition(att.GetReadable, 4));
+  end;
+end;
+
+procedure TFrmPropertyGeneralNTDSSiteSettings.Button_ScheduleClick(Sender: TObject);
+var
+  ScheduleData: RawByteString;
+  LogonHours: TVisLogonHours;
+begin
+  ScheduleData := fProperty.GetRaw('schedule');
+
+  LogonHours := TVisLogonHours.Create(Self, spkNTDSSchedule);
+  try
+    LogonHours.RawValue := ScheduleData;
+    if LogonHours.ShowModal <> mrOK then
+      Exit;
+    fProperty.Add('schedule', LogonHours.RawValue);
+  finally
+    LogonHours.Free;
   end;
 end;
 

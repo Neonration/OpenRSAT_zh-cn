@@ -17,7 +17,8 @@ uses
   Menus,
   Types,
   VirtualTrees,
-  tis.ui.grid.core, tis.ui.searchedit,
+  tis.ui.grid.core,
+  tis.ui.searchedit,
   mormot.core.base,
   mormot.core.log,
   mormot.core.variants,
@@ -29,11 +30,17 @@ uses
   umoduleadss,
   umoduleadssoption,
   umodule,
-  uoption;
+  uopenrsatuicontextinterface,
+  ursatldapclient,
+  uoption,
+  ursat,
+  ulog;
 
 type
 
   { TSSNode }
+
+  { TADSSTreeNode }
 
   TADSSTreeNode = class(TTreeNode)
   private
@@ -45,6 +52,7 @@ type
     procedure SetDistinguishedName(AValue: String);
     procedure SetObjectTypes(AValue: TRawUtf8DynArray);
   public
+    constructor Create(AnOwner: TTreeNodes); override;
     destructor Destroy; override;
   published
     property DistinguishedName: String read GetDistinguishedName write SetDistinguishedName;
@@ -188,10 +196,13 @@ type
       Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex;
       var Ghosted: Boolean; var ImageIndex: Integer);
     procedure TisGrid1KeyPress(Sender: TObject; var Key: char);
+    procedure TisGrid1MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure TisSearchEdit_TreeADSSSearch(Sender: TObject; const aText: string);
     procedure TisSearchEdit_GridADSSSearch(Sender: TObject; const aText: string);
     procedure ToolButton8Click(Sender: TObject);
     procedure TreeView1Change(Sender: TObject; Node: TTreeNode);
+    procedure TreeView1Collapsing(Sender: TObject; Node: TTreeNode; var AllowCollapse: Boolean);
     procedure TreeView1CreateNodeClass(Sender: TCustomTreeView;
       var NodeClass: TTreeNodeClass);
     procedure TreeView1Expanding(Sender: TObject; Node: TTreeNode;
@@ -199,10 +210,11 @@ type
     procedure TreeView1GetImageIndex(Sender: TObject; Node: TTreeNode);
     {$pop}
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fEnabled: Boolean;
     fUpdating: Integer;
 
+    fIContext: IOpenRSATUIContext;
     fSearchWord: RawUtf8;
 
     fADSSRootNode: TADSSTreeNode;
@@ -211,10 +223,12 @@ type
 
     fModule: TModuleADSS;
 
+    function GetLdapClient: TRsatLdapClient;
     procedure RefreshLdapNode(Node: TADSSTreeNode = nil);
 
     procedure UpdateGrid(Node: TADSSTreeNode);
     procedure UpdateGridColumns(Names: TStringArray);
+    procedure UpdateRootGrid;
 
     procedure BackupNodes(BackupData: PDocVariantData);
     procedure RestoreNodes(BackupData: PDocVariantData; RootNode: TADSSTreeNode);
@@ -233,9 +247,10 @@ type
     function CustomSortSitesNode(Node1, Node2: TTreeNode): integer;
     function CustomSortSubnetsNode(Node1, Node2: TTreeNode): integer;
   public
-    constructor Create(TheOwner: TComponent); override;
+    constructor Create(Context: IOpenRSATUIContext); reintroduce;
     destructor Destroy; override;
 
+    property LdapClient: TRsatLdapClient read GetLdapClient;
   protected
     function GetModule: TModule; override;
     function GetFrmOptionClass: TFrameOptionClass; override;
@@ -258,9 +273,7 @@ uses
   ucommonui,
   utheme,
   ursatldapclientui,
-  ursatldapclient,
-  uvisnewobject,
-  ufrmrsat;
+  uvisnewobject;
 
 {$R *.lfm}
 
@@ -394,6 +407,13 @@ begin
     Attribute.Add(AV);
 end;
 
+constructor TADSSTreeNode.Create(AnOwner: TTreeNodes);
+begin
+  inherited Create(AnOwner);
+
+  fAttributes := nil;
+end;
+
 destructor TADSSTreeNode.Destroy;
 begin
   inherited Destroy;
@@ -403,25 +423,13 @@ end;
 { TFrmModuleSitesAndServices }
 
 procedure TFrmModuleSitesAndServices.Action_RefreshExecute(Sender: TObject);
-var
-  c: TCursor;
 begin
-  if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Refresh.Name]);
-
-  c := Screen.Cursor;
-  Screen.Cursor := crHourGlass;
-  try
-    RefreshLdapNode();
-    UpdateGrid(nil);
-  finally
-    Screen.Cursor := c;
-  end;
+  Refresh;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_RefreshUpdate(Sender: TObject);
 begin
-  Action_Refresh.Enabled := Assigned(FrmRSAT) and Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_Refresh.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.PopupMenu1Popup(Sender: TObject);
@@ -433,7 +441,7 @@ end;
 procedure TFrmModuleSitesAndServices.Timer_TreeChangeNodeTimer(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Timer Tree Change', Self);
+    fLog.Add.Log(sllTrace, 'Timer Tree Change', Self);
 
   Timer_TreeChangeNode.Enabled := False;
 
@@ -466,9 +474,8 @@ procedure TFrmModuleSitesAndServices.Action_NewSiteExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotSite, Format('CN=Sites,%s', [FrmRSAT.LdapClient.ConfigDN]), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotSite, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -481,9 +488,8 @@ procedure TFrmModuleSitesAndServices.Action_NewSiteLinkBridgeExecute(
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotSiteLinkBridge, Format('CN=Sites,%s', [FrmRSAT.LdapClient.ConfigDN]), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotSiteLinkBridge, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -494,16 +500,15 @@ end;
 procedure TFrmModuleSitesAndServices.Action_NewSiteLinkBridgeUpdate(
   Sender: TObject);
 begin
-  Action_NewSiteLinkBridge.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewSiteLinkBridge.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewSiteLinkExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotSiteLink, Format('CN=Sites,%s', [FrmRSAT.LdapClient.ConfigDN]), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotSiteLink, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -513,7 +518,7 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewSiteLinkUpdate(Sender: TObject);
 begin
-  Action_NewSiteLink.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewSiteLink.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_DeleteExecute(Sender: TObject);
@@ -532,14 +537,14 @@ var
       Exit;
 
     try
-      BakOnError := FrmRSAT.LdapClient.OnError;
-      FrmRSAT.LdapClient.OnError := nil;
-      FrmRSAT.LdapClient.Delete(distinguishedName);
+      BakOnError := LdapClient.OnError;
+      LdapClient.OnError := nil;
+      LdapClient.Delete(distinguishedName);
     finally
-      FrmRSAT.LdapClient.OnError := BakOnError;
+      LdapClient.OnError := BakOnError;
     end;
 
-    case FrmRSAT.LdapClient.ResultError of
+    case LdapClient.ResultError of
       leNotAllowedOnNonLeaf:
       begin
         if (mResultNonLeaf = mrNoToAll) or (mResultNonLeaf = mrCancel) then
@@ -551,7 +556,7 @@ var
         if (mResultNonLeaf <> mrYes) and (mResultNonLeaf <> mrYesToAll) then
           Exit;
 
-        if not FrmRSAT.LdapClient.Delete((TreeView1.Selected as TADSSTreeNode).DistinguishedName, True) then
+        if not LdapClient.Delete((TreeView1.Selected as TADSSTreeNode).DistinguishedName, True) then
           Exit;
       end;
     end;
@@ -666,7 +671,7 @@ begin
     'interSiteTransport': newList := InterSiteTransportNew;
     'container': newList := ServicesNew;
     else
-      TSynLog.Add.Log(sllWarning, FormatUtf8('"objectClass" not yet implemented: %', [ObjectClass]));
+      TOpenRSATLog.Add.Log(sllWarning, FormatUtf8('"objectClass" not yet implemented: %', [ObjectClass]));
   end;
 
   // Create filter to allow MenuItem_TreeNew visibility
@@ -735,11 +740,10 @@ var
   vis: TVisNewObject;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewComputer.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewComputer.Caption]);
 
-  vis := TVisNewObject.Create(Self, vnotComputer, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotComputer, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -749,7 +753,7 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewComputerUpdate(Sender: TObject);
 begin
-  Action_NewComputer.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewComputer.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewContactExecute(Sender: TObject);
@@ -757,11 +761,10 @@ var
   vis: TVisNewObject;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewContact.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewContact.Caption]);
 
-  vis := TVisNewObject.Create(Self, vnotContact, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotContact, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -771,7 +774,7 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewContactUpdate(Sender: TObject);
 begin
-  Action_NewContact.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewContact.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewGroupExecute(Sender: TObject);
@@ -779,11 +782,10 @@ var
   vis: TVisNewObject;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewGroup.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewGroup.Caption]);
 
-  vis := TVisNewObject.Create(Self, vnotGroup, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotGroup, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -793,16 +795,15 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewGroupUpdate(Sender: TObject);
 begin
-  Action_NewGroup.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewGroup.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewInetOrgPersonExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotInetOrgPerson, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotInetOrgPerson, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -814,16 +815,15 @@ procedure TFrmModuleSitesAndServices.Action_NewInetOrgPersonUpdate(Sender: TObje
 var
   vis: TVisNewObject;
 begin
-  Action_NewInetOrgPerson.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewInetOrgPerson.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewMsDNSServerSettingsExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotMsDNSServerSettings, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotMsDNSServerSettings, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -834,16 +834,15 @@ end;
 procedure TFrmModuleSitesAndServices.Action_NewMsDNSServerSettingsUpdate(
   Sender: TObject);
 begin
-  Action_NewMsDNSServerSettings.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewMsDNSServerSettings.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewMsDSKeyCredentialExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotMsDSKeyCredential, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotMsDSKeyCredential, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -854,16 +853,15 @@ end;
 procedure TFrmModuleSitesAndServices.Action_NewMsDSKeyCredentialUpdate(
   Sender: TObject);
 begin
-  Action_NewMsDSKeyCredential.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewMsDSKeyCredential.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewMsDSShadowPrincipalContainerExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotMsDSShadowPrincipalContainer, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotMsDSShadowPrincipalContainer, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -873,16 +871,15 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewMsDSShadowPrincipalContainerUpdate(Sender: TObject);
 begin
-  Action_NewMsDSShadowPrincipalContainer.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewMsDSShadowPrincipalContainer.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewMsImagingPSPsExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotMsImagingPSPs, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotMsImagingPSPs, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -892,16 +889,15 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewMsImagingPSPsUpdate(Sender: TObject);
 begin
-  Action_NewMsImagingPSPs.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewMsImagingPSPs.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewPrinterExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotPrinter, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotPrinter, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -911,16 +907,15 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewPrinterUpdate(Sender: TObject);
 begin
-  Action_NewPrinter.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewPrinter.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewServerExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotServer, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotServer, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -930,16 +925,15 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewServerUpdate(Sender: TObject);
 begin
-  Action_NewServer.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewServer.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewSharedFolderExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotSharedFolder, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotSharedFolder, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -950,21 +944,20 @@ end;
 procedure TFrmModuleSitesAndServices.Action_NewSharedFolderUpdate(
   Sender: TObject);
 begin
-  Action_NewSharedFolder.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewSharedFolder.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewSiteUpdate(Sender: TObject);
 begin
-  Action_NewSite.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewSite.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewSubnetExecute(Sender: TObject);
 var
   vis: TVisNewObject;
 begin
-  vis := TVisNewObject.Create(Self, vnotSubnet, GetFocusedObject(True), FrmRSAT.LdapClient.ConfigDN);
+  vis := TVisNewObject.Create(Self, vnotSubnet, GetFocusedObject(True), LdapClient.ConfigDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -974,7 +967,7 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewSubnetUpdate(Sender: TObject);
 begin
-  Action_NewSubnet.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewSubnet.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_NewUserExecute(Sender: TObject);
@@ -982,11 +975,10 @@ var
   vis: TVisNewObject;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_NewUser.Caption]);
 
-  vis := TVisNewObject.Create(Self, vnotUser, GetFocusedObject(True), FrmRSAT.LdapClient.DefaultDN);
+  vis := TVisNewObject.Create(Self, vnotUser, GetFocusedObject(True), LdapClient.DefaultDN, LdapClient);
   try
-    vis.Ldap := FrmRSAT.LdapClient;
     vis.ShowModal;
     Action_RefreshExecute(nil);
   finally
@@ -996,7 +988,7 @@ end;
 
 procedure TFrmModuleSitesAndServices.Action_NewUserUpdate(Sender: TObject);
 begin
-  Action_NewUser.Enabled := Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected;
+  Action_NewUser.Enabled := Assigned(LdapClient) and LdapClient.Connected;
 end;
 
 procedure TFrmModuleSitesAndServices.Action_PropertyExecute(Sender: TObject);
@@ -1019,12 +1011,12 @@ begin
     DistinguishedName := TisGrid1.SelectedRows._[0]^.S['distinguishedName'];
   end;
   if (DistinguishedName <> '') then
-    FrmRSAT.OpenProperty(DistinguishedName, PropertyName);
+    fIContext.OpenProperty(DistinguishedName);
 end;
 
 procedure TFrmModuleSitesAndServices.Action_PropertyUpdate(Sender: TObject);
 begin
-  Action_Property.Enabled := Assigned(FrmRSAT) and Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and (Assigned(TreeView1.Selected) or (TisGrid1.SelectedCount > 0));
+  Action_Property.Enabled := Assigned(LdapClient) and LdapClient.Connected and (Assigned(TreeView1.Selected) or (TisGrid1.SelectedCount > 0));
 end;
 
 procedure TFrmModuleSitesAndServices.TisGrid1DblClick(Sender: TObject);
@@ -1039,7 +1031,7 @@ begin
   if Assigned(Node) then
     Node.Selected := True
   else
-    FrmRSAT.OpenProperty(TisGrid1.FocusedRow^.S['distinguishedName'], TisGrid1.FocusedRow^.S['name']);
+    fIContext.OpenProperty(TisGrid1.FocusedRow^.S['distinguishedName']);
 end;
 
 procedure TFrmModuleSitesAndServices.TisGrid1GetImageIndex(
@@ -1066,6 +1058,21 @@ procedure TFrmModuleSitesAndServices.TisGrid1KeyPress(Sender: TObject;
 begin
   SearchInGrid(Timer_SearchInGrid, TisGrid1, fSearchWord, Key);
 end;
+
+
+procedure TFrmModuleSitesAndServices.TisGrid1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  HitInfo: THitInfo;
+begin
+  TisGrid1.GetHitTestInfoAt(X, Y, True, HitInfo);
+
+  if not (hiOnItem in HitInfo.HitPositions) then
+  begin
+    TisGrid1.ClearSelection;
+    TisGrid1.FocusedNode := nil;
+  end;
+end;
+
 
 procedure TFrmModuleSitesAndServices.TisSearchEdit_TreeADSSSearch(Sender: TObject;
   const aText: string);
@@ -1168,11 +1175,17 @@ procedure TFrmModuleSitesAndServices.TreeView1Change(Sender: TObject;
   Node: TTreeNode);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Tree Change', Self);
+    fLog.Add.Log(sllTrace, 'Tree Change', Self);
 
   if Timer_TreeChangeNode.Enabled then
     Timer_TreeChangeNode.Enabled := False;
   Timer_TreeChangeNode.Enabled := True;
+end;
+
+procedure TFrmModuleSitesAndServices.TreeView1Collapsing(Sender: TObject;
+  Node: TTreeNode; var AllowCollapse: Boolean);
+begin
+  AllowCollapse := Node <> fADSSRootNode;
 end;
 
 procedure TFrmModuleSitesAndServices.TreeView1CreateNodeClass(
@@ -1217,17 +1230,17 @@ begin
     Exit;
 
   ChildCache.Init;
-  FrmRSAT.LdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
     c := Screen.Cursor;
     Screen.Cursor := crHourGlass;
-    FrmRSAT.LdapClient.SearchScope := lssSingleLevel;
+    LdapClient.SearchScope := lssSingleLevel;
     Filter := '(&(!(objectClass=nTDSSiteSettings))(!(objectClass=nTDSConnection)))';
     repeat
-      if not FrmRSAT.LdapClient.Search(Node.DistinguishedName, False, Filter, ['*']) then
+      if not LdapClient.Search(Node.DistinguishedName, False, Filter, ['*']) then
         Exit;
 
-      for SearchResult in FrmRSAT.LdapClient.SearchResult.Items do
+      for SearchResult in LdapClient.SearchResult.Items do
       begin
         if not Assigned(SearchResult) then
           Continue;
@@ -1243,7 +1256,7 @@ begin
           FreeAndNil(ChildNode.fAttributes);
         ChildNode.fAttributes := TLdapAttributeList(SearchResult.Attributes.Clone);
       end;
-    until FrmRSAT.LdapClient.SearchCookie = '';
+    until LdapClient.SearchCookie = '';
 
     for i := Node.Count - 1 downto 0 do
     begin
@@ -1252,7 +1265,7 @@ begin
     end;
     Node.HasChildren := Node.Count > 0;
   finally
-    FrmRSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
     Screen.Cursor := c;
   end;
 
@@ -1262,6 +1275,11 @@ begin
   begin
     Node.CustomSort(@CustomSortSubnetsNode);
   end;
+end;
+
+function TFrmModuleSitesAndServices.GetLdapClient: TRsatLdapClient;
+begin
+  result := fModule.RSAT.LdapClient;
 end;
 
 procedure TFrmModuleSitesAndServices.UpdateGrid(Node: TADSSTreeNode);
@@ -1322,13 +1340,16 @@ begin
   if not Assigned(Node) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllError, '% - No node assigned.', [TisGrid1.Name]);
+      fLog.Add.Log(sllError, '% - No node assigned.', [TisGrid1.Name]);
     Exit;
   end;
 
-  { Should be probably changed }
   if Node = fADSSRootNode then
+  begin
+    UpdateRootGrid;
     Exit;
+  end;
+
 
   case Node.ObjectType of
     'siteContainer': UpdateGridColumns(['name', 'type', 'description', 'location']);
@@ -1341,17 +1362,17 @@ begin
   end;
 
   TisGrid1.BeginUpdate;
-  FrmRSAT.LdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
     c := Screen.Cursor;
     Screen.Cursor := crHourGlass;
-    FrmRSAT.LdapClient.SearchScope := lssSingleLevel;
+    LdapClient.SearchScope := lssSingleLevel;
     Filter := '';
     repeat
-      if not FrmRSAT.LdapClient.Search(Node.DistinguishedName, False, Filter, ['*']) then
+      if not LdapClient.Search(Node.DistinguishedName, False, Filter, ['*']) then
         Exit;
 
-      for SearchResult in FrmRSAT.LdapClient.SearchResult.Items do
+      for SearchResult in LdapClient.SearchResult.Items do
       begin
         if not Assigned(SearchResult) then
           continue;
@@ -1374,11 +1395,13 @@ begin
         TisGrid1.Data.AddItem(RowData);
         RowData.Clear;
       end;
-    until FrmRSAT.LdapClient.SearchCookie = '';
+    until LdapClient.SearchCookie = '';
   finally
-    FrmRSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
     TisGrid1.EndUpdate;
     TisGrid1.LoadData();
+    TisGrid1.ClearSelection;
+    TisGrid1.FocusedNode := nil;
     Screen.Cursor := c;
   end;
 end;
@@ -1416,6 +1439,38 @@ begin
     Column.Position := i;
   end;
 end;
+
+procedure TFrmModuleSitesAndServices.UpdateRootGrid;
+var
+  RowData: TDocVariantData;
+begin
+  TisGrid1.Clear;
+  UpdateGridColumns(['name', 'type']);
+
+  RowData.Init;
+
+  RowData.AddOrUpdateValue('name', fADSSSiteNode.Text);
+  RowData.AddOrUpdateValue('type', fADSSSiteNode.ObjectType);
+  RowData.AddOrUpdateValue('distinguishedName',
+    fADSSSiteNode.DistinguishedName);
+  TisGrid1.Data.AddItem(RowData);
+
+  RowData.Clear;
+
+  if fADSSServiceNode.Visible then
+  begin
+    RowData.AddOrUpdateValue('name', fADSSServiceNode.Text);
+    RowData.AddOrUpdateValue('type', fADSSServiceNode.ObjectType);
+    RowData.AddOrUpdateValue('distinguishedName',
+      fADSSServiceNode.DistinguishedName);
+    TisGrid1.Data.AddItem(RowData);
+  end;
+
+  TisGrid1.LoadData;
+  TisGrid1.ClearSelection;
+  TisGrid1.FocusedNode := nil;
+end;
+
 
 procedure TFrmModuleSitesAndServices.BackupNodes(BackupData: PDocVariantData);
 var
@@ -1491,12 +1546,12 @@ function TFrmModuleSitesAndServices.GetSelectedObjects: TRawUtf8DynArray;
   begin
     result := nil;
     if Assigned(fLog) then
-      fLog.Log(sllTrace, 'Focus on TreeView', Self);
+      fLog.Add.Log(sllTrace, 'Focus on TreeView', Self);
 
     if not Assigned(TreeView1.Selected) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No selected node.', Self);
+        fLog.Add.Log(sllTrace, 'No selected node.', Self);
       Exit;
     end;
 
@@ -1511,11 +1566,11 @@ function TFrmModuleSitesAndServices.GetSelectedObjects: TRawUtf8DynArray;
   begin
     result := nil;
     if Assigned(fLog) then
-      fLog.Log(sllTrace, 'Focus on Grid', Self);
+      fLog.Add.Log(sllTrace, 'Focus on Grid', Self);
     if (TisGrid1.SelectedCount <= 0) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No selected item', Self);
+        fLog.Add.Log(sllTrace, 'No selected item', Self);
       Exit;
     end;
 
@@ -1551,7 +1606,7 @@ begin
   end
   else
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
+      fLog.Add.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
 end;
 
 function TFrmModuleSitesAndServices.GetFocusedObject(OnlyContainer: Boolean
@@ -1567,12 +1622,15 @@ var
     if not Assigned(Row) or not Row^.Exists('distinguishedName') then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No focused Row on Grid', Self);
+        fLog.Add.Log(sllTrace, 'No focused Row on Grid', Self);
       Exit;
     end;
 
     result := Row^.U['distinguishedName'];
-    ObjectClass := Row^.U['objectClass'];
+    if Row^.Exists('objectClass') then
+      ObjectClass := Row^.U['objectClass']
+    else
+      ObjectClass := Row^.U['type']
   end;
 
   function GetFocusedObjectInTree(var ObjectClass: RawUtf8): RawUtf8;
@@ -1580,7 +1638,7 @@ var
     if not Assigned(TreeView1.Selected) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No node selected on TreeView', Self);
+        fLog.Add.Log(sllTrace, 'No node selected on TreeView', Self);
       Exit;
     end;
 
@@ -1603,7 +1661,7 @@ begin
   else
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
+      fLog.Add.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
     Exit;
   end;
 
@@ -1620,7 +1678,7 @@ var
     if not Assigned(TreeView1.Selected) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'No node selected', Self);
+        fLog.Add.Log(sllTrace, 'No node selected', Self);
       Exit;
     end;
 
@@ -1635,7 +1693,7 @@ begin
     if not Assigned(Row) or not Row^.Exists('objectClass') then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllTrace, 'Not assigned Row in grid or no objectClass', Self);
+        fLog.Add.Log(sllTrace, 'Not assigned Row in grid or no objectClass', Self);
       result := GetFocusedObjectClassInTree;
     end
     else
@@ -1648,65 +1706,23 @@ begin
   else
   begin
     if Assigned(fLog) then
-      fLog.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
+      fLog.Add.Log(sllWarning, 'Focus is not on grid nor tree.', Self);
     Exit;
   end;
 end;
 
 procedure TFrmModuleSitesAndServices.LdapConnectEvent(Sender: TObject);
-var
-  SearchResult: TLdapResult;
-  Filter, cn: RawUtf8;
-  BackupCursor: TCursor;
-  LdapClient: TRsatLdapClient;
 begin
-  LdapClient := (Sender as TRSATLdapClient);
-  fADSSRootNode := (TreeView1.Items.Add(nil, 'Active Directory Sites and Services') as TADSSTreeNode);
-  fADSSRootNode.ImageIndex := Ord(ileADSiteTool);
-  fADSSRootNode.SelectedIndex := fADSSRootNode.ImageIndex;
-
-  fADSSSiteNode := (TreeView1.Items.Add(fADSSRootNode, 'Sites') as TADSSTreeNode);
-  fADSSSiteNode.HasChildren := True;
-  fADSSServiceNode := (TreeView1.Items.Add(nil, 'Services') as TADSSTreeNode);
-  fADSSServiceNode.HasChildren := True;
-  fADSSServiceNode.Visible := fModule.ShowService;
-
-  LdapClient.SearchBegin();
-  BeginUpdate;
-  try
-    BackupCursor := Screen.Cursor;
-    Screen.Cursor := crHourGlass;
-
-    LdapClient.SearchScope := lssSingleLevel;
-
-    Filter := '(|(cn=Sites)(cn=Services))';
-    repeat
-      if not LdapClient.Search(LdapClient.ConfigDN, False, Filter, ['*']) then
-        Exit;
-      for SearchResult in LdapClient.SearchResult.Items do
-      begin
-        if not Assigned(SearchResult) then
-          continue;
-
-        cn := SearchResult.Find('cn').GetReadable();
-
-        if (cn = fADSSServiceNode.Text) then
-          fADSSServiceNode.fAttributes := TLdapAttributeList(SearchResult.Attributes.Clone)
-        else if (cn = fADSSSiteNode.Text) then
-          fADSSSiteNode.fAttributes := TLdapAttributeList(SearchResult.Attributes.Clone);
-      end;
-    until LdapClient.SearchCookie = '';
-  finally
-    EndUpdate;
-    LdapClient.SearchEnd;
-    Screen.Cursor := BackupCursor;
-  end;
-  fADSSSiteNode.Expand(False);
+  fModule.NeedRefresh := True;
 end;
 
 procedure TFrmModuleSitesAndServices.LdapCloseEvent(Sender: TObject);
 begin
-  TreeView1.Items.Clear;
+  fADSSServiceNode.DeleteChildren;
+  fADSSSiteNode.DeleteChildren;
+  FreeAndNil(fADSSServiceNode.fAttributes);
+  FreeAndNil(fADSSSiteNode.fAttributes);
+
   TisGrid1.Clear;
 end;
 
@@ -1764,22 +1780,34 @@ begin
   result := CompareIP(ParseIP(IP1), ParseIP(IP2));
 end;
 
-constructor TFrmModuleSitesAndServices.Create(TheOwner: TComponent);
+constructor TFrmModuleSitesAndServices.Create(Context: IOpenRSATUIContext);
 begin
-  inherited Create(TheOwner);
+  inherited Create(Context.ComponentOwner);
 
   fEnabled := True;
   fUpdating := 0;
-  fLog := TSynLog.Add;
+  fLog := TADSSLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
-  fModule := TModuleADSS.Create(FrmRSAT.RSAT);
+  fIContext := Context;
+  fModule := TModuleADSS.Create(Context.RSAT);
 
   fModule.Option.RegisterObserver(@OnADSSOptionsChanged);
 
   Image1.Visible := not IsDarkMode;
   Image2.Visible := not Image1.Visible;
+
+  fADSSRootNode := (TreeView1.Items.Add(nil, 'Active Directory Sites and Services') as TADSSTreeNode);
+  fADSSRootNode.ImageIndex := Ord(ileADSiteTool);
+  fADSSRootNode.SelectedIndex := fADSSRootNode.ImageIndex;
+
+  fADSSSiteNode := (TreeView1.Items.AddChild(fADSSRootNode, 'Sites') as TADSSTreeNode);
+  fADSSSiteNode.HasChildren := True;
+  fADSSServiceNode := (TreeView1.Items.AddChild(fADSSRootNode, 'Services') as TADSSTreeNode);
+  fADSSServiceNode.HasChildren := True;
+  fADSSServiceNode.Visible := fModule.ShowService;
+  fADSSRootNode.Expand(False);
 end;
 
 destructor TFrmModuleSitesAndServices.Destroy;
@@ -1790,8 +1818,60 @@ begin
 end;
 
 procedure TFrmModuleSitesAndServices.Refresh;
+var
+  c: TCursor;
+  SearchResult: TLdapResult;
+  Filter, cn: RawUtf8;
+  BackupCursor: TCursor;
 begin
-  Action_Refresh.Execute;
+  if Assigned(fLog) then
+    fLog.Add.Log(sllTrace, 'Refresh');
+
+  if not Assigned(fADSSServiceNode.fAttributes) or not Assigned(fADSSSiteNode.fAttributes) then
+  begin
+    LdapClient.SearchBegin();
+    BeginUpdate;
+    try
+      BackupCursor := Screen.Cursor;
+      Screen.Cursor := crHourGlass;
+
+      LdapClient.SearchScope := lssSingleLevel;
+
+      Filter := '(|(cn=Sites)(cn=Services))';
+      repeat
+        if not LdapClient.Search(LdapClient.ConfigDN, False, Filter, ['*']) then
+          Exit;
+        for SearchResult in LdapClient.SearchResult.Items do
+        begin
+          if not Assigned(SearchResult) then
+            continue;
+
+          cn := SearchResult.Find('cn').GetReadable();
+
+          if (cn = fADSSServiceNode.Text) then
+            fADSSServiceNode.fAttributes := TLdapAttributeList(SearchResult.Attributes.Clone)
+          else if (cn = fADSSSiteNode.Text) then
+            fADSSSiteNode.fAttributes := TLdapAttributeList(SearchResult.Attributes.Clone);
+        end;
+      until LdapClient.SearchCookie = '';
+    finally
+      EndUpdate;
+      LdapClient.SearchEnd;
+      Screen.Cursor := BackupCursor;
+    end;
+    fADSSSiteNode.Expand(False);
+    if fADSSServiceNode.Visible then
+      fADSSServiceNode.Expand(False);
+  end;
+
+  c := Screen.Cursor;
+  Screen.Cursor := crHourGlass;
+  try
+    RefreshLdapNode();
+    UpdateGrid(nil);
+  finally
+    Screen.Cursor := c;
+  end;
 end;
 
 procedure TFrmModuleSitesAndServices.Load;

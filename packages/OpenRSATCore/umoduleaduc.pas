@@ -12,7 +12,8 @@ uses
   umoduleaducoption,
   uoption,
   umodule,
-  ursat;
+  ursat,
+  ulog;
 
 type
 
@@ -22,7 +23,7 @@ type
 
   TModuleADUC = class(TModule)
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     function GetADUCOption: TModuleADUCOption;
   public
     constructor Create(ARSAT: TRSAT);
@@ -31,10 +32,6 @@ type
     property ADUCOption: TModuleADUCOption read GetADUCOption;
 
     function ResetPassword(AResetPasswordCallback: TResetPasswordCallback; AObjectDN: RawUtf8; AComputerWarning, AOnUnlockedAccount, AOnPasswordChanged: TNotifyEvent): Boolean;
-
-    /// TModule
-  protected
-    procedure SetEnabled(AValue: Boolean); override;
   end;
 
 implementation
@@ -51,11 +48,10 @@ end;
 
 constructor TModuleADUC.Create(ARSAT: TRSAT);
 begin
-  inherited Create(rsModuleADUCName, rsModuleADUCDisplayName);
+  inherited Create('UsersAndComputers', rsModuleADUCDisplayName);
 
   fRSAT := ARSAT;
-  fEnabled := True;
-  fLog := TSynLog.Add;
+  fLog := TADUCLog;
   fOption := TModuleADUCOption.Create;
   fOption.Load;
 end;
@@ -83,7 +79,7 @@ begin
   if not Assigned(UserData) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllError, 'Cannot retrieve information about "%". (%)', [AObjectDN, RSAT.LdapClient.ResultString], Self);
+      fLog.Add.Log(sllError, 'Cannot retrieve information about "%". (%)', [AObjectDN, RSAT.LdapClient.ResultString], Self);
     Exit;
   end;
 
@@ -91,12 +87,12 @@ begin
   if not Assigned(ObjectClassAttr) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllError, 'Cannot retrieve objectClass about "%".', [AObjectDN], Self);
+      fLog.Add.Log(sllError, 'Cannot retrieve objectClass about "%".', [AObjectDN], Self);
     Exit;
   end;
 
   if Assigned(fLog) then
-    fLog.Log(sllInfo, 'Reset password on %.', [ObjectClassAttr.GetReadable(Pred(ObjectClassAttr.Count))], Self);
+    fLog.Add.Log(sllInfo, 'Reset password on %.', [ObjectClassAttr.GetReadable(Pred(ObjectClassAttr.Count))], Self);
 
   if Assigned(AComputerWarning) then
     AComputerWarning(ObjectClassAttr);
@@ -105,7 +101,7 @@ begin
   if not Assigned(UserAccountControlAttr) then
   begin
     if Assigned(fLog) then
-      fLog.Log(sllError, 'Cannot retrieve userAccountControl about "%".', [AObjectDN], Self);
+      fLog.Add.Log(sllError, 'Cannot retrieve userAccountControl about "%".', [AObjectDN], Self);
     Exit;
   end;
 
@@ -120,13 +116,13 @@ begin
     try
       Include(UserAccountControls, uacLockedOut);
       Attribute.Add(IntToStr(UserAccountControlsValue(UserAccountControls)));
-      RSAT.LdapClient.OnModify := AOnUnlockedAccount;
       if not RSAT.LdapClient.Modify(AObjectDN, lmoReplace, Attribute) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllError, 'Ldap Modify Error: %', [RSAT.LdapClient.ResultString], Self);
+          fLog.Add.Log(sllError, 'Ldap Modify Error: %', [RSAT.LdapClient.ResultString], Self);
         Exit;
       end;
+      AOnUnlockedAccount(RSAT.LdapClient);
     finally
       FreeAndNil(Attribute);
     end;
@@ -134,13 +130,13 @@ begin
   Attribute := TLdapAttribute.Create('unicodePwd', atUndefined);
   try
     Attribute.add(LdapUnicodePwd(NewPassword));
-    RSAT.LdapClient.OnModify := AOnPasswordChanged;
     if not RSAT.LdapClient.Modify(AObjectDN, lmoReplace, Attribute) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllError, 'Ldap Modify Error: %', [RSAT.LdapClient.ResultString], Self);
+        fLog.Add.Log(sllError, 'Ldap Modify Error: %', [RSAT.LdapClient.ResultString], Self);
       Exit;
     end;
+    AOnPasswordChanged(RSAT.LdapClient);
   finally
     FreeAndNil(Attribute);
   end;
@@ -154,20 +150,13 @@ begin
       if not RSAT.LdapClient.Modify(AObjectDN, lmoReplace, Attribute) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllError, 'Ldap Modify Error: %', [RSAT.LdapClient.ResultString], Self);
+          fLog.Add.Log(sllError, 'Ldap Modify Error: %', [RSAT.LdapClient.ResultString], Self);
         Exit;
       end;
     finally
       FreeAndNil(Attribute);
     end;
   end;
-end;
-
-procedure TModuleADUC.SetEnabled(AValue: Boolean);
-begin
-  if AValue = fEnabled then
-    Exit;
-  fEnabled := AValue;
 end;
 
 end.

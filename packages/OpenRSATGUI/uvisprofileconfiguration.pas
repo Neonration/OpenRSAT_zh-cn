@@ -1,6 +1,6 @@
 unit uvisprofileconfiguration;
 
-{$mode objfpc}{$H+}
+{$I mormot.defines.inc}
 
 interface
 
@@ -24,12 +24,14 @@ type
   { TVisProfileConfiguration }
 
   TVisProfileConfiguration = class(TForm)
+    Action_SelectKeytab: TAction;
     Action_ShowDCInfos: TAction;
     Action_TestConnection: TAction;
     Action_TestAuthentication: TAction;
     Action_SearchDomains: TAction;
     Action_SearchDomainControllers: TAction;
     ActionList1: TActionList;
+    BitBtn1: TBitBtn;
     BitBtn_DCInfos: TBitBtn;
     BitBtn_SearchDomains: TBitBtn;
     BitBtn_SearchDomainController: TBitBtn;
@@ -43,13 +45,17 @@ type
     ComboBox_Domains: TComboBox;
     ComboBox_DomainControllers: TComboBox;
     ComboBox_Algorithm: TComboBox;
+    Edit1: TEdit;
+    Edit2: TEdit;
     Edit_Timeout: TEdit;
     Edit_Username: TEdit;
     Edit_Password: TEdit;
     Edit_UsernameDomain: TEdit;
+    GroupBox_KeyTab: TGroupBox;
     GroupBox_Domain: TGroupBox;
     GroupBox_Account: TGroupBox;
     GroupBox_AuthMethods: TGroupBox;
+    Label_ProfileName: TLabel;
     Label_CurrentUsername: TLabel;
     Label_Domain: TLabel;
     Label_Unsafe: TLabel;
@@ -65,9 +71,13 @@ type
     Label_Simple: TLabel;
     Label_Digest: TLabel;
     Label_Kerberos: TLabel;
+    OpenDialog1: TOpenDialog;
     Panel1: TPanel;
     Panel2: TPanel;
     Panel3: TPanel;
+    Panel4: TPanel;
+    Panel5: TPanel;
+    Panel6: TPanel;
     Panel_AuthMethodSelectorInner: TPanel;
     Panel_Kerberos: TPanel;
     Panel_Digest: TPanel;
@@ -78,10 +88,12 @@ type
     RadioButton_Kerberos: TRadioButton;
     procedure Action_SearchDomainControllersExecute(Sender: TObject);
     procedure Action_SearchDomainsExecute(Sender: TObject);
+    procedure Action_SelectKeytabExecute(Sender: TObject);
     procedure Action_ShowDCInfosExecute(Sender: TObject);
     procedure Action_TestAuthenticationExecute(Sender: TObject);
     procedure Action_TestConnectionExecute(Sender: TObject);
     procedure CheckBox_CurrentUsernameChange(Sender: TObject);
+    procedure ComboBox_DomainControllersEditingDone(Sender: TObject);
     procedure ComboBox_DomainsEditingDone(Sender: TObject);
     procedure ComboBox_DomainsSelect(Sender: TObject);
     procedure Edit_UsernameKeyPress(Sender: TObject; var Key: char);
@@ -94,6 +106,8 @@ type
   private
     fSettings: TMLdapClientSettings;
 
+    function GetProfileName: RawUtf8;
+    procedure SetProfileName(AValue: RawUtf8);
     procedure UpdateAuthMethodsPanel;
     procedure SettingsToGUI(ASettings: TMLdapClientSettings = nil);
     procedure GUIToSettings(ASettings: TMLdapClientSettings = nil);
@@ -101,6 +115,7 @@ type
     constructor Create(TheOwner: TComponent; ASettings: TMLdapClientSettings); reintroduce;
 
     property Settings: TMLdapClientSettings read fSettings;
+    property ProfileName: RawUtf8 read GetProfileName write SetProfileName;
   end;
 
 implementation
@@ -112,6 +127,7 @@ uses
   mormot.net.sock,
   mormot.crypt.secure,
   ucommon,
+  ulog,
   ucoredatamodule,
   uvisrootdseinfos,
   ursatldapclient,
@@ -125,6 +141,12 @@ procedure TVisProfileConfiguration.CheckBox_CurrentUsernameChange(
   Sender: TObject);
 begin
   UpdateAuthMethodsPanel;
+end;
+
+procedure TVisProfileConfiguration.ComboBox_DomainControllersEditingDone(Sender: TObject);
+begin
+  if Edit1.Text = '' then
+    Edit1.Text := ComboBox_DomainControllers.Caption;
 end;
 
 procedure TVisProfileConfiguration.ComboBox_DomainsEditingDone(Sender: TObject);
@@ -195,6 +217,13 @@ begin
   end;
 end;
 
+procedure TVisProfileConfiguration.Action_SelectKeytabExecute(Sender: TObject);
+begin
+  if not OpenDialog1.Execute then
+    Exit;
+  Edit2.Text := OpenDialog1.FileName;
+end;
+
 procedure TVisProfileConfiguration.Action_ShowDCInfosExecute(Sender: TObject);
 var
   VisRootDSEInfos: TVisRootDSEInfos;
@@ -224,6 +253,7 @@ begin
     ASettings := TMLdapClientSettings.Create();
     GUIToSettings(ASettings);
     LdapTest := TRsatLdapClient.Create(ASettings);
+    LdapTest.Log := TLdapLog;
     LdapTest.TlsContext^.IgnoreCertificateErrors := LdapTest.Settings.AllowUnsafePasswordBind;
     if LdapTest.Connect() then
       MessageDlg(rsLdapSuccess, FormatUtf8(rsLdapSuccessAuthMessage, [LdapTest.BoundUser]), mtConfirmation, [mbOK], 0)
@@ -356,8 +386,19 @@ begin
   Panel_Digest.Visible := RadioButton_Digest.Checked;
   Panel_Kerberos.Visible := RadioButton_Kerberos.Checked;
   GroupBox_Account.Visible := RadioButton_Digest.Checked or RadioButton_Simple.Checked or (RadioButton_Kerberos.Checked and not CheckBox_CurrentUsername.Checked);
+  GroupBox_KeyTab.Visible := {$ifdef OSPOSIX}RadioButton_Kerberos.Checked and not CheckBox_CurrentUsername.Checked{$else}False{$endif OSPOSIX};
   AutoSize := True;
   AutoSize := False;
+end;
+
+function TVisProfileConfiguration.GetProfileName: RawUtf8;
+begin
+  result := Edit1.Text;
+end;
+
+procedure TVisProfileConfiguration.SetProfileName(AValue: RawUtf8);
+begin
+  Edit1.Text := AValue;
 end;
 
 procedure TVisProfileConfiguration.SettingsToGUI(ASettings: TMLdapClientSettings
@@ -394,6 +435,9 @@ begin
   else
     Edit_Username.Text := ASettings.UserName;
   Edit_Password.Text := ASettings.Password;
+  {$ifdef OSPOSIX}
+  Edit2.Text := ASettings.KerberosLocal;
+  {$endif OSPOSIX}
 end;
 
 procedure TVisProfileConfiguration.GUIToSettings(ASettings: TMLdapClientSettings
@@ -453,6 +497,9 @@ begin
   else
     ASettings.UserName := Edit_Username.Text;
   ASettings.Password := Edit_Password.Text;
+  {$ifdef OSPOSIX}
+  ASettings.KerberosLocal := Edit2.Text;
+  {$endif OSPOSIX}
 end;
 
 constructor TVisProfileConfiguration.Create(TheOwner: TComponent;

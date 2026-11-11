@@ -65,6 +65,7 @@ type
     fMappingLdapNameDisplayName: TDocVariantData;
 
     function Compare(const A, B): Integer;
+    function GetLdapClient: TRsatLdapClient;
     procedure Sort(ListBox: TListBox; AText: RawUtf8);
     function GetDisplayedColumns: TRawUtf8DynArray;
     procedure OnSearchEventFillColumnAttributes(Sender: TObject);
@@ -72,7 +73,7 @@ type
     constructor Create(TheOwner: TComponent; ADUC: TModuleADUC); reintroduce;
 
     property DisplayedColumns: TRawUtf8DynArray read GetDisplayedColumns;
-
+    property LdapClient: TRsatLdapClient read GetLdapClient;
   end;
 
 implementation
@@ -80,8 +81,7 @@ uses
   uhelpers,
   mormot.core.data,
   uconfig,
-  umoduleaducoption,
-  ufrmrsat;
+  umoduleaducoption;
 
 {$R *.lfm}
 
@@ -97,21 +97,17 @@ begin
 
   ListBox1.Clear;
   ListBox2.Clear;
-  With FrmRSAT.LdapClient do
-  begin
-    SearchBegin(fADUC.ADUCOption.SearchPageSize);
-    try
-      SearchScope := lssSingleLevel;
-      OnSearch := @OnSearchEventFillColumnAttributes;
+  LdapClient.SearchBegin(fADUC.ADUCOption.SearchPageSize);
+  try
+    LdapClient.SearchScope := lssSingleLevel;
 
-      repeat
-        if not Search(SchemaDN, False, Filter, Attributes) then
-          Exit;
-      until SearchCookie = '';
-    finally
-      OnSearch := nil;
-      SearchEnd;
-    end;
+    repeat
+      if not LdapClient.Search(LdapClient.SchemaDN, False, Filter, Attributes) then
+        Exit;
+      OnSearchEventFillColumnAttributes(LdapClient);
+    until LdapClient.SearchCookie = '';
+  finally
+    LdapClient.SearchEnd;
   end;
 
   TisSearchEdit1.Search;
@@ -170,6 +166,11 @@ begin
   end
   else
     result := String.Compare(alower, blower);
+end;
+
+function TVisEditADUCColumns.GetLdapClient: TRsatLdapClient;
+begin
+  result := fADUC.RSAT.LdapClient;
 end;
 
 procedure TVisEditADUCColumns.Sort(ListBox: TListBox; AText: RawUtf8);
@@ -246,7 +247,7 @@ begin
   ListBox1.Items.BeginUpdate;
   ListBox2.Items.BeginUpdate;
   try
-    With FrmRSAT.LdapClient do
+    With LdapClient do
     begin
       for SearchResultItem in SearchResult.Items do
       begin

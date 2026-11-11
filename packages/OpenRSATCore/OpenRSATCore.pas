@@ -13,7 +13,11 @@ uses
   umoduleadssoption, umoduleadss, umoduleaddns, umoduleaddnsoption, 
   umoduleadsi, umoduleadsioption, udns, ugplink, uproperty, usidcache, 
   uadvancedsecuritypresenter, uguidcache, uselectobjectguidpresenter, 
-  uviewkeytabpresenter, unewsitelink, LazarusPackageIntf;
+  uviewkeytabpresenter, unewsitelink, ugeneralpropertysitelink, 
+  ugeneralpropertysitelinkbridge, udoublelistlogic, unewsitelinkbridge, ulog, 
+  ugeneralpropertyserver, ugeneralpropertyntdsdsa, uschedulinglogic, 
+  ugeneralpropertyntds, uwindows.ncrypt, uldapclient, udnsservice, 
+  LazarusPackageIntf;
 
 implementation
 

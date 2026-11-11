@@ -12,7 +12,8 @@ uses
   mormot.core.os.security,
   mormot.core.variants,
   mormot.net.ldap,
-  ucommon;
+  ucommon,
+  ulog;
 
 type
 
@@ -93,26 +94,14 @@ type
   private
     fOnConnect: TNotifyEvent;
     fOnClose: TNotifyEvent;
-    fOnSearch: TNotifyEvent;
-    fOnDelete: TNotifyEvent;
-    fOnAdd: TNotifyEvent;
-    fOnModify: TNotifyEvent;
     fOnError: TNotifyEvent;
 
-    procedure SetOnAdd(AValue: TNotifyEvent);
-    procedure SetOnClose(AValue: TNotifyEvent);
     procedure SetOnConnect(AValue: TNotifyEvent);
-    procedure SetOnDelete(AValue: TNotifyEvent);
+    procedure SetOnClose(AValue: TNotifyEvent);
     procedure SetOnError(AValue: TNotifyEvent);
-    procedure SetOnModify(AValue: TNotifyEvent);
-    procedure SetOnSearch(AValue: TNotifyEvent);
   published
     property OnConnect: TNotifyEvent read fOnConnect write SetOnConnect;
     property OnClose: TNotifyEvent read fOnClose write SetOnClose;
-    property OnSearch: TNotifyEvent read fOnSearch write SetOnSearch;
-    property OnDelete: TNotifyEvent read fOnDelete write SetOnDelete;
-    property OnAdd: TNotifyEvent read fOnAdd write SetOnAdd;
-    property OnModify: TNotifyEvent read fOnModify write SetOnModify;
     property OnError: TNotifyEvent read fOnError write SetOnError;
   end;
 
@@ -123,6 +112,8 @@ function ConcatACL(ADacls: Array of TSecAcl; AAllowDuplicated: Boolean = False):
 function GetDefaultACLFromObjectClass(ALdapClient: TLdapClient; AObjectClass: TRawUtf8DynArray): TSecAcl;
 
 procedure OrderACL(aLdapClient: TLdapClient; aDN: RawUtf8; aACL: PSecAcl);
+
+function ChangeLdapSettings(LdapClient: TRsatLdapClient; Settings: TLdapClientSettings; AutoConnect: Boolean = True): Boolean;
 
 const
   LDAP_ERROR_CUSTOM_MESSAGE: Array[leOperationsError..leOther] of RawUtf8 = (
@@ -186,6 +177,9 @@ begin
 
   if (result = '') then
     result := LdapClient.ResultString;
+
+  if String(result).ToLower.Contains('error 1326') then
+    result := rsInvalidCredentials;
 end;
 
 function AceIsUseless(Ace: PSecAce): Boolean;
@@ -324,7 +318,7 @@ var
   parent, filter: RawUtf8;
   res: TLdapResult;
 begin
-  TSynLog.Add.Log(sllDebug, FormatUtf8('Start ordering ACL for %...', [aDN]));
+  TOpenRSATLog.Add.Log(sllDebug, FormatUtf8('Start ordering ACL for %...', [aDN]));
   sdArr := [];
 
   parent := aDN;
@@ -357,7 +351,19 @@ begin
 
   // Order acl
   InnerOrderAcl(aACL, sdArr);
-  TSynLog.Add.Log(sllDebug, 'End ordering ACL for.');
+  TOpenRSATLog.Add.Log(sllDebug, 'End ordering ACL for.');
+end;
+
+function ChangeLdapSettings(LdapClient: TRsatLdapClient;
+  Settings: TLdapClientSettings; AutoConnect: Boolean): Boolean;
+begin
+  result := LdapClient.Close;
+  CopyObject(Settings, LdapClient.Settings);
+  LdapClient.Log := TLdapLog;
+  LdapClient.SearchSDFlags := [lsfOwnerSecurityInformation, lsfGroupSecurityInformation, lsfDaclSecurityInformation];
+  if AutoConnect then
+    result := LdapClient.Connect();
+  Exit;
 end;
 
 { TRsatLdapClient }
@@ -465,7 +471,7 @@ var
   aLog: ISynLog;
 begin
   result := False;
-  aLog := TSynLog.Enter('Move Ldap Entry', []);
+  aLog := TOpenRSATLog.Enter('Move Ldap Entry', []);
 
   assert(oldDN <> '', 'OldDN is empty.');
   assert(newDN <> '', 'NewDN is empty.');
@@ -490,7 +496,7 @@ var
   aLog: ISynLog;
 begin
   result := False;
-  aLog := TSynLog.Enter('Rename Ldap Entry', []);
+  aLog := TOpenRSATLog.Enter('Rename Ldap Entry', []);
 
   assert(DN <> '', 'DN is empty');
   assert(newName <> '', 'newName is empty');
@@ -517,6 +523,7 @@ begin
   fSettings := TLdapClientSettings.Create;
 
   CopyObject(ASettings, fSettings);
+  TlsContext^.IgnoreCertificateErrors := Settings.AllowUnsafePasswordBind;
   if AutoConnect then
     Connect;
 end;
@@ -638,7 +645,7 @@ var
   parent, filter: RawUtf8;
   res: TLdapResult;
 begin
-  TSynLog.Add.Log(sllDebug, FormatUtf8('Start ordering ACL for %...', [DN]));
+  TOpenRSATLog.Add.Log(sllDebug, FormatUtf8('Start ordering ACL for %...', [DN]));
   sdArr := [];
 
   parent := DN;
@@ -671,7 +678,7 @@ begin
 
   // Order acl
   InnerOrderAcl(acl, sdArr);
-  TSynLog.Add.Log(sllDebug, 'End ordering ACL for.');
+  TOpenRSATLog.Add.Log(sllDebug, 'End ordering ACL for.');
 end;
 
 function TRsatLdapClient.Search(const Attributes: TLdapAttributeTypes;
@@ -679,14 +686,8 @@ function TRsatLdapClient.Search(const Attributes: TLdapAttributeTypes;
 begin
   Result := inherited Search(Attributes, Filter, BaseDN, TypesOnly);
 
-  if Result then
-  begin
-    if Assigned(fOnSearch) then
-      fOnSearch(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.Search(const BaseDN: RawUtf8; TypesOnly: boolean;
@@ -694,14 +695,8 @@ function TRsatLdapClient.Search(const BaseDN: RawUtf8; TypesOnly: boolean;
 begin
   Result := inherited Search(BaseDN, TypesOnly, Filter, Attributes);
 
-  if Result then
-  begin
-    if Assigned(fOnSearch) then
-      fOnSearch(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.SearchObject(const ObjectDN, Filter,
@@ -709,14 +704,8 @@ function TRsatLdapClient.SearchObject(const ObjectDN, Filter,
 begin
   result := inherited SearchObject(ObjectDN, Filter, Attribute, Scope);
 
-  if not Assigned(result) and (ResultCode > 0) then
-  begin
-    if Assigned(fOnError) then
-      fOnError(Self);
-  end
-  else
-    if Assigned(fOnSearch) then
-      fOnSearch(Self);
+  if not Assigned(result) and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.SearchObject(const ObjectDN, Filter: RawUtf8;
@@ -724,14 +713,8 @@ function TRsatLdapClient.SearchObject(const ObjectDN, Filter: RawUtf8;
 begin
   result := inherited SearchObject(ObjectDN, Filter, Attributes, Scope);
 
-  if not Assigned(result) and (ResultCode > 0) then
-  begin
-    if Assigned(fOnError) then
-      fOnError(Self);
-  end
-  else
-    if Assigned(fOnSearch) then
-      fOnSearch(Self);
+  if not Assigned(result) and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.SearchObject(Attribute: TLdapAttributeType;
@@ -739,14 +722,8 @@ function TRsatLdapClient.SearchObject(Attribute: TLdapAttributeType;
 begin
   result := inherited SearchObject(Attribute, ObjectDN, Filter, Scope);
 
-  if not Assigned(result) and (ResultCode > 0) then
-  begin
-    if Assigned(fOnError) then
-      fOnError(Self);
-  end
-  else
-    if Assigned(fOnSearch) then
-      fOnSearch(Self);
+  if not Assigned(result) and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.SearchObject(const Attributes: TLdapAttributeTypes;
@@ -754,14 +731,8 @@ function TRsatLdapClient.SearchObject(const Attributes: TLdapAttributeTypes;
 begin
   result := inherited SearchObject(Attributes, ObjectDN, Filter, Scope);
 
-  if not Assigned(result) and (ResultCode > 0) then
-  begin
-    if Assigned(fOnError) then
-      fOnError(Self);
-  end
-  else
-    if Assigned(fOnSearch) then
-      fOnSearch(Self);
+  if not Assigned(result) and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.Modify(const Obj: RawUtf8;
@@ -769,14 +740,8 @@ function TRsatLdapClient.Modify(const Obj: RawUtf8;
 begin
   result := inherited Modify(Obj, Modifications);
 
-  if result then
-  begin
-    if Assigned(fOnModify) then
-      fOnModify(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
@@ -785,14 +750,8 @@ function TRsatLdapClient.Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
 begin
   result := inherited Modify(Obj, Op, Types, Values);
 
-  if result then
-  begin
-    if Assigned(fOnModify) then
-      fOnModify(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
@@ -800,14 +759,8 @@ function TRsatLdapClient.Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
 begin
   result := inherited Modify(Obj, Op, AttrName, AttrValue);
 
-  if result then
-  begin
-    if Assigned(fOnModify) then
-      fOnModify(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
@@ -815,14 +768,8 @@ function TRsatLdapClient.Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
 begin
   result := inherited Modify(Obj, Op, Attribute);
 
-  if result then
-  begin
-    if Assigned(fOnModify) then
-      fOnModify(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
@@ -830,14 +777,8 @@ function TRsatLdapClient.Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
 begin
   result := inherited Modify(Obj, Op, AttrType, AttrValue);
 
-  if result then
-  begin
-    if Assigned(fOnModify) then
-      fOnModify(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.ModifyDN(const Obj, NewRdn, NewSuperior: RawUtf8;
@@ -845,14 +786,8 @@ function TRsatLdapClient.ModifyDN(const Obj, NewRdn, NewSuperior: RawUtf8;
 begin
   result := inherited ModifyDN(Obj, NewRdn, NewSuperior, DeleteOldRdn);
 
-  if result then
-  begin
-    if Assigned(fOnModify) then
-      fOnModify(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.ModifyUserPassword(const UserDN: RawUtf8;
@@ -860,14 +795,8 @@ function TRsatLdapClient.ModifyUserPassword(const UserDN: RawUtf8;
 begin
   result := inherited ModifyUserPassword(UserDN, OldPassword, NewPassword);
 
-  if result then
-  begin
-    if Assigned(fOnModify) then
-      fOnModify(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.Add(const Obj: RawUtf8; Value: TLdapAttributeList
@@ -875,14 +804,8 @@ function TRsatLdapClient.Add(const Obj: RawUtf8; Value: TLdapAttributeList
 begin
   result := inherited Add(Obj, Value);
 
-  if result then
-  begin
-    if Assigned(fOnAdd) then
-      fOnAdd(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.Delete(const Obj: RawUtf8; DeleteChildren: boolean
@@ -890,14 +813,8 @@ function TRsatLdapClient.Delete(const Obj: RawUtf8; DeleteChildren: boolean
 begin
   result := inherited Delete(Obj, DeleteChildren);
 
-  if result then
-  begin
-    if Assigned(fOnDelete) then
-      fOnDelete(Self);
-  end
-  else
-    if Assigned(fOnError) then
-      fOnError(Self);
+  if not result and Assigned(fOnError) then
+    fOnError(Self);
 end;
 
 function TRsatLdapClient.Connect(DiscoverMode: TLdapClientConnect;
@@ -932,12 +849,6 @@ begin
       fOnError(Self);
 end;
 
-procedure TRsatLdapClient.SetOnAdd(AValue: TNotifyEvent);
-begin
-  if fOnAdd=AValue then Exit;
-  fOnAdd:=AValue;
-end;
-
 procedure TRsatLdapClient.SetOnClose(AValue: TNotifyEvent);
 begin
   if fOnClose=AValue then Exit;
@@ -950,28 +861,10 @@ begin
   fOnConnect:=AValue;
 end;
 
-procedure TRsatLdapClient.SetOnDelete(AValue: TNotifyEvent);
-begin
-  if fOnDelete=AValue then Exit;
-  fOnDelete:=AValue;
-end;
-
 procedure TRsatLdapClient.SetOnError(AValue: TNotifyEvent);
 begin
   if fOnError=AValue then Exit;
   fOnError:=AValue;
-end;
-
-procedure TRsatLdapClient.SetOnModify(AValue: TNotifyEvent);
-begin
-  if fOnModify=AValue then Exit;
-  fOnModify:=AValue;
-end;
-
-procedure TRsatLdapClient.SetOnSearch(AValue: TNotifyEvent);
-begin
-  if fOnSearch=AValue then Exit;
-  fOnSearch:=AValue;
 end;
 
 end.

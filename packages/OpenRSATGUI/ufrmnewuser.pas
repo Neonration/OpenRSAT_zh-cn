@@ -13,13 +13,16 @@ uses
   Graphics,
   StdCtrls,
   // Submodules
-  tis.ui.searchedit;
+  mormot.net.ldap,
+  mormot.core.base;
 
 type
 
   { TFrmNewUser }
 
   TFrmNewUser = class(TFrame)
+    ComboBox1: TComboBox;
+    Label_ConfirmMessage: TLabel;
 
     Panel_Page0: TPanel;
       Label_FirstName: TLabel;
@@ -32,7 +35,6 @@ type
       Edit_FullName: TEdit;
       Label_UserLogon: TLabel;
       Edit_UserLogon: TEdit;
-      TisSearchEdit_UserLogonDomain: TTisSearchEdit;
       Label_WinUserLogonName: TLabel;
       Edit_nETBIOSDomain: TEdit;
       Edit_nETBIOSName: TEdit;
@@ -61,10 +63,16 @@ type
     procedure Edit_PasswordChange(Sender: TObject);
     procedure Edit_UserLogonChange(Sender: TObject);
   private
+    BaseObj: TLdapAttributeList;
+
+    function IsPasswordConfirmed: Boolean;
+    procedure UpdateConfirmPwdStatus;
     procedure OKBtn();
     procedure Load;
   public
     constructor Create(TheOwner: TComponent); override;
+    destructor Destroy; override;
+    procedure Copy(const DistinguishedName: RawUtf8);
   end;
 
 implementation
@@ -76,7 +84,6 @@ uses
   // Submodules
   mormot.core.text,
   mormot.core.os.security,
-  mormot.net.ldap,
   // Rsat
   ucommon,
   ucoredatamodule,
@@ -89,80 +96,102 @@ uses
 
 procedure TFrmNewUser.OKBtn();
 var
-  NewObject: TVisNewObject;
-  AttList: TLdapAttributeList;
-  Att: TLdapAttribute;
-  UAC: TUserAccountControls = [uacNormalAccount];
+  Ldap: TLdapClient;
   DN: String;
-  SecDesc: TSecurityDescriptor;
-  AceSelf, AceWorld: PSecAce;
-begin
-  NewObject := (owner as TVisNewObject);
-  Dec(NewObject.PageIdx);
+  ObjectOU, MemberOf: RawUtf8;
+  NewUser: TLdapAttributeList;
+  MemberOfAttr: TLdapAttribute;
 
-  AttList := TLdapAttributeList.Create();
-  try
-    Att := AttList.Add(atObjectClass, 'top');
-    Att.Add('person');
-    Att.Add('organizationalPerson');
-    Att.Add('user');
-
-    if Edit_FirstName.Text <> '' then
-      AttList.Add(atGivenName, Edit_FirstName.Text);
-    if Edit_LastName.Text <> '' then
-      AttList.Add(atSurName, Edit_LastName.Text);
-    if Edit_FullName.Text <> '' then
-      AttList.Add(atDisplayName, Edit_FullName.Text);
-    if Edit_Initials.Text <> '' then
-      AttList.Add(atInitials, Edit_Initials.Text);
-    if Edit_nETBIOSName.Text <> '' then
-      AttList.Add(atSAMAccountName, Edit_nETBIOSName.Text);
-    if (Edit_UserLogon.Text <> '') and (TisSearchEdit_UserLogonDomain.Text <> '') then
-      AttList.Add(atUserPrincipalName, Edit_UserLogon.Text + TisSearchEdit_UserLogonDomain.Text);
-
-    if Edit_Password.Text <> '' then
-      AttList.AddUnicodePwd(Edit_Password.Text);
-
-    if CheckBox_MustChangePassword.Checked then
-      AttList.Add(atPwdLastSet, '0');
-
-    if CheckBox_PasswordNeverExpires.Checked then
-      Include(UAC, uacPasswordDoNotExpire);
-    if CheckBox_AccountDisabled.Checked then
-      Include(UAC, uacAccountDisable);
-    if UAC <> [] then
-      AttList.Add(atUserAccountControl, UserAccountControlsValue(UAC).ToString());
-
-    DN := FormatUtf8('CN=%,%', [Edit_FullName.Text, NewObject.ObjectOU]);
-    if not NewObject.Ldap.Add(DN, AttList) then
+  procedure CopyAttribute(Src, Dest: TLdapAttributeList; const AttributeName: RawUtf8);
+  var
+    A, B: TLdapAttribute;
+    i: Integer;
+  begin
+    A := Src.Find(AttributeName);
+    if not Assigned(A) then
       Exit;
+
+    B := Dest.Add(AttributeName);
+    B.AddFrom(A);
+  end;
+
+  procedure CopyAttributes(Src, Dest: TLdapAttributeList; const AttributeNames: TRawUtf8DynArray);
+  var
+    i: Integer;
+  begin
+    for i := 0 to High(AttributeNames) do
+      CopyAttribute(Src, Dest, AttributeNames[i]);
+  end;
+
+begin
+  Ldap := (Owner as TVisNewObject).Ldap;
+  ObjectOU := (Owner as TVisNewObject).ObjectOU;
+  Dec((Owner as TVisNewObject).PageIdx);
+
+  NewUser := PrepareNewUser(
+    Edit_FirstName.Text,
+    Edit_LastName.Text,
+    Edit_FullName.Text,
+    Edit_Initials.Text,
+    Edit_nETBIOSName.Text,
+    FormatUtf8('%%', [Edit_UserLogon.Text, ComboBox1.Text])
+  );
+
+  try
+    if Assigned(BaseObj) then
+    begin
+      CopyAttributes(BaseObj, NewUser, [
+        'c',
+        'l',
+        'st',
+        'postalCode',
+        'postOfficeBox',
+        'co',
+        'department',
+        'company',
+        'codePage',
+        'countryCode',
+        'logonHours',
+        'accountExpires',
+        'userAccountControl']);
+    end;
+
+    ChangePassword(NewUser, Edit_Password.Text);
+    MustChangePassword(NewUser, CheckBox_MustChangePassword.Checked);
+    PasswordNeverExpires(NewUser, CheckBox_PasswordNeverExpires.Checked);
+    DisableAccount(NewUser, CheckBox_AccountDisabled.Checked);
+
+    DN := FormatUtf8('CN=%,%', [Edit_FullName.Text, ObjectOU]);
+    if not Ldap.Add(DN, NewUser) then
+    begin
+      ShowLdapAddError(Ldap);
+      Exit;
+    end;
+    if Assigned(BaseObj) then
+    begin
+      MemberOfAttr := BaseObj.Find('memberOf');
+      if Assigned(MemberOfAttr) then
+      begin
+        for MemberOf in MemberOfAttr.GetAllReadable do
+        begin
+          if MemberOf = '' then
+            Continue;
+          if not Ldap.Modify(MemberOf, lmoAdd, 'member', DN) then
+          begin
+            ShowLdapModifyError(Ldap);
+            Exit;
+          end;
+        end;
+      end;
+    end;
   finally
-    FreeAndNil(AttList);
+    FreeAndNil(NewUser);
   end;
 
   if CheckBox_CannotChangePassword.Checked then
-  begin
-    // https://learn.microsoft.com/en-us/windows/win32/adsi/modifying-user-cannot-change-password-ldap-provider
-    Att := NewObject.Ldap.SearchObject(atNTSecurityDescriptor, DN, '');
-    if not Assigned(Att) then
-      Exit;
+    CannotChangePassword(Ldap, DN);
 
-    SecDesc.FromBinary(Att.GetRaw());
-    AceSelf  := SecDescAddOrUpdateACE(@SecDesc, ATTR_UUID[kaUserChangePassword],
-      KnownRawSid(wksSelf),  satObjectAccessAllowed, [samControlAccess]);
-    AceWorld := SecDescAddOrUpdateACE(@SecDesc, ATTR_UUID[kaUserChangePassword],
-      KnownRawSid(wksWorld), satObjectAccessAllowed, [samControlAccess]);
-
-    AceSelf^.AceType  := satObjectAccessDenied;
-    AceWorld^.AceType := satObjectAccessDenied;
-
-    (NewObject.Ldap as TRsatLdapClient).OrderAcl(DN, (Owner as TVisNewObject).BaseDN, @SecDesc.Dacl);
-
-    if not NewObject.Ldap.Modify(DN, lmoReplace, atNTSecurityDescriptor, SecDesc.ToBinary()) then
-      Exit;
-  end;
-
-  NewObject.ModalResult := mrOK;
+  (Owner as TVisNewObject).ModalResult := mrOK;
 end;
 
 procedure TFrmNewUser.Load;
@@ -178,6 +207,8 @@ var
 begin
   inherited Create(TheOwner);
 
+  BaseObj := nil;
+
   OwnerNewObject.Caption := rsNewObjectUser;
   OwnerNewObject.Btn_Next.Action := ActionList.ActionByName('Action_Next');
   OwnerNewObject.Btn_Next.Default := True;
@@ -187,19 +218,52 @@ begin
   OwnerNewObject.Image_Object.ImageIndex := Ord(ileADUser);
   OwnerNewObject.CallBack := @Load;
 
-  TisSearchEdit_UserLogonDomain.Items.Add('@' + DNToCN((TheOwner as TVisNewObject).Ldap.DefaultDN));
+  ComboBox1.Items.Add('@' + DNToCN((TheOwner as TVisNewObject).Ldap.DefaultDN));
   if (TheOwner as TVisNewObject).Ldap.DefaultDN <> (TheOwner as TVisNewObject).Ldap.RootDN then
-    TisSearchEdit_UserLogonDomain.Items.Add('@' + DNToCN((TheOwner as TVisNewObject).Ldap.RootDN));
+    ComboBox1.Items.Add('@' + DNToCN((TheOwner as TVisNewObject).Ldap.RootDN));
 
-  TisSearchEdit_UserLogonDomain.ItemIndex := 0;
+  ComboBox1.ItemIndex := 0;
   Edit_nETBIOSDomain.Caption := (TheOwner as TVisNewObject).Ldap.NetbiosDN + '\';
 
   SearchObject := (TheOwner as TVisNewObject).Ldap.SearchObject(FormatUtf8('CN=Partitions,%', [(TheOwner as TVisNewObject).Ldap.ConfigDN]), '', ['uPNSuffixes']);
   if Assigned(SearchObject) then
   begin
     for Item in SearchObject.Find('uPNSuffixes').GetAllReadable do
-      TisSearchEdit_UserLogonDomain.Items.Add('@' + Item);
+      ComboBox1.Items.Add('@' + Item);
   end;
+end;
+
+destructor TFrmNewUser.Destroy;
+begin
+  if Assigned(BaseObj) then
+    FreeAndNil(BaseObj);
+  inherited Destroy;
+end;
+
+procedure TFrmNewUser.Copy(const DistinguishedName: RawUtf8);
+var
+  UserPrincipalName, PwdLastSet: RawUtf8;
+  UAC: TUserAccountControls;
+  Idx: SizeInt;
+  suffix: String;
+  Obj: TLdapResult;
+begin
+  Obj := (Owner as TVisNewObject).Ldap.SearchObject(DistinguishedName, '', ['*']);
+  if not Assigned(Obj) then
+    Exit;
+
+  BaseObj := TLdapAttributeList(Obj.Attributes.Clone);
+  UserPrincipalName := Obj.Find('userPrincipalName').GetReadable();
+  UAC := UserAccountControlsFromText(Obj.Find('userAccountControl').GetReadable());
+  PwdLastSet := Obj.Find('pwdLastSet').GetReadable();
+
+  Idx := Pos('@', UserPrincipalName);
+  suffix := String(UserPrincipalName).Substring(Idx - 1);
+  ComboBox1.Caption := suffix;
+  CheckBox_AccountDisabled.Checked := (uacAccountDisable in UAC);
+  CheckBox_CannotChangePassword.Checked := (uacPasswordCannotChange in UAC);
+  CheckBox_MustChangePassword.Checked := PwdLastSet = '0';
+  CheckBox_PasswordNeverExpires.Checked := (uacPasswordDoNotExpire in UAC);
 end;
 
 { TFrmNewUser - public }
@@ -207,6 +271,32 @@ end;
 procedure TFrmNewUser.Edit_UserLogonChange(Sender: TObject);
 begin
   Edit_nETBIOSName.Text := UpperCase(Edit_UserLogon.Text);
+end;
+
+function TFrmNewUser.IsPasswordConfirmed: Boolean;
+begin
+  result := (Edit_Confirm.Text <> '') and (Edit_Password.Text = Edit_Confirm.Text);
+end;
+
+procedure TFrmNewUser.UpdateConfirmPwdStatus;
+begin
+  if Edit_Confirm.Text = '' then
+  begin
+    Label_ConfirmMessage.Caption := 'The confirmation is empty.';
+    Label_ConfirmMessage.Font.Color := clRed;
+    Exit;
+  end;
+
+  if not IsPasswordConfirmed then
+  begin
+    Label_ConfirmMessage.Caption := 'The passwords do not match.';
+    Label_ConfirmMessage.Font.Color := clRed;
+  end
+  else
+  begin
+    Label_ConfirmMessage.Caption := 'The passwords match.';
+    Label_ConfirmMessage.Font.Color := clGreen;
+  end;
 end;
 
 procedure TFrmNewUser.NameChange(Sender: TObject);
@@ -227,18 +317,12 @@ end;
 
 procedure TFrmNewUser.Edit_PasswordChange(Sender: TObject);
 begin
-  if Edit_Password.Text <> Edit_Confirm.Text then
-    Edit_Confirm.Font.Color := clRed
-  else
-    Edit_Confirm.Font.Color := clDefault;
+ UpdateConfirmPwdStatus;
 end;
 
 procedure TFrmNewUser.Edit_ConfirmChange(Sender: TObject);
 begin
-  if Edit_Password.Text <> Edit_Confirm.Text then
-    Edit_Confirm.Font.Color := clRed
-  else
-    Edit_Confirm.Font.Color := clDefault;
+  UpdateConfirmPwdStatus;
 end;
 
 procedure TFrmNewUser.CheckBox_PwdChange(Sender: TObject);
@@ -264,6 +348,27 @@ var
   NewObject: TVisNewObject;
 begin
   NewObject := (owner as TVisNewObject);
+  case NewObject.PageIdx of
+    0:
+    begin
+      NewObject.Ldap.SearchScope := lssWholeSubtree;
+      NewObject.Ldap.SearchBegin(1);
+      try
+        if not NewObject.Ldap.Search(NewObject.Ldap.DefaultDN, False, FormatUtf8('(samAccountName=%)', [Edit_nETBIOSName.Text]), ['cn']) then
+        begin
+          ShowLdapSearchError(NewObject.Ldap);
+          Exit;
+        end;
+      finally
+        NewObject.Ldap.SearchEnd;
+      end;
+      if NewObject.Ldap.SearchResult.Count > 0 then
+      begin
+        MessageDlg(rsNewObjectUser, rsUserCreationAlreadyExists, mtWarning, [mbOK], 0);
+        Exit;
+      end;
+    end;
+  end;
   Inc(NewObject.PageIdx);
   if NewObject.PageIdx = NewObject.PageCount then
   begin
@@ -310,7 +415,7 @@ begin
     1:
     begin
       (owner as TVisNewObject).Btn_Next.Caption := rsNewObjectBtnNext;
-      Action_Next.Enabled := True;
+      Action_Next.Enabled := IsPasswordConfirmed;
     end;
     2:
     begin

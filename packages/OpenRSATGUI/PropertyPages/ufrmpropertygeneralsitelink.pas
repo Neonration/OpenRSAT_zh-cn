@@ -12,16 +12,23 @@ uses
   ExtCtrls,
   StdCtrls,
   Spin,
+  Dialogs,
   mormot.core.base,
   mormot.core.log,
+  mormot.core.text,
+  mormot.net.ldap,
   uhelpersui,
   uproperty,
-  upropertyframe;
+  ursatldapclient,
+  upropertyframe,
+  ugeneralpropertysitelink,
+  uvislogonhours,
+  udoublelistlogic,
+  uschedulinglogic,
+  ulog;
 
 type
-
   { TFrmPropertyGeneralSiteLink }
-
   TFrmPropertyGeneralSiteLink = class(TPropertyFrame)
     Button_Schedule: TButton;
     Button_Add: TButton;
@@ -47,14 +54,24 @@ type
     SpinEdit_Cost: TSpinEdit;
     procedure Button_AddClick(Sender: TObject);
     procedure Button_RemoveClick(Sender: TObject);
+    procedure Button_ScheduleClick(Sender: TObject);
+    procedure Edit_DescriptionChange(Sender: TObject);
     procedure ListBox_InSiteLinkSelectionChange(Sender: TObject; User: boolean);
-    procedure ListBox_NotInSiteLinkSelectionChange(Sender: TObject;
-      User: boolean);
+    procedure ListBox_NotInSiteLinkSelectionChange(Sender: TObject; User: boolean);
+    procedure SpinEdit_CostChange(Sender: TObject);
+    procedure SpinEdit_ReplicateChange(Sender: TObject);
+  
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
+    fLogic: TGeneralPropertySiteLink;
     fProperty: TProperty;
+
+    procedure LoadListBox;
+    procedure PrepareListBox;
+    
   public
     constructor Create(TheOwner: TComponent); override;
+    destructor Destroy; override;
     procedure Update(Props: TProperty); override;
   end;
 
@@ -69,10 +86,9 @@ begin
   idx := ListBox_NotInSiteLink.ItemIndex;
   if idx <> -1 then
   begin
-    ListBox_InSiteLink.Items.Add(ListBox_NotInSiteLink.Items[idx]);
-    ListBox_InSiteLink.ItemIndex := ListBox_InSiteLink.Items.Count - 1;
-    ListBox_InSiteLink.SetFocus;
-    ListBox_NotInSiteLink.Items.Delete(idx);
+    fLogic.MoveItem(msInResult, idx);
+    fLogic.SyncAttributeProperty;
+    LoadListBox;
   end;
 end;
 
@@ -83,47 +99,141 @@ begin
   idx := ListBox_InSiteLink.ItemIndex;
   if idx <> -1 then
   begin
-    ListBox_NotInSiteLink.Items.Add(ListBox_InSiteLink.Items[idx]);
-    ListBox_NotInSiteLink.ItemIndex := ListBox_NotInSiteLink.Items.Count - 1;
-    ListBox_NotInSiteLink.SetFocus;
-    ListBox_InSiteLink.Items.Delete(idx);
+    fLogic.MoveItem(msOutOfResult, idx);
+    fLogic.SyncAttributeProperty;
+    LoadListBox;
   end;
 end;
 
-procedure TFrmPropertyGeneralSiteLink.ListBox_InSiteLinkSelectionChange(
-  Sender: TObject; User: boolean);
+procedure TFrmPropertyGeneralSiteLink.Button_ScheduleClick(Sender: TObject);
+var
+  ScheduleData: RawByteString;
+  LogonHours: TVisLogonHours;
+begin
+  ScheduleData := fProperty.GetRaw('schedule');
+
+  LogonHours := TVisLogonHours.Create(Self, spkSiteLinkSchedule);
+  try
+    LogonHours.RawValue := ScheduleData;
+    if LogonHours.ShowModal <> mrOK then
+      Exit;
+    fProperty.Add('schedule', LogonHours.RawValue);
+  finally
+    LogonHours.Free;
+  end;
+end;
+
+procedure TFrmPropertyGeneralSiteLink.Edit_DescriptionChange(Sender: TObject);
+begin
+  fLogic.SetScalarProperty('description', Edit_Description.Text, aoReplaceValue);
+end;
+
+procedure TFrmPropertyGeneralSiteLink.ListBox_InSiteLinkSelectionChange(Sender: TObject; User: boolean);
 begin
   Button_Remove.Enabled := True;
   Button_Add.Enabled := False;
 end;
 
-procedure TFrmPropertyGeneralSiteLink.ListBox_NotInSiteLinkSelectionChange(
-  Sender: TObject; User: boolean);
+procedure TFrmPropertyGeneralSiteLink.ListBox_NotInSiteLinkSelectionChange(Sender: TObject; User: boolean);
 begin
   Button_Add.Enabled := True;
   Button_Remove.Enabled := False;
+end;
+
+procedure TFrmPropertyGeneralSiteLink.SpinEdit_CostChange(Sender: TObject);
+begin
+  fLogic.SetScalarProperty('cost', FloatToStr(SpinEdit_Cost.Value), aoReplaceValue);
+end;
+
+procedure TFrmPropertyGeneralSiteLink.SpinEdit_ReplicateChange(Sender: TObject);
+begin
+  fLogic.SetScalarProperty('replInterval', IntToStr(SpinEdit_Replicate.Value), aoReplaceValue);
 end;
 
 constructor TFrmPropertyGeneralSiteLink.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Caption := 'General';
+
+  fLogic := TGeneralPropertySiteLink.Create();
+end;
+
+destructor TFrmPropertyGeneralSiteLink.Destroy;
+begin
+  FreeAndNil(fLogic);
+  inherited Destroy;
 end;
 
 procedure TFrmPropertyGeneralSiteLink.Update(Props: TProperty);
+var
+  Value: RawUtf8;
 begin
-  if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Update', Self);
-
   fProperty := Props;
+  fLogic.Props := fProperty;
+  fLogic.Ldap := fProperty.LdapClient;
 
-  Edit_Name.CaptionNoChange := fProperty.name;
-  Edit_Description.CaptionNoChange := fProperty.description;
+  Edit_Name.CaptionNoChange := Props.name;
+  Edit_Description.CaptionNoChange := Props.description;
+
+  Value := fLogic.GetValueFromAttribute(fLogic.FindAttribute('cost'));
+  if Value <> '' then
+    SpinEdit_Cost.Value := StrToFloat(Value)
+  else
+    SpinEdit_Cost.Value := 0;
+
+  Value := fLogic.GetValueFromAttribute(fLogic.FindAttribute('replInterval'));
+  if Value <> '' then
+    SpinEdit_Replicate.Value := StrToInt(Value)
+  else
+    SpinEdit_Replicate.Value := 0;
+
+  fLogic.GetAllResources;
+  PrepareListBox;
+  LoadListBox;
+end;
+
+procedure TFrmPropertyGeneralSiteLink.LoadListBox;
+var
+  r: TLdapResult;
+begin
+  ListBox_NotInSiteLink.Clear;
+  for r in fLogic.OutResult do
+    ListBox_NotInSiteLink.Items.Add(fLogic.GetResultName(r));
+
+  ListBox_InSiteLink.Clear;
+  for r in fLogic.InResult do
+    ListBox_InSiteLink.Items.Add(fLogic.GetResultName(r));
+end;
+
+procedure TFrmPropertyGeneralSiteLink.PrepareListBox;
+var
+  SiteList: TLdapAttribute;
+  Site: RawUtf8;
+  n: Integer;
+begin
+  SiteList := fLogic.FindAttribute('siteList');
+  if not Assigned(SiteList) then
+    exit;
+
+  n := Length(fLogic.OutResult) - 1;
+  while n >= 0 do
+  begin
+    for Site in SiteList.GetAllReadable do
+    begin
+      if fLogic.GetValueFromAttribute(fLogic.FindAttribute('distinguishedName', fLogic.OutResult[n])) = Site then
+      begin
+        fLogic.MoveItem(msInResult, n);
+        break;
+      end;
+    end;
+
+    Dec(n);
+  end
 end;
 
 end.

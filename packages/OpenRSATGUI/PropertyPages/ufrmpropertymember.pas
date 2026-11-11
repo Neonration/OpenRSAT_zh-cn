@@ -17,8 +17,12 @@ uses
   mormot.core.base,
   mormot.core.log, mormot.core.variants,
   uproperty,
-  tis.ui.grid.core, VirtualTrees,
-  upropertyframe;
+  tis.ui.grid.core,
+  VirtualTrees,
+  uopenrsatuicontextinterface,
+  upropertyframe,
+  uvisobjectsselector,
+  ulog;
 
 type
 
@@ -46,7 +50,7 @@ type
       var Ghosted: Boolean; var ImageIndex: Integer);
     procedure TisGrid_MembersKeyPress(Sender: TObject; var Key: char);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fProperty: TProperty;
     fSearchWord: RawUtf8;
   public
@@ -62,9 +66,7 @@ uses
   ucommon,
   ucommonui,
   uhelpersui,
-  uOmniselect,
-  ursatldapclientui,
-  ufrmrsat;
+  ursatldapclientui;
 
 {$R *.lfm}
 
@@ -72,8 +74,8 @@ uses
 
 procedure TFrmPropertyMember.TisGrid_MembersDblClick(Sender: TObject);
 begin
-  if Assigned(FrmRSAT) and Assigned(TisGrid_Members.FocusedRow) then
-    FrmRSAT.OpenProperty(TisGrid_Members.FocusedRow^.S['distinguishedName'], TisGrid_Members.FocusedRow^.S['name']);
+  if Assigned(TisGrid_Members.FocusedRow) then
+    fIContext.OpenProperty(TisGrid_Members.FocusedRow^.S['distinguishedName']);
 end;
 
 procedure TFrmPropertyMember.TisGrid_MembersGetImageIndex(Sender: TBaseVirtualTree;
@@ -136,28 +138,29 @@ end;
 
 procedure TFrmPropertyMember.Action_AddExecute(Sender: TObject);
 var
-  Filter, NewMember: RawUtf8;
+  Vis: TVisObjectsSelector;
+  NewMember: RawUtf8;
+  ExcludedObjects: TRawUtf8DynArray;
   i: Integer;
-  Omniselect: TVisOmniselect;
 begin
-  // Set Filter
-  Filter := '';
+  SetLength(ExcludedObjects, TisGrid_Members.TotalCount);
   for i := 0 to TisGrid_Members.TotalCount - 1 do
-    Filter := FormatUtf8('%(distinguishedName=%)', [Filter, LdapEscape(TisGrid_Members.Data._[i]^.U['distinguishedName'])]);
-  if Filter <> '' then
-    Filter := FormatUtf8('(!(|%))', [Filter]);
+    ExcludedObjects[i] := TisGrid_Members.Data._[i]^.U['distinguishedName'];
 
-  // Omniselect
-  Omniselect := TVisOmniselect.Create(self, fProperty.LdapClient, ['group', 'user', 'computer', 'contact', 'Managed Service Accounts'], fProperty.LdapClient.DefaultDN, True, Filter);
+  Vis := TVisObjectsSelector.Create(Self);
   try
-    Omniselect.Caption := rsTitleSelectGroups;
-    if Omniselect.ShowModal() <> mrOK then
+    Vis.LdapClient := fProperty.LdapClient;
+    Vis.AllowedObjectTypes := [otfUser, otfGroup, otfContact, otfComputer];
+    Vis.SelectedObjectTypes := [otfUser, otfGroup, otfContact, otfComputer];
+    Vis.AllowMultiSelect := True;
+    Vis.ExcludedObjects := ExcludedObjects;
+    if Vis.ShowModal <> mrOK then
       Exit;
-    for NewMember in Omniselect.SelectedObjects do
+    for NewMember in Vis.SelectedObjects do
       if NewMember <> '' then
         fProperty.Add('member', NewMember, aoAlways);
   finally
-    FreeAndNil(Omniselect);
+    FreeAndNil(Vis);
   end;
   Update(fProperty);
 end;
@@ -182,9 +185,9 @@ constructor TFrmPropertyMember.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Caption := 'Member';
 end;
@@ -197,7 +200,7 @@ var
   ObjectClass: TLdapAttribute;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Update', Self);
+    fLog.Add.Log(sllTrace, 'Update', Self);
 
   fProperty := Props;
 

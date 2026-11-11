@@ -38,7 +38,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          submodules: recursive
+          submodules: true
 
       - name: Setup 7-zip
         uses: milliewalky/setup-7-zip@v2
@@ -129,16 +129,23 @@ jobs:
           lazbuild --version
           lazbuild --add-package-link submodules/mORMot2/packages/lazarus/mormot2.lpk
           lazbuild --add-package-link submodules/pltis_uicomponents/pack/pltis_uicomponents.lpk
-          lazbuild --add-package-link submodules/pltis_tsmbios/Packages/tsmbios.lpk
+          lazbuild --add-package-link submodules/pltis_djoin/pack/pltis_djoin.lpk
           lazbuild --add-package-link submodules/pltis_utils/pltis_utils.lpk
           lazbuild --add-package-link submodules/pltis_virtualtrees/virtualtreeview_package.lpk
           lazbuild --add-package-link submodules/metadarkstyle/metadarkstyle.lpk
           lazbuild --add-package-link submodules/metadarkstyle/metadarkstyledsgn.lpk
           lazbuild --add-package-link packages/OpenRSATCore/OpenRSATCore.lpk
+          lazbuild --add-package-link packages/OpenRSATGUI/OpenRSATGUI.lpk
 
       - name: Build OpenRSAT for ${{ matrix.target.name }}
         run: |
           lazbuild --build-mode=${{ matrix.target.name }} sources/OpenRSAT.lpi
+
+      - name: Include translations
+        shell: bash
+        run: |
+          mkdir -p "bin/${{ matrix.target.name }}/locale"
+          cp languages/OpenRSAT.*.po "bin/${{ matrix.target.name }}/locale/"
 
       - name: Install create-dmg
         if: matrix.target.os == 'macos-latest'
@@ -149,6 +156,8 @@ jobs:
         if:  matrix.target.os == 'macos-latest'
         run: |
           mkdir -p OpenRSAT.app/Contents/MacOS
+          mkdir -p OpenRSAT.app/Contents/Resources/locale
+          cp languages/OpenRSAT.*.po OpenRSAT.app/Contents/Resources/locale/
           echo """
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

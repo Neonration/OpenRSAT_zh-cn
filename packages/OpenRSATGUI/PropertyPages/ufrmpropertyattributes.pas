@@ -15,7 +15,8 @@ uses
   mormot.core.base,
   mormot.core.log, mormot.core.variants, mormot.net.ldap,
   uproperty,
-  upropertyframe, VirtualTrees, Graphics, Menus;
+  upropertyframe, VirtualTrees, Graphics, Menus,
+  ulog;
 
 type
 
@@ -60,7 +61,7 @@ type
     procedure MenuItem1Click(Sender: TObject);
     procedure Timer_SearchInGridTimer(Sender: TObject);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fProperty: TProperty;
     fSearchWord: RawUtf8;
   public
@@ -276,6 +277,7 @@ begin
 
   vis := TVisAttributeEditor.Create(self, Attribute, List_Attributes.FocusedRow^.S['attribute']);
   try
+    vis.LdapClient := fProperty.RSAT.LdapClient;
     if (vis.ShowModal <> mrOK) then
       Exit;
 
@@ -357,9 +359,9 @@ constructor TFrmPropertyAttributes.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   MenuItem1.Checked := (Owner as TVisProperties).IniPropStorage1.ReadBoolean('PropertyAttributesFilterHaveValue', True);
   Caption := 'Attributes';
@@ -372,12 +374,12 @@ var
   Attribute: RawUtf8;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Update', Self);
+    fLog.Add.Log(sllTrace, 'Update', Self);
 
   fProperty := Props;
   Attributes := fProperty.AttributesFromSchema;
 
-  Row.Init();
+  Row.Init(JSON_FAST);
   List_Attributes.Clear;
   List_Attributes.FocusedColumn := 0;
   List_Attributes.BeginUpdate;
@@ -388,6 +390,7 @@ begin
       if (not MenuItem1.Checked) or (MenuItem1.Checked and Assigned(value)) then
       begin
         Row.AddOrUpdateValue('attribute', Attribute);
+        Row.AddOrUpdateValue('value', fProperty.GetVariant(Attribute));
         List_Attributes.Data.AddItem(Row);
         Row.Clear;
       end;

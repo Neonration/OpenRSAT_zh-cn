@@ -1,10 +1,10 @@
 object VisProfileConfiguration: TVisProfileConfiguration
   Left = 818
-  Height = 574
+  Height = 660
   Top = 141
   Width = 400
   Caption = 'Profil configuration'
-  ClientHeight = 574
+  ClientHeight = 660
   ClientWidth = 400
   Constraints.MinHeight = 400
   Constraints.MinWidth = 400
@@ -14,7 +14,7 @@ object VisProfileConfiguration: TVisProfileConfiguration
   object GroupBox_Domain: TGroupBox
     Left = 8
     Height = 171
-    Top = 8
+    Top = 47
     Width = 384
     Align = alTop
     AutoSize = True
@@ -82,20 +82,6 @@ object VisProfileConfiguration: TVisProfileConfiguration
       AutoSize = True
       BorderSpacing.Around = 8
       TabOrder = 3
-    end
-    object BitBtn_TestConnection: TBitBtn
-      AnchorSideRight.Control = GroupBox_Domain
-      AnchorSideRight.Side = asrBottom
-      AnchorSideBottom.Control = BitBtn_DCInfos
-      Left = 260
-      Height = 25
-      Top = 85
-      Width = 112
-      Action = Action_TestConnection
-      Anchors = [akRight, akBottom]
-      AutoSize = True
-      BorderSpacing.Around = 8
-      TabOrder = 6
     end
     object CheckBox_TLS: TCheckBox
       AnchorSideLeft.Control = Label_TLS
@@ -184,6 +170,7 @@ object VisProfileConfiguration: TVisProfileConfiguration
       Constraints.MinWidth = 150
       ItemHeight = 15
       TabOrder = 2
+      OnEditingDone = ComboBox_DomainControllersEditingDone
     end
     object Label_Unsafe: TLabel
       AnchorSideLeft.Control = GroupBox_Domain
@@ -209,34 +196,53 @@ object VisProfileConfiguration: TVisProfileConfiguration
       Top = 95
       Width = 18
       BorderSpacing.Around = 8
-      TabOrder = 7
+      TabOrder = 6
     end
-    object BitBtn_DCInfos: TBitBtn
-      AnchorSideRight.Control = GroupBox_Domain
-      AnchorSideRight.Side = asrBottom
-      AnchorSideBottom.Control = GroupBox_Domain
-      AnchorSideBottom.Side = asrBottom
-      Left = 269
-      Height = 25
-      Top = 118
-      Width = 103
-      Action = Action_ShowDCInfos
-      Anchors = [akRight, akBottom]
+    object Panel5: TPanel
+      Left = 0
+      Height = 41
+      Top = 110
+      Width = 380
+      Align = alBottom
       AutoSize = True
-      BorderSpacing.Around = 8
-      TabOrder = 8
+      BevelOuter = bvNone
+      ClientHeight = 41
+      ClientWidth = 380
+      TabOrder = 7
+      object BitBtn_DCInfos: TBitBtn
+        Left = 149
+        Height = 25
+        Top = 8
+        Width = 103
+        Action = Action_ShowDCInfos
+        Align = alRight
+        AutoSize = True
+        BorderSpacing.Around = 8
+        TabOrder = 0
+      end
+      object BitBtn_TestConnection: TBitBtn
+        Left = 260
+        Height = 25
+        Top = 8
+        Width = 112
+        Action = Action_TestConnection
+        Align = alRight
+        AutoSize = True
+        BorderSpacing.Around = 8
+        TabOrder = 1
+      end
     end
   end
   object GroupBox_AuthMethods: TGroupBox
     Left = 8
-    Height = 339
-    Top = 187
+    Height = 386
+    Top = 226
     Width = 384
     Align = alClient
     AutoSize = True
     BorderSpacing.Around = 8
     Caption = 'Auth method'
-    ClientHeight = 319
+    ClientHeight = 366
     ClientWidth = 380
     TabOrder = 1
     object Panel_AuthMethodSelector: TPanel
@@ -377,7 +383,7 @@ object VisProfileConfiguration: TVisProfileConfiguration
     object Panel1: TPanel
       Left = 0
       Height = 41
-      Top = 278
+      Top = 325
       Width = 380
       Align = alBottom
       AutoSize = True
@@ -403,13 +409,13 @@ object VisProfileConfiguration: TVisProfileConfiguration
     end
     object Panel2: TPanel
       Left = 0
-      Height = 238
+      Height = 285
       Top = 40
       Width = 380
       Align = alClient
       AutoSize = True
       BevelOuter = bvNone
-      ClientHeight = 238
+      ClientHeight = 285
       ClientWidth = 380
       TabOrder = 1
       object Panel_Kerberos: TPanel
@@ -520,14 +526,14 @@ object VisProfileConfiguration: TVisProfileConfiguration
       end
       object GroupBox_Account: TGroupBox
         Left = 8
-        Height = 128
+        Height = 91
         Top = 102
         Width = 364
-        Align = alClient
+        Align = alTop
         AutoSize = True
         BorderSpacing.Around = 8
         Caption = 'Account'
-        ClientHeight = 108
+        ClientHeight = 71
         ClientWidth = 360
         TabOrder = 2
         object Label_Username: TLabel
@@ -639,12 +645,58 @@ object VisProfileConfiguration: TVisProfileConfiguration
           end
         end
       end
+      object GroupBox_KeyTab: TGroupBox
+        Left = 8
+        Height = 76
+        Top = 201
+        Width = 364
+        Align = alClient
+        AutoSize = True
+        BorderSpacing.Around = 8
+        Caption = 'KeyTab'
+        ClientHeight = 56
+        ClientWidth = 360
+        TabOrder = 3
+        object Panel6: TPanel
+          Left = 0
+          Height = 41
+          Top = 0
+          Width = 360
+          Align = alTop
+          AutoSize = True
+          BevelOuter = bvNone
+          ClientHeight = 41
+          ClientWidth = 360
+          TabOrder = 0
+          object Edit2: TEdit
+            Left = 8
+            Height = 25
+            Top = 8
+            Width = 279
+            Align = alClient
+            BorderSpacing.Around = 8
+            TabOrder = 0
+          end
+          object BitBtn1: TBitBtn
+            AnchorSideLeft.Side = asrBottom
+            Left = 295
+            Height = 25
+            Top = 8
+            Width = 57
+            Action = Action_SelectKeytab
+            Align = alRight
+            AutoSize = True
+            BorderSpacing.Around = 8
+            TabOrder = 1
+          end
+        end
+      end
     end
   end
   object ButtonPanel1: TButtonPanel
     Left = 6
     Height = 34
-    Top = 534
+    Top = 620
     Width = 388
     OKButton.Name = 'OKButton'
     OKButton.DefaultCaption = True
@@ -657,6 +709,37 @@ object VisProfileConfiguration: TVisProfileConfiguration
     CancelButton.DefaultCaption = True
     TabOrder = 2
     ShowButtons = [pbOK, pbCancel]
+  end
+  object Panel4: TPanel
+    Left = 0
+    Height = 39
+    Top = 0
+    Width = 400
+    Align = alTop
+    AutoSize = True
+    BevelOuter = bvNone
+    ClientHeight = 39
+    ClientWidth = 400
+    TabOrder = 3
+    object Label_ProfileName: TLabel
+      Left = 8
+      Height = 23
+      Top = 8
+      Width = 73
+      Align = alLeft
+      BorderSpacing.Around = 8
+      Caption = 'Profile name: '
+      Layout = tlCenter
+    end
+    object Edit1: TEdit
+      Left = 89
+      Height = 23
+      Top = 8
+      Width = 303
+      Align = alClient
+      BorderSpacing.Around = 8
+      TabOrder = 0
+    end
   end
   object ActionList1: TActionList
     Images = CoreDataModule.ImageList1
@@ -684,5 +767,13 @@ object VisProfileConfiguration: TVisProfileConfiguration
       Caption = 'Show DC infos'
       OnExecute = Action_ShowDCInfosExecute
     end
+    object Action_SelectKeytab: TAction
+      Caption = 'Select'
+      OnExecute = Action_SelectKeytabExecute
+    end
+  end
+  object OpenDialog1: TOpenDialog
+    Left = 280
+    Top = 328
   end
 end

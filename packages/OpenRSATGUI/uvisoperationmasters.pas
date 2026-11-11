@@ -18,7 +18,8 @@ uses
   ActnList,
   uproperty,
   mormot.net.ldap,
-  mormot.core.base;
+  mormot.core.base,
+  uopenrsatuicontextinterface;
 
 type
 
@@ -58,7 +59,11 @@ type
     procedure Action_PDCExecute(Sender: TObject);
     procedure Action_RIDExecute(Sender: TObject);
     procedure Action_SchemaMasterExecute(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
+    fIContext: IOpenRSATUIContext;
+
+    function GetLdapClient: TLdapClient;
     function SchemaMaster(LdapClient: TLdapClient): RawUtf8;
     function DomainNamingMaster(LdapClient: TLdapClient): RawUtf8;
     function PDC(LdapClient: TLdapClient): RawUtf8;
@@ -73,8 +78,9 @@ type
 
     procedure UpdateEdit(Edit: TEdit; DomainController: RawUtf8);
   public
-    constructor Create(TheOwner: TComponent); reintroduce;
+    constructor Create(Context: IOpenRSATUIContext);
 
+    property LdapClient: TLdapClient read GetLdapClient;
   end;
 
 implementation
@@ -84,8 +90,7 @@ uses
   ursatldapclient,
   ursatldapclientui,
   uvischangedomaincontroller,
-  ucommon,
-  ufrmrsat;
+  ucommon;
 
 {$R *.lfm}
 
@@ -93,34 +98,48 @@ uses
 
 procedure TVisOperationMasters.Action_SchemaMasterExecute(Sender: TObject);
 begin
-  UpdateEdit(Edit_SchemaMaster, ChangeMaster(SchemaMaster(FrmRSAT.LdapClient)));
+  UpdateEdit(Edit_SchemaMaster, ChangeMaster(SchemaMaster(LdapClient)));
+end;
+
+procedure TVisOperationMasters.FormShow(Sender: TObject);
+begin
+  Edit_SchemaMaster.Caption := DCHostName(SchemaMaster(LdapClient));
+  Edit_DomainNamingMaster.Caption := DCHostName(DomainNamingMaster(LdapClient));
+  Edit_PDC.Caption := DCHostName(PDC(LdapClient));
+  Edit_RID.Caption := DCHostName(RID(LdapClient));
+  Edit_InfrastructureMaster.Caption := DCHostName(InfrastructureMaster(LdapClient));
 end;
 
 procedure TVisOperationMasters.Action_DomainNamingMasterExecute(Sender: TObject
   );
 begin
-  UpdateEdit(Edit_DomainNamingMaster, ChangeMaster(DomainNamingMaster(FrmRSAT.LdapClient)));
+  UpdateEdit(Edit_DomainNamingMaster, ChangeMaster(DomainNamingMaster(LdapClient)));
 end;
 
 procedure TVisOperationMasters.Action_InfrastructureMasterExecute(
   Sender: TObject);
 begin
-  UpdateEdit(Edit_InfrastructureMaster, ChangeMaster(InfrastructureMaster(FrmRSAT.LdapClient)));
+  UpdateEdit(Edit_InfrastructureMaster, ChangeMaster(InfrastructureMaster(LdapClient)));
 end;
 
 procedure TVisOperationMasters.Action_PDCExecute(Sender: TObject);
 begin
-  UpdateEdit(Edit_PDC, ChangeMaster(PDC(FrmRSAT.LdapClient)));
+  UpdateEdit(Edit_PDC, ChangeMaster(PDC(LdapClient)));
 end;
 
 procedure TVisOperationMasters.Action_RIDExecute(Sender: TObject);
 begin
-  UpdateEdit(Edit_RID, ChangeMaster(RID(FrmRSAT.LdapClient)));
+  UpdateEdit(Edit_RID, ChangeMaster(RID(LdapClient)));
 end;
 
 function TVisOperationMasters.SchemaMaster(LdapClient: TLdapClient): RawUtf8;
 begin
   result := FormatUtf8('CN=Schema,CN=Configuration,%', [LdapClient.DefaultDN]);
+end;
+
+function TVisOperationMasters.GetLdapClient: TLdapClient;
+begin
+  result := fIContext.RSAT.LdapClient;
 end;
 
 function TVisOperationMasters.DomainNamingMaster(LdapClient: TLdapClient
@@ -149,10 +168,8 @@ function TVisOperationMasters.DCHostName(DistinguishedName: RawUtf8): RawUtf8;
 var
   RoleOwner: TLdapAttribute;
   DCSettingsDN: RawUtf8;
-  LdapClient: TRsatLdapClient;
 begin
   result := '';
-  LdapClient := FrmRSAT.LdapClient;
   RoleOwner := LdapClient.SearchObject(DistinguishedName, '', 'fSMORoleOwner');
 
   if not Assigned(RoleOwner) then
@@ -165,12 +182,10 @@ end;
 
 function TVisOperationMasters.DCSettings(DomainController: RawUtf8): RawUtf8;
 var
-  LdapClient: TRsatLdapClient;
   DCObject: TLdapAttribute;
   DCObjectDN: RawUtf8;
 begin
   result := '';
-  LdapClient := FrmRSAT.LdapClient;
   DCObject := LdapClient.SearchObject(LdapClient.ConfigDN, FormatUtf8('(dNSHostName=%)', [LdapEscape(DomainController)]), 'distinguishedName', lssWholeSubtree);
 
   DCObjectDN := DCObject.GetReadable();
@@ -185,7 +200,7 @@ var
   mr: Integer;
 begin
   result := '';
-  Vis := TVisChangeDomainController.Create(Self);
+  Vis := TVisChangeDomainController.Create(fIContext);
   try
     mr := Vis.ShowModal;
     if mr <> mrOK then
@@ -193,7 +208,7 @@ begin
     NewDCSettings := DCSettings(Vis.DomainController);
     if NewDCSettings = '' then
       Exit;
-    if not FrmRSAT.LdapClient.Modify(Master, lmoReplace, 'fSMORoleOwner', NewDCSettings) then
+    if not LdapClient.Modify(Master, lmoReplace, 'fSMORoleOwner', NewDCSettings) then
       Exit;
     result := Vis.DomainController;
   finally
@@ -207,15 +222,11 @@ begin
     Edit.Caption := DomainController;
 end;
 
-constructor TVisOperationMasters.Create(TheOwner: TComponent);
+constructor TVisOperationMasters.Create(Context: IOpenRSATUIContext);
 begin
-  Inherited Create(TheOwner);
+  Inherited Create(Context.ComponentOwner);
 
-  Edit_SchemaMaster.Caption := DCHostName(SchemaMaster(FrmRSAT.LdapClient));
-  Edit_DomainNamingMaster.Caption := DCHostName(DomainNamingMaster(FrmRSAT.LdapClient));
-  Edit_PDC.Caption := DCHostName(PDC(FrmRSAT.LdapClient));
-  Edit_RID.Caption := DCHostName(RID(FrmRSAT.LdapClient));
-  Edit_InfrastructureMaster.Caption := DCHostName(InfrastructureMaster(FrmRSAT.LdapClient));
+  fIContext := Context;
 end;
 
 end.

@@ -18,7 +18,9 @@ uses
   ActnList,
   CheckLst,
   mormot.core.base,
-  mormot.net.ldap;
+  mormot.net.ldap,
+  ursatldapclient,
+  uvisobjectsselector;
 
 type
 
@@ -108,6 +110,7 @@ type
     procedure TS_ResumeShow(Sender: TObject);
   private
     fSelectedObject: RawUtf8;
+    fLdapClient: TLdapClient;
 
     fUsersAndGroups: array of record
       sAMAccountName: RawUtf8;
@@ -123,7 +126,7 @@ type
     procedure Execute;
 
     property SelectedObject: RawUtf8 read fSelectedObject write fSelectedObject;
-
+    property LdapClient: TLdapClient read fLdapClient write fLdapClient;
   end;
 
 const
@@ -136,9 +139,7 @@ uses
   mormot.core.text,
   mormot.core.variants,
   ucommon,
-  uOmniselect,
-  ursatldapclientui,
-  ufrmrsat;
+  ursatldapclientui;
 
 {$R *.lfm}
 
@@ -168,47 +169,55 @@ end;
 
 procedure TVisDelegateControl.Action_AddExecute(Sender: TObject);
 var
-  vis: TVisOmniselect;
   Filter: RawUtf8;
   Item: String;
   ResItem: TLdapResult;
   Index: SizeInt;
+  Vis: TVisObjectsSelector;
+  SelectedObjects: TRawUtf8DynArray;
 begin
-  vis := TVisOmniselect.Create(Self, FrmRSAT.LdapClient, ['user', 'group', 'computer']);
+  Vis := TVisObjectsSelector.Create(Self);
   try
-    if Vis.ShowModal <> mrOK then
+    Vis.LdapClient := LdapClient;
+    Vis.AllowedObjectTypes := [otfUser, otfGroup, otfComputer];
+    Vis.SelectedObjectTypes := [otfUser, otfGroup, otfComputer];
+    Vis.AllowMultiSelect := True;
+    if (Vis.ShowModal <> mrOK) then
       Exit;
-    Filter := '(|';
-    for Item in vis.SelectedObjects do
-      Filter := FormatUtf8('%(distinguishedName=%)', [Filter, LdapEscape(Item)]);
-    Filter := FormatUtf8('%)', [Filter]);
-
-    try
-      FrmRSAT.LdapClient.SearchBegin();
-      FrmRSAT.LdapClient.SearchScope := lssWholeSubtree;
-      repeat
-        if not FrmRSAT.LdapClient.Search(FrmRSAT.LdapClient.DefaultDN, False, Filter, ['distinguishedName', 'objectSID', 'sAMAccountName']) then
-          Exit;
-
-        Index := Length(fUsersAndGroups);
-        SetLength(fUsersAndGroups, Index + FrmRSAT.LdapClient.SearchResult.Count);
-        for ResItem in FrmRSAT.LdapClient.SearchResult.Items do
-        begin
-          fUsersAndGroups[Index].sAMAccountName := ResItem.Find('sAMAccountName').GetReadable();
-          fUsersAndGroups[Index].distinguishedName := ResItem.Find('distinguishedName').GetReadable();
-          fUsersAndGroups[Index].objectSid := ResItem.Find('objectSID').GetReadable();
-          fUsersAndGroups[Index].dc := String(DNToCN(fUsersAndGroups[Index].distinguishedName)).Split('/')[0];
-          ListBox1.Items.Add(fUsersAndGroups[Index].sAMAccountName);
-          Inc(Index);
-        end;
-      until FrmRSAT.LdapClient.SearchCookie = '';
-    finally
-      FrmRSAT.LdapClient.SearchEnd;
-    end;
-    ListBox1.Refresh;
+    SelectedObjects := Vis.SelectedObjects;
   finally
-    FreeAndNil(vis);
+    FreeAndNil(Vis);
   end;
+
+  Filter := '(|';
+  for Item in SelectedObjects do
+    Filter := FormatUtf8('%(distinguishedName=%)', [Filter, LdapEscape(Item)]);
+  Filter := FormatUtf8('%)', [Filter]);
+
+  try
+    LdapClient.SearchBegin();
+    LdapClient.SearchScope := lssWholeSubtree;
+    repeat
+      if not LdapClient.Search(LdapClient.DefaultDN, False, Filter, ['distinguishedName', 'objectSID', 'sAMAccountName']) then
+        Exit;
+
+      Index := Length(fUsersAndGroups);
+      SetLength(fUsersAndGroups, Index + LdapClient.SearchResult.Count);
+      for ResItem in LdapClient.SearchResult.Items do
+      begin
+        fUsersAndGroups[Index].sAMAccountName := ResItem.Find('sAMAccountName').GetReadable();
+        fUsersAndGroups[Index].distinguishedName := ResItem.Find('distinguishedName').GetReadable();
+        fUsersAndGroups[Index].objectSid := ResItem.Find('objectSID').GetReadable();
+        fUsersAndGroups[Index].dc := String(DNToCN(fUsersAndGroups[Index].distinguishedName)).Split('/')[0];
+        ListBox1.Items.Add(fUsersAndGroups[Index].sAMAccountName);
+        Inc(Index);
+      end;
+    until LdapClient.SearchCookie = '';
+  finally
+    LdapClient.SearchEnd;
+  end;
+  ListBox1.Refresh;
+
   Action_Next.Update;
   if Btn_Next.Enabled then
     Btn_Next.SetFocus
@@ -345,23 +354,23 @@ begin
     Exit;
 
   CheckListBox2.Items.BeginUpdate;
-  FrmRSAT.LdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
-    FrmRSAT.LdapClient.SearchScope := lssSingleLevel;
+    LdapClient.SearchScope := lssSingleLevel;
 
     repeat
-      if not FrmRSAT.LdapClient.Search(Join(['CN=Schema,', FrmRSAT.LdapClient.ConfigDN]), False, '(|(objectClass=classSchema))', ['lDAPDisplayName', 'objectClass', 'schemaIDGUID']) then
+      if not LdapClient.Search(Join(['CN=Schema,', LdapClient.ConfigDN]), False, '(|(objectClass=classSchema))', ['lDAPDisplayName', 'objectClass', 'schemaIDGUID']) then
         Exit;
 
-      for SearchResult in FrmRSAT.LdapClient.SearchResult.Items do
+      for SearchResult in LdapClient.SearchResult.Items do
       begin
         if not Assigned(SearchResult) then
           continue;
         CheckListBox2.Items.Add(SearchResult.Find('lDAPDisplayName').GetReadable());
       end;
-    until FrmRSAT.LdapClient.SearchCookie = '';
+    until LdapClient.SearchCookie = '';
   finally
-    FrmRSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
     CheckListBox2.Items.EndUpdate;
   end;
 end;
@@ -376,39 +385,39 @@ begin
 
   CheckListBox3.Items.BeginUpdate;
   try
-    FrmRSAT.LdapClient.SearchBegin();
+    LdapClient.SearchBegin();
     try
-      FrmRSAT.LdapClient.SearchScope := lssSingleLevel;
+      LdapClient.SearchScope := lssSingleLevel;
 
       repeat
-        if not FrmRSAT.LdapClient.Search(Join(['CN=Schema,', FrmRSAT.LdapClient.ConfigDN]), False, '', ['lDAPDisplayName', 'schemaIDGUID']) then
+        if not LdapClient.Search(Join(['CN=Schema,', LdapClient.ConfigDN]), False, '', ['lDAPDisplayName', 'schemaIDGUID']) then
           Exit;
 
-        for SearchResult in FrmRSAT.LdapClient.SearchResult.Items do
+        for SearchResult in LdapClient.SearchResult.Items do
         begin
           if not Assigned(SearchResult) then
             continue;
           CheckListBox3.Items.Add(SearchResult.Find('lDAPDisplayName').GetReadable());
         end;
-      until FrmRSAT.LdapClient.SearchCookie = '';
+      until LdapClient.SearchCookie = '';
     finally
-      FrmRSAT.LdapClient.SearchEnd;
+      LdapClient.SearchEnd;
     end;
 
-    FrmRSAT.LdapClient.SearchBegin();
+    LdapClient.SearchBegin();
     try
-      FrmRSAT.LdapClient.SearchScope := lssSingleLevel;
+      LdapClient.SearchScope := lssSingleLevel;
       repeat
-        if not FrmRSAT.LdapClient.Search(FormatUtf8('%,%', [CN_EXTENDED_RIGHTS, FrmRSAT.LdapClient.ConfigDN]), False, '', ['displayName', 'objectGUID']) then
+        if not LdapClient.Search(FormatUtf8('%,%', [CN_EXTENDED_RIGHTS, LdapClient.ConfigDN]), False, '', ['displayName', 'objectGUID']) then
           Exit;
-        for item in FrmRSAT.LdapClient.SearchResult.Items do
+        for item in LdapClient.SearchResult.Items do
         begin
           DisplayName := item.Find('displayName').GetReadable();
           CheckListBox3.Items.Add(DisplayName);
         end;
-      until FrmRSAT.LdapClient.SearchCookie = '';
+      until LdapClient.SearchCookie = '';
     finally
-      FrmRSAT.LdapClient.SearchEnd;
+      LdapClient.SearchEnd;
     end;
   finally
     CheckListBox3.Items.EndUpdate;
@@ -481,12 +490,12 @@ var
   begin
     //ObjectDN := VisMain.Storage.GetSchemaObjectName('lDAPDisplayName', ObjectType);
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(Join(['CN=Schema,', FrmRSAT.LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape(ObjectType)]), 'distinguishedName', lssWholeSubtree);
+    LdapObject := LdapClient.SearchObject(Join(['CN=Schema,', LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape(ObjectType)]), 'distinguishedName', lssWholeSubtree);
     if not Assigned(LdapObject) then
       Exit;
     ObjectDN := LdapObject.GetReadable();
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
+    LdapObject := LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
     if not Assigned(LdapObject) then
       Exit;
     guid := PGuid(LdapObject.GetRaw())^;
@@ -534,12 +543,12 @@ var
   begin
     //ObjectDN := VisMain.Storage.GetSchemaObjectName('lDAPDisplayName', 'computer');
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(Join(['CN=Schema,', FrmRSAT.LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape('computer')]), 'distinguishedName', lssWholeSubtree);
+    LdapObject := LdapClient.SearchObject(Join(['CN=Schema,', LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape('computer')]), 'distinguishedName', lssWholeSubtree);
     if not Assigned(LdapObject) then
       Exit;
     ObjectDN := LdapObject.GetReadable();
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
+    LdapObject := LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
     if not Assigned(LdapObject) then
       Exit;
     guid := PGuid(LdapObject.GetRaw())^;
@@ -567,12 +576,12 @@ var
   begin
     //ObjectDN := VisMain.Storage.GetSchemaObjectName('lDAPDisplayName', 'member');
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(Join(['CN=Schema,', FrmRSAT.LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape('member')]), 'distinguishedName', lssWholeSubtree);
+    LdapObject := LdapClient.SearchObject(Join(['CN=Schema,', LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape('member')]), 'distinguishedName', lssWholeSubtree);
     if not Assigned(LdapObject) then
       Exit;
     ObjectDN := LdapObject.GetReadable();
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
+    LdapObject := LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
     if not Assigned(LdapObject) then
       Exit;
     guid := PGuid(LdapObject.GetRaw())^;
@@ -586,12 +595,12 @@ var
 
     //ObjectDN := VisMain.Storage.GetSchemaObjectName('lDAPDisplayName', 'group');
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(Join(['CN=Schema,', FrmRSAT.LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape('group')]), 'distinguishedName', lssWholeSubtree);
+    LdapObject := LdapClient.SearchObject(Join(['CN=Schema,', LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape('group')]), 'distinguishedName', lssWholeSubtree);
     if not Assigned(LdapObject) then
       Exit;
     ObjectDN := LdapObject.GetReadable();
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
+    LdapObject := LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
     if not Assigned(LdapObject) then
       Exit;
     guid := PGuid(LdapObject.GetRaw())^;
@@ -608,12 +617,12 @@ var
   begin
     //ObjectDN := VisMain.Storage.GetSchemaObjectName('lDAPDisplayName', ObjectType);
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(Join(['CN=Schema,', FrmRSAT.LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape(ObjectType)]), 'distinguishedName', lssWholeSubtree);
+    LdapObject := LdapClient.SearchObject(Join(['CN=Schema,', LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape(ObjectType)]), 'distinguishedName', lssWholeSubtree);
     if not Assigned(LdapObject) then
       Exit;
     ObjectDN := LdapObject.GetReadable();
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
+    LdapObject := LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
     if not Assigned(LdapObject) then
       Exit;
     guid := PGuid(LdapObject.GetRaw())^;
@@ -636,13 +645,13 @@ var
   begin
     //ObjectDN := VisMain.Storage.GetSchemaObjectName('lDAPDisplayName', 'pwdLastSet');
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(Join(['CN=Schema,', FrmRSAT.LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape('pwdLastSet')]), 'distinguishedName', lssWholeSubtree);
+    LdapObject := LdapClient.SearchObject(Join(['CN=Schema,', LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape('pwdLastSet')]), 'distinguishedName', lssWholeSubtree);
     if not Assigned(LdapObject) then
       Exit;
 
     ObjectDN := LdapObject.GetReadable();
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
+    LdapObject := LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
     if not Assigned(LdapObject) then
       Exit;
     guid := PGuid(LdapObject.GetRaw())^;
@@ -656,12 +665,12 @@ var
 
     //ObjectDN := VisMain.Storage.GetSchemaObjectName('lDAPDisplayName', ObjectType);
 
-    LdapObject := FrmRSAT.LdapClient.SearchObject(Join(['CN=Schema,', FrmRSAT.LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape(ObjectType)]), 'distinguishedName', lssWholeSubtree);
+    LdapObject := LdapClient.SearchObject(Join(['CN=Schema,', LdapClient.ConfigDN]), FormatUtf8('(lDAPDisplayName=%)', [LdapEscape(ObjectType)]), 'distinguishedName', lssWholeSubtree);
     if not Assigned(LdapObject) then
       Exit;
     ObjectDN := LdapObject.GetReadable();
 
-    attr := FrmRSAT.LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
+    attr := LdapClient.SearchObject(ObjectDN, '', 'schemaIDGUID');
     guid := PGuid(attr.GetRaw())^;
 
     NewAcl^[Index].InheritedObjectType := guid;
@@ -669,11 +678,11 @@ var
 
 begin
 
-  if not Assigned(FrmRSAT.LdapClient) then
+  if not Assigned(LdapClient) then
     Exit;
 
   // Get selected object acl
-  res := FrmRSAT.LdapClient.SearchObject(SelectedObject, '', 'nTSecurityDescriptor');
+  res := LdapClient.SearchObject(SelectedObject, '', 'nTSecurityDescriptor');
   if not Assigned(res) then
     Exit;
 
@@ -718,30 +727,30 @@ begin
     Filter := FormatUtf8('%(sAMAccountName=%)', [Filter, LdapEscape(user)]);
   Filter := FormatUtf8('%)', [Filter]);
 
-  FrmRSAT.LdapClient.SearchBegin();
+  LdapClient.SearchBegin();
   try
-    FrmRSAT.LdapClient.SearchScope := lssWholeSubtree;
+    LdapClient.SearchScope := lssWholeSubtree;
     repeat
-      if not FrmRSAT.LdapClient.Search(FrmRSAT.LdapClient.DefaultDN, False, Filter, ['sAMAccountName', 'objectSID']) then
+      if not LdapClient.Search(LdapClient.DefaultDN, False, Filter, ['sAMAccountName', 'objectSID']) then
         Exit;
 
-      for Item in FrmRSAT.LdapClient.SearchResult.Items do
+      for Item in LdapClient.SearchResult.Items do
       begin
         // For each user, change acl SID and add it to the dacl
         for i := 0 to High(NewAcl) do
           NewAcl[i].Sid := Item.Find('objectSID').GetRaw();
         SecurityDescriptor.Dacl := Concat(SecurityDescriptor.Dacl, NewAcl);
       end;
-    until FrmRSAT.LdapClient.SearchCookie = '';
+    until LdapClient.SearchCookie = '';
   finally
-    FrmRSAT.LdapClient.SearchEnd;
+    LdapClient.SearchEnd;
   end;
-  FrmRSAT.LdapClient.OrderAcl(SelectedObject, FrmRSAT.LdapClient.DefaultDN, @SecurityDescriptor.Dacl);
+  OrderAcl(LdapClient, SelectedObject, @SecurityDescriptor.Dacl);
   NewAttr := TLdapAttribute.Create('nTSecurityDescriptor', atNTSecurityDescriptor);
   try
     NewAttr.Add(SecurityDescriptor.ToBinary);
 
-    if not FrmRSAT.LdapClient.Modify(SelectedObject, lmoReplace, NewAttr) then
+    if not LdapClient.Modify(SelectedObject, lmoReplace, NewAttr) then
       Exit;
   finally
     FreeAndNil(NewAttr);

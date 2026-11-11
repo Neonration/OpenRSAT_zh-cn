@@ -1,62 +1,129 @@
-# OpenRSAT 中文版
+# OpenRSAT (Open Remote System Administration Tools)
 
-OpenRSAT 是一个使用 Object Pascal/Lazarus 编写的 Active Directory 管理工具，界面和使用方式接近 Microsoft RSAT。它可以在 Windows、Linux 和 macOS 上运行，用于管理用户、计算机、DNS、站点和服务等 AD 对象。
+本维护版基于上游 0.4.594，保留最新功能，并增加可选择的“简体中文”、批量 OU 移动、批量删除和多域控制器计算机删除。中文使用与构建说明见 [README.zh-cn.md](./README.zh-cn.md) 和 [build.zh-cn.md](./build.zh-cn.md)。
 
-本仓库维护简体中文界面、批量 OU 移动、批量删除和多域控制器计算机删除功能，支持 Windows 与 macOS arm64 构建。操作步骤和设置说明见 [`README.zh-cn.md`](./README.zh-cn.md)，英文原文文档保留在 [`README.en.md`](./README.en.md)，中文构建说明见 [`build.zh-cn.md`](./build.zh-cn.md)。
+This fork keeps the upstream features and language selection, and adds Simplified Chinese plus batch directory operations. Select **简体中文** in File → Options → Global; other language choices remain available.
 
-## 功能概览
+A cross-platform console inspired by Microsoft RSAT, written in modern Object Pascal (Lazarus).
 
-- 用户和计算机：浏览 OU/容器树，管理用户、组、计算机等对象。
-- DNS：通过 LDAP 管理 AD DNS 区域和记录。
-- 站点和服务：管理站点、子网和相关对象。
-- 服务和接口：查看 AD 中的服务对象。
-- 对象属性：查看和编辑常用属性、安全信息、LAPS、BitLocker 等。
-- 搜索：在 AD 中搜索对象。
-- 批量操作：在对象列表或搜索结果中多选对象，移动到目标 OU/容器或删除。
-- 多控制器删除：从所选域控制器删除计算机，执行前确认对象和控制器范围，并显示每个控制器的处理结果。
+![License](https://img.shields.io/github/license/tranquilit/OpenRSAT)
+![Latest release](https://img.shields.io/github/v/release/tranquilit/OpenRSAT)
+![Stars](https://img.shields.io/github/stars/tranquilit/OpenRSAT)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-blue)
+![download](https://img.shields.io/github/downloads/tranquilit/openrsat/total.svg)
 
-## macOS arm64 包
+## Table of contents
 
-Apple Silicon 版本发布包位于：
+* [Overview](#overview)
+* [Features](#features)
+* [Screenshots](#screenshots)
+* [Get started](#get-started)
+* [Translations](#translations)
+* [Documentation](#documentation)
+* [Community and support](#community-and-support)
+* [Contributing](#contributing)
+* [License](#license)
 
-[`dist/OpenRSAT-macos-arm64.zip`](./dist/OpenRSAT-macos-arm64.zip)
+## Overview
 
-压缩包内包含：
+This repository provides a Lazarus project with all the sources and dependencies needed to build the OpenRSAT console.
+The console runs on several platforms: Windows, Linux, and macOS.
+OpenRSAT is a tool that lets you connect to your Active Directory and manage it the way you want.
 
-- `OpenRSAT.app`
-- `fix-and-open.command`
+The main objective is to let system administrators manage an Active Directory from a Linux or macOS workstation.
+Paired with a Samba AD, you can fully manage an Active Directory for free, with open source solutions only.
+A secondary objective is to provide new features that are missing in Microsoft RSAT.
 
-在其他 Mac 上使用时：
+## Features
 
-1. 解压 `OpenRSAT-macos-arm64.zip`。
-2. 保持 `OpenRSAT.app` 和 `fix-and-open.command` 在同一个目录。
-3. 如果 macOS 提示无法验证应用，双击或在终端执行 `fix-and-open.command`。
-4. 脚本会移除隔离属性、重新做本机 ad-hoc 签名、校验签名并打开应用。
+With OpenRSAT you can connect to an Active Directory using a simple or a Kerberos connection, with TLS, with the current account or with a user/password connection. You can also create several profiles to switch between connections easily.
 
-首次运行和签名脚本的单独说明见 [`macos-signing.zh-cn.md`](./macos-signing.zh-cn.md)。
+Features are split into different modules:
 
-应用包已经内置 OpenSSL 1.1 动态库，路径为 `OpenRSAT.app/Contents/MacOS/lib`，正常情况下不需要单独安装 OpenSSL。
+* **Users and Computers**: manage users and machines within groups and containers to organize the resources of your AD securely.
+* **DNS**: manage the network entries of your AD.
+* **Sites and Services**: manage the sites and services of your AD.
+* **Services and Interfaces**: get an overview of every object in your AD.
 
-注意：当前签名是 ad-hoc 签名，不是 Apple Developer ID 公证签名。内部测试和自用可以使用该脚本处理 Gatekeeper 拦截；正式分发建议使用 Developer ID 签名和 notarization。
+### Users and Computers
 
-## 中文显示
+* Overview of the container hierarchy in a tree view.
+* Overview of the objects of a container in a grid view.
+* Create / edit / delete objects such as containers, groups, users, computers, and more.
+* View and edit an object's properties. You can see all the attributes of an object, its security information, LAPS, BitLocker, and more.
+* Search for an object in your Active Directory.
+* Delegate control to others.
 
-未指定语言时默认使用简体中文。已有用户可以在“文件 → 选项”的全局设置中选择语言 `zh`，保存并按提示重启。
+### DNS
 
-如果出现界面仍显示英文，优先检查：
+> [!WARNING]
+> The DNS module uses the LDAP protocol instead of DCERPC. The behavior differs slightly, but it lets you manage DNS even when DNS over DCERPC is blocked.
 
-- `languages/Translation.zh.po` 是否包含最新翻译，并已重新编译进程序；仅复制 PO 文件到旧程序旁边不会更新内嵌翻译。
-- `sources/OpenRSAT.lpi` 中的 `TRANSLATION.ZH` 资源是否指向该文件。
-- 用户配置中是否保存了旧语言选项。
+* Overview of the DNS zones in a tree view.
+* Overview of the DNS records in a grid view.
+* Create / delete DNS zones and DNS records.
 
-## 构建
+### Sites and Services
 
-完整构建步骤见 [`build.zh-cn.md`](./build.zh-cn.md)。
+* Overview of the sites and subnets in a tree view.
+* Overview of the sites and subnets of a container in a grid view.
+* Create / delete sites and subnets.
+* View and edit the properties of sites and subnets.
+* Search for sites and subnets.
 
-macOS arm64 本地构建输出通常位于：
+### Services and Interfaces
 
-`bin/macosx-arm64/OpenRSAT`
+* Overview of every object in your AD, useful to inspect the raw content of the directory.
 
-可分发包输出位于：
+## Screenshots
 
-`dist/OpenRSAT-macos-arm64.zip`
+| Context | Windows | Linux | Macos |
+|---------|---------|-------|-------|
+| Overview | [![OpenRSAT - Windows - Overview](https://github.com/tranquilit/OpenRSAT/raw/main/assets/Screenshots/OpenRSAT%20-%20Windows%20-%20Overview.gif "OpenRSAT - Windows - Overview")](assets/Screenshots/OpenRSAT%20-%20Windows%20-%20Overview.gif) | [![OpenRSAT - Linux(xfce) - Overview](https://github.com/tranquilit/OpenRSAT/raw/main/assets/Screenshots/OpenRSAT%20-%20Linux-xfce%20-%20Overview.gif "OpenRSAT - Linux(xfce) - Overview")](assets/Screenshots/OpenRSAT%20-%20Linux-xfce%20-%20Overview.gif) | [![OpenRSAT - MacOS - Overview](https://github.com/tranquilit/OpenRSAT/raw/main/assets/Screenshots/OpenRSAT%20-%20MacOS%20-%20Overview.gif "OpenRSAT - MacOS - Overview")](assets/Screenshots/OpenRSAT%20-%20MacOS%20-%20Overview.gif)
+| Properties | [![OpenRSAT - Windows - Properties](https://github.com/tranquilit/OpenRSAT/raw/main/assets/Screenshots/OpenRSAT%20-%20Windows%20-%20Overview%20properties.gif "OpenRSAT - Windows - Properties")](assets/Screenshots/OpenRSAT%20-%20Windows%20-%20Overview%20properties.gif) | [![OpenRSAT - Linux(xfce) - Properties](https://github.com/tranquilit/OpenRSAT/raw/main/assets/Screenshots/OpenRSAT%20-%20Linux-xfce%20-%20Overview%20properties.gif "OpenRSAT - Linux(xfce) - Properties")](assets/Screenshots/OpenRSAT%20-%20Linux-xfce%20-%20Overview%20properties.gif) | [![OpenRSAT - MacOS - Properties](https://github.com/tranquilit/OpenRSAT/raw/main/assets/Screenshots/OpenRSAT%20-%20MacOS%20-%20Overview%20properties.gif "OpenRSAT - MacOS - Properties")](assets/Screenshots/OpenRSAT%20-%20MacOS%20-%20Overview%20properties.gif) |
+| Create user | [![OpenRSAT - Windows - Create user](https://github.com/tranquilit/OpenRSAT/raw/main/assets/Screenshots/OpenRSAT%20-%20Windows%20-%20Create%20user.gif "OpenRSAT - Windows - Create user")](assets/Screenshots/OpenRSAT%20-%20Windows%20-%20Create%20user.gif) | [![OpenRSAT - Linux(xfce) - Create user](https://github.com/tranquilit/OpenRSAT/raw/main/assets/Screenshots/OpenRSAT%20-%20Linux-xfce%20-%20Create%20user.gif "OpenRSAT - Linux(xfce) - Create user")](assets/Screenshots/OpenRSAT%20-%20Linux-xfce%20-%20Create%20user.gif) | [![OpenRSAT - MacOS - Create user](https://github.com/tranquilit/OpenRSAT/raw/main/assets/Screenshots/OpenRSAT%20-%20MacOS%20-%20Create%20user.gif "OpenRSAT - MacOS - Create user")](assets/Screenshots/OpenRSAT%20-%20MacOS%20-%20Create%20user.gif) |
+
+## Get started
+
+### Requirements
+
+To use the tool, you need access to an Active Directory. You can refer to the [Samba documentation by Tranquil IT](https://samba.tranquil.it/doc/fr/) to deploy an Active Directory on a server.
+
+### How to install
+
+#### WAPT
+
+OpenRSAT is made by Tranquil IT, which also provides WAPT to deploy software on the machines of a domain. You can find the tool as a WAPT package in our store, just [here](https://wapt.tranquil.it/store/fr/tis-openrsat).
+
+#### Binary
+
+The binaries are packaged manually from the WAPT packages.
+You can download the latest binary just [here](https://github.com/tranquilit/OpenRSAT/releases).
+
+#### Build from source
+
+You will find all the steps just here: [build.md](https://github.com/tranquilit/OpenRSAT/blob/main/build.md).
+
+## Translations
+
+OpenRSAT is built by a French company, so the tool ships with English and French. A Greek translation is also available, contributed by [@parapente](https://github.com/parapente).
+Don't hesitate to ask for more languages, or to contribute one yourself.
+Translation files (.pot / .po) can be updated by running the `update_language.py` python script.
+
+## Documentation
+
+Not documented yet.
+
+## Community and support
+
+* [Issues](https://github.com/tranquilit/OpenRSAT/issues): report a bug or request a feature.
+* [Discussions](https://github.com/tranquilit/OpenRSAT/discussions): ask questions, follow releases, and talk with other users.
+
+## Contributing
+
+Feel free to contribute to the project. As this is still a young project, no contributing rules are defined yet.
+Feel free to open issues on GitHub to tell us about any bug, or about anything you would like to see in this tool.
+
+## License
+
+OpenRSAT is released under the [GNU General Public License v3.0](https://github.com/tranquilit/OpenRSAT/blob/main/LICENSE).

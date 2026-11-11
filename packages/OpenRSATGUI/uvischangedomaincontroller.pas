@@ -19,7 +19,9 @@ uses
   mormot.core.base,
   mormot.core.log,
   mormot.core.variants,
-  mormot.net.ldap;
+  mormot.net.ldap,
+  uopenrsatuicontextinterface,
+  ulog;
 
 type
 
@@ -73,16 +75,20 @@ type
 
   TChangeDomainController = class
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
+    fLdapClient: TLdapClient;
     fSitesData: TDocVariantData;
 
     function GetSite(DistinguishedName: RawUtf8): RawUtf8;
   public
+    constructor Create(aLdapClient: TLdapClient);
+
     function GetCurrentServer: RawUtf8;
     function RetrieveServers(CallBack: TCallBack; RetrieveExtra: Boolean = True): Boolean;
     function RetrieveServersExtra(CallBack: TCallBack): Boolean;
-    function ChangeConnection(DomainController: RawUtf8): Boolean;
     function TestConnection(DomainController: RawUtf8): Boolean;
+
+    property LdapClient: TLdapClient read fLdapClient;
   end;
 
   { TVisChangeDomainController }
@@ -113,20 +119,24 @@ type
     procedure TisGrid1DblClick(Sender: TObject);
     procedure TisGrid1KeyPress(Sender: TObject; var Key: char);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
+    fIContext: IOpenRSATUIContext;
     fChangeDomainController: TChangeDomainController;
     fSearchWord: RawUtf8;
     fAllowClose: Boolean;
 
+    function GetLdapClient: TLdapClient;
     procedure UpdateCurrentServer;
     procedure FillGrid;
     procedure OnRetrievedServers(data: Pointer);
     procedure UpdateRow(SiteName: RawUtf8; Success: Boolean);
   public
-    constructor Create(TheOwner: TComponent); override;
+    constructor Create(Context: IOpenRSATUIContext);
     destructor Destroy; override;
 
     function DomainController: RawUtf8;
+
+    property LdapClient: TLdapClient read GetLdapClient;
   end;
 
 const
@@ -151,8 +161,7 @@ uses
   ucommon,
   ucommonui,
   ursatldapclient,
-  ursatldapclientui,
-  ufrmrsat;
+  ursatldapclientui;
 
 var
   MsdsBehaviorVersionValue: Array[TMsdsBehaviorVersion] of String;
@@ -197,7 +206,10 @@ end;
 procedure TThreadIsDCOnline.SetSettings(Settings: TLdapClientSettings);
 begin
   if not Assigned(fSettings) then
+  begin
+    TOpenRSATLog.Add.Log(sllTrace, 'Set settings for: %', [Settings.TargetHost], Self);
     fSettings := TLdapClientSettings.Create;
+  end;
   CopyObject(Settings, fSettings);
 end;
 
@@ -215,21 +227,27 @@ procedure TThreadIsDCOnline.Execute;
 var
   LdapClient: TRsatLdapClient;
 begin
-  TSynLog.Add.Log(sllTrace, 'Is DC online?', self);
+  TOpenRSATLog.Add.Log(sllTrace, 'Is DC "%" online?', [fDomainController], self);
   fSettings.TargetHost := fDomainController;
   fSettings.KerberosSpn := '';
   fSettings.UserName := '';
   fSettings.Password := '';
+  fSettings.AutoBind := lcbNone;
   LdapClient := TRsatLdapClient.Create(fSettings);
   try
     fSuccess := False;
-    LdapClient.Connect(); // Don't care about the success for an anonymous connection.
-    if not Assigned(LdapClient.SearchObject('', '', 'dnsHostName')) then
+    LdapClient.Log := TLdapLog;
+    if not LdapClient.Bind then
     begin
-      TSynLog.Add.Log(sllTrace, 'Cannot retrieve root object "dnsHostName" attribute.', self);
+      TOpenRSATLog.Add.Log(sllWarning, 'Failed to bind to DC.', Self);
       Exit;
     end;
-    TSynLog.Add.Log(sllTrace, 'DC is online!');
+    if not Assigned(LdapClient.SearchObject('', '', 'dnsHostName')) then
+    begin
+      TOpenRSATLog.Add.Log(sllWarning, 'Cannot retrieve root object "dnsHostName" attribute.', self);
+      Exit;
+    end;
+    TOpenRSATLog.Add.Log(sllTrace, 'DC is online!', Self);
     fSuccess := True;
   finally
     Synchronize(@SendResult);
@@ -257,40 +275,42 @@ begin
   result := NameSplitted[1];
 end;
 
+constructor TChangeDomainController.Create(aLdapClient: TLdapClient);
+begin
+  fLdapClient := aLdapClient;
+end;
+
 function TChangeDomainController.GetCurrentServer: RawUtf8;
 begin
   result := '';
-  if Assigned(FrmRSAT) and Assigned(FrmRSAT.LdapClient) and Assigned(FrmRSAT.LdapClient.Settings) then
-    result := FrmRSAT.LdapClient.Settings.TargetHost;
+  if Assigned(LdapClient) and Assigned(LdapClient.Settings) then
+    result := LdapClient.Settings.TargetHost;
 end;
 
 function TChangeDomainController.RetrieveServers(CallBack: TCallBack;
   RetrieveExtra: Boolean): Boolean;
 var
-  Ldap: TRsatLdapClient;
   SearchResult: TLdapResult;
   DistinguishedName: RawUtf8;
   NewObject: PDocVariantData;
 begin
   result := False;
-  if not Assigned(FrmRSAT) or not Assigned(FrmRSAT.LdapClient) then
+  if not Assigned(LdapClient) then
     Exit;
 
-  Ldap := FrmRSAT.LdapClient;
-
-  Ldap.SearchBegin();
+  LdapClient.SearchBegin();
   try
-    Ldap.SearchScope := lssWholeSubtree;
+    LdapClient.SearchScope := lssWholeSubtree;
 
     repeat
-      if not Ldap.Search(Ldap.ConfigDN, False, '(objectClass=server)', ['distinguishedName', 'dNSHostName']) then
+      if not LdapClient.Search(LdapClient.ConfigDN, False, '(objectClass=server)', ['distinguishedName', 'dNSHostName']) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllError, Ldap.ResultString);
+          fLog.Add.Log(sllError, LdapClient.ResultString);
         Exit;
       end;
 
-      for SearchResult in Ldap.SearchResult.Items do
+      for SearchResult in LdapClient.SearchResult.Items do
       begin
         if not Assigned(SearchResult) then
           continue;
@@ -300,9 +320,9 @@ begin
         NewObject^.S['name'] := SearchResult.Find('dNSHostName').GetReadable();
         NewObject^.S['site'] := GetSite(DistinguishedName);
       end;
-    until Ldap.SearchCookie = '';
+    until LdapClient.SearchCookie = '';
   finally
-    Ldap.SearchEnd();
+    LdapClient.SearchEnd();
   end;
 
   if RetrieveExtra then
@@ -318,24 +338,22 @@ end;
 function TChangeDomainController.RetrieveServersExtra(CallBack: TCallBack
   ): Boolean;
 var
-  Ldap: TRsatLdapClient;
   SearchResult: TLdapResult;
   DistinguishedName: RawUtf8;
 begin
   result := False;
-  Ldap := FrmRSAT.LdapClient;
 
-  Ldap.SearchBegin();
+  LdapClient.SearchBegin();
   try
     repeat
-      if not Ldap.Search(Ldap.ConfigDN, False, '(&(objectClass=nTDSDSA)(objectClass=applicationSettings))', ['options', 'msDS-Behavior-Version', 'distinguishedName']) then
+      if not LdapClient.Search(LdapClient.ConfigDN, False, '(&(objectClass=nTDSDSA)(objectClass=applicationSettings))', ['options', 'msDS-Behavior-Version', 'distinguishedName']) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllError, 'Ldap Search Error: "%"', [Ldap.ResultString]);
+          fLog.Add.Log(sllError, 'Ldap Search Error: "%"', [LdapClient.ResultString]);
         Exit;
       end;
 
-      for SearchResult in Ldap.SearchResult.Items do
+      for SearchResult in LdapClient.SearchResult.Items do
       begin
         if not Assigned(SearchResult) then
           continue;
@@ -345,9 +363,9 @@ begin
         fSitesData.O_[DistinguishedName]^.S['dctype'] := DCOptionFromText(SearchResult.Find('options').GetReadable());
         fSitesData.O_[DistinguishedName]^.S['status'] := 'Pending...';
       end;
-    until Ldap.SearchCookie = '';
+    until LdapClient.SearchCookie = '';
   finally
-    Ldap.SearchEnd();
+    LdapClient.SearchEnd();
   end;
 
   if Assigned(CallBack) then
@@ -355,33 +373,13 @@ begin
   result := True;
 end;
 
-function TChangeDomainController.ChangeConnection(DomainController: RawUtf8
-  ): Boolean;
-var
-  test: TRsatLdapClient;
-begin
-  result := False;
-  test := TRsatLdapClient.Create(FrmRSAT.LdapClient.Settings);
-  test.OnError := FrmRSAT.LdapClient.OnError;
-  try
-    test.Settings.TargetHost := DomainController;
-    test.Settings.KerberosSpn := '';
-    if not test.Connect() then
-      Exit;
-    FrmRSAT.ChangeDomainController(DomainController);
-    result := True;
-  finally
-    FreeAndNil(test);
-  end;
-end;
-
 function TChangeDomainController.TestConnection(DomainController: RawUtf8): Boolean;
 var
   test: TRsatLdapClient;
 begin
   result := False;
-  test := TRsatLdapClient.Create(FrmRSAT.LdapClient.Settings);
-  test.OnError := FrmRSAT.LdapClient.OnError;
+  test := TRsatLdapClient.Create(LdapClient.Settings);
+  test.OnError := (LdapClient as TRsatLdapClient).OnError;
   try
     test.Settings.TargetHost := DomainController;
     test.Settings.KerberosSpn := '';
@@ -447,6 +445,11 @@ begin
   Label2.Caption := fChangeDomainController.GetCurrentServer;
 end;
 
+function TVisChangeDomainController.GetLdapClient: TLdapClient;
+begin
+  result := fIContext.RSAT.LdapClient;
+end;
+
 procedure TVisChangeDomainController.FillGrid;
 begin
   fChangeDomainController.RetrieveServers(@OnRetrievedServers);
@@ -479,7 +482,7 @@ begin
       continue;
     thread := TThreadIsDCOnline.Create(True);
     thread.SetDomainController(Row^.S['name']);
-    thread.SetSettings(FrmRSAT.LdapClient.Settings);
+    thread.SetSettings(LdapClient.Settings);
     thread.SetCallBack(@UpdateRow);
     thread.FreeOnTerminate := True;
     thread.Start;
@@ -503,16 +506,17 @@ begin
   TisGrid1.LoadData;
 end;
 
-constructor TVisChangeDomainController.Create(TheOwner: TComponent);
+constructor TVisChangeDomainController.Create(Context: IOpenRSATUIContext);
 begin
-  inherited Create(TheOwner);
+  inherited Create(Context.ComponentOwner);
 
   fAllowClose := True;
 
-  fChangeDomainController := TChangeDomainController.Create;
-  fLog := TSynLog.Add;
+  fIContext := Context;
+  fChangeDomainController := TChangeDomainController.Create(LdapClient);
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'ChangeDomainController visual created.', Self);
+    fLog.Add.Log(sllTrace, 'ChangeDomainController visual created.', Self);
 end;
 
 destructor TVisChangeDomainController.Destroy;

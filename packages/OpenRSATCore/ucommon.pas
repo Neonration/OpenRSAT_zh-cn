@@ -162,6 +162,7 @@ resourcestring
   rsNewObjectPrinter = 'New object - Printer';
   rsNewObjectServer = 'New object - Server';
   rsNewObjectSiteLink = 'New Object - Site Link';
+  rsNewObjectPasswordSettings = 'New Object - Password Settings';
 
   rsNewObjectBtnBack = '< Back';
   rsNewObjectBtnNext = 'Next >';
@@ -174,6 +175,13 @@ resourcestring
   rsNewUserPasswordNoExpire = 'The Password never expires.';
   rsNewUserDisabled = 'The account is disabled.';
 
+  rsReplicationAvailable = 'Replication Available';
+  rsReplicationDenied = 'Replication Not Available';
+  rsNone = 'None';
+  rsOncePerHour = 'Once per Hour';
+  rsTwicePerHour = 'Twice per Hour';
+  rsFourPerHour = 'Four Times per Hour';
+
   rsTitleParsing = 'Parsing error';
   rsACEParsing = 'Failed to parse ACL.';
 
@@ -181,6 +189,13 @@ resourcestring
   'Are you sure you want to move this object?';
   
   rsTooFewSitesAvailableForSiteLink = 'Active Directory Sites and Services cannot locate two sites to create a working site link object. You may create a new site link that links only one site, but it will have no effect until it links at least two sites.';
+  rsTooFewSiteLinksAvailableForSiteLinkBridge = 'Active Directory Sites and Services cannot locate two site link objects using the same transport as the site link bridge. You cannot create a site link bridge until there are at least two site links for this transport.';
+
+  rsNoSettingsFound = 'This server does not contain a settings object. As a result, the General Properties page cannot be populated, and all fields will be empty.';
+
+  rsNoGCDetected = 'No other Global Catalogs can be detected in the forest.';
+  rsWarningNoGC = 'If no Global Catalogs exist in the forest, users will not be able to log on.';
+  rsConfirmRemovingGC = 'Are you sure that you want to remove the Global Catalog role from this Domain Controller?';
 
   // Well Known Sid
   rsWellKnownSidNull = '';
@@ -428,13 +443,9 @@ resourcestring
   rsGridConfDeleteRow = 'Confirm the deletion of the %d selected rows?';
 
   // Module names
-  rsModuleADUCName = 'UsersAndComputers';
   rsModuleADUCDisplayName = 'Users and Computers';
-  rsModuleDNSName = 'DomainNameSystem';
   rsModuleDNSDisplayName = 'Domain Name System';
-  rsModuleADSSName = 'SitesAndServices';
   rsModuleADSSDisplayName = 'Sites and Services';
-  rsModuleADSIName = 'ServicesAndInterfaces';
   rsModuleADSIDisplayName = 'Services and Interfaces';
 
   rsRestartTitle = 'Restart confirmation';
@@ -491,6 +502,22 @@ resourcestring
   rsNotRequiredToChangePassword = 'The user will not be required to change the password at next logon.';
 
   rsVisAdvancedSecurityTitle = 'Advanced Security Settings for %';
+
+  rsUserCreationAlreadyExists = 'The pre-Windows 2000 logon name you have chosen is already in use in this domain.' + LineEnding + 'Choose another pre-Windows 2000 logon name, and then try again.';
+
+  rsPSOInvalidPrecedence = 'Invalid precedence (X > 0)';
+  rsPSOInvalidPwdHistory = 'Invalid password history length (0 <= X <= 24)';
+  rsPSOInvalidMinPwdLength = 'Invalid minimum password length (0 <= X <= 255)';
+  rsPSOInvalidLockoutPwdObservationWindow = 'Invalid lockout password observation window (1 <= X <= 99999)';
+  rsPSOInvalidLockoutPwdThreshold = 'Invalid lockout password threshold (0 <= X <= 999)';
+  rsPSOInvalidMaxPwdAge = 'Invalid maximum password age (1 <= X <= 999)';
+  rsPSOInvalidMinPwdAge = 'Invalid minimum password age (0 <= X <= 998)';
+
+  rsDNSForwardLookupZones = 'Forward Lookup Zones';
+  rsDNSReverseLookupZones = 'Reverse Lookup Zones';
+  rsDNSSameAsParentFolder = '(same as parent folder)';
+
+  rsEmpty = '<EMPTY>';
 
 const
   DAYS_BETWEEN_1601_AND_1900 = 109205;
@@ -603,6 +630,15 @@ function GenerateKeyTab(ALdapClient: TLdapClient; ADistinguishedName: RawUtf8; A
 
 function PrepareDJoin(ALdapClient: TLdapClient; ADistinguishedName: Rawutf8): TDJoin;
 function PrepareDJoins(ALdapClient: TLdapClient; ADistinguishedNames: TRawUtf8DynArray): TDjoinDynArray;
+
+function PrepareNewUser(const GivenName, Surname, DisplayName, Initials, SamaccountName, UserPrincipalName: RawUtf8): TLdapAttributeList;
+function PrepareInetOrgPerson(const GivenName, Surname, DisplayName, Initials, SamaccountName, UserPrincipalName: RawUtf8): TLdapAttributeList;
+procedure ChangePassword(Attributes: TLdapAttributeList; const Password: SpiUtf8);
+procedure MustChangePassword(Attributes: TLdapAttributeList; ChangePassword: Boolean);
+procedure ChangeUserAccountControl(Attributes: TLdapAttributeList; UAC: TUserAccountControl; aInclude: Boolean);
+procedure PasswordNeverExpires(Attributes: TLdapAttributeList; NeverExpires: Boolean);
+procedure DisableAccount(Attributes: TLdapAttributeList; Disable: Boolean);
+procedure CannotChangePassword(Ldap: TLdapClient; DistinguishedName: RawUtf8);
 
 const
 
@@ -743,6 +779,7 @@ uses
   mormot.core.log,
   mormot.core.text,
   mormot.net.sock,
+  ursatldapclient,
   uLdapUtils;
 
 function AceInDacl(Dacl: TSecAcl; Ace: TSecAce): Boolean;
@@ -949,7 +986,7 @@ end;
 
 function IsContainer(ObjectClass: RawUtf8): Boolean;
 const
-  CONTAINERS: Array of String = ('organizationalUnit', 'container', 'domainDNS');
+  CONTAINERS: Array of String = ('organizationalUnit', 'container', 'domainDNS', 'msDS-PasswordSettingsContainer');
 var
   Container: String;
 begin
@@ -1007,16 +1044,8 @@ begin
 end;
 
 function IsValidIP(IP: RawUtf8): Boolean;
-var
-  IPAddr: TNetAddr;
 begin
-  result := False;
-  if IPAddr.SetFrom(IP, '0', nlTcp) <> nrOK then
-    Exit;
-  case IPAddr.Family of
-    nfIP4: result := IsValidIP4(IP);
-    nfIP6: result := IsValidIP6(IP);
-  end;
+  result := IsValidIP4(IP) or IsValidIP6(IP);
 end;
 
 function IsValidIP4(IP4: RawUtf8): Boolean;
@@ -1354,6 +1383,129 @@ begin
       raise E;
     end;
   end;
+end;
+
+function PrepareNewUser(const GivenName, Surname, DisplayName, Initials,
+  SamaccountName, UserPrincipalName: RawUtf8): TLdapAttributeList;
+var
+  NewUser: TLdapAttributeList;
+  Att: TLdapAttribute;
+begin
+  result := nil;
+
+  NewUser := TLdapAttributeList.Create();
+  try
+    Att := NewUser.Add(atObjectClass, 'top');
+    Att.Add('person');
+    Att.Add('organizationalPerson');
+    Att.Add('user');
+
+    if GivenName <> '' then
+      NewUser.Add(atGivenName, GivenName);
+    if Surname <> '' then
+      NewUser.Add(atSurName, Surname);
+    if DisplayName <> '' then
+      NewUser.Add(atDisplayName, DisplayName);
+    if Initials <> '' then
+      NewUser.Add(atInitials, Initials);
+    if SamaccountName <> '' then
+      NewUser.Add(atSamAccountName, SamaccountName);
+    if UserPrincipalName <> '' then
+      NewUser.Add(atUserPrincipalName, UserPrincipalName);
+
+    result := NewUser;
+  finally
+    if not Assigned(result) then
+      FreeAndNil(NewUser);
+  end;
+end;
+
+function PrepareInetOrgPerson(const GivenName, Surname, DisplayName, Initials,
+  SamaccountName, UserPrincipalName: RawUtf8): TLdapAttributeList;
+var
+  NewPerson: TLdapAttributeList;
+begin
+  result := nil;
+
+  NewPerson := PrepareNewUser(GivenName, Surname, DisplayName, Initials, SamaccountName, UserPrincipalName);
+  try
+    NewPerson.Add(atObjectClass, 'inetOrgPerson');
+
+    result := NewPerson;
+  finally
+    if not Assigned(result) then
+      FreeAndNil(result);
+  end;
+end;
+
+procedure ChangePassword(Attributes: TLdapAttributeList; const Password: SpiUtf8
+  );
+begin
+  if Password <> '' then
+    Attributes.AddUnicodePwd(Password);
+end;
+
+procedure MustChangePassword(Attributes: TLdapAttributeList;
+  ChangePassword: Boolean);
+begin
+  if ChangePassword then
+    Attributes.Add(atPwdLastSet, '0');
+end;
+
+procedure ChangeUserAccountControl(Attributes: TLdapAttributeList;
+  UAC: TUserAccountControl; aInclude: Boolean);
+var
+  UserAccountControl: TLdapAttribute;
+  UACs: TUserAccountControls;
+begin
+  UserAccountControl := Attributes.Find(atUserAccountControl);
+  UACs := [uacNormalAccount];
+  if Assigned(UserAccountControl) then
+    UACs := UserAccountControlsFromText(UserAccountControl.GetReadable());
+  if aInclude then
+    Include(UACs, UAC)
+  else
+    Exclude(UACs, UAC);
+  Attributes.Add(atUserAccountControl, IntToStr(UserAccountControlsValue(UACs)), aoReplaceValue);
+end;
+
+procedure PasswordNeverExpires(Attributes: TLdapAttributeList;
+  NeverExpires: Boolean);
+begin
+  ChangeUserAccountControl(Attributes, uacPasswordDoNotExpire, NeverExpires);
+end;
+
+procedure DisableAccount(Attributes: TLdapAttributeList; Disable: Boolean);
+begin
+  ChangeUserAccountControl(Attributes, uacAccountDisable, Disable);
+end;
+
+procedure CannotChangePassword(Ldap: TLdapClient; DistinguishedName: RawUtf8);
+var
+  Attribute: TLdapAttribute;
+  SecurityDescriptor: TSecurityDescriptor;
+  AceSelf, AceWorld: PSecAce;
+begin
+  // https://learn.microsoft.com/en-us/windows/win32/adsi/modifying-user-cannot-change-password-ldap-provider
+  Attribute := Ldap.SearchObject(DistinguishedName, '', 'nTSecurityDescriptor');
+  if not Assigned(Attribute) then
+    Exit;
+
+  if not SecurityDescriptor.FromBinary(Attribute.GetRaw()) then
+    Exit;
+
+  AceSelf := SecDescAddOrUpdateACE(@SecurityDescriptor, ATTR_UUID[kaUserChangePassword], KnownRawSid(wksSelf), satObjectAccessAllowed, [samControlAccess]);
+  if Assigned(AceSelf) then
+    AceSelf^.AceType := satObjectAccessDenied;
+
+  AceWorld := SecDescAddOrUpdateACE(@SecurityDescriptor, ATTR_UUID[kaUserChangePassword], KnownRawSid(wksWorld), satObjectAccessAllowed, [samControlAccess]);
+  if Assigned(AceWorld) then
+    AceWorld^.AceType := satObjectAccessDenied;
+
+  OrderACL(Ldap, DistinguishedName, @SecurityDescriptor.Dacl);
+
+  if not Ldap.Modify(DistinguishedName, lmoReplace, 'nTSecurityDescriptor', SecurityDescriptor.ToBinary) then
+    Exit;
 end;
 
 { TGenerateKeyTabException }

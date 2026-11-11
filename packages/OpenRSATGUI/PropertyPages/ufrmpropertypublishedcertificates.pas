@@ -20,7 +20,8 @@ uses
   uproperty,
   tis.ui.grid.core,
   VirtualTrees,
-  upropertyframe;
+  upropertyframe,
+  ulog;
 
 type
 
@@ -56,9 +57,10 @@ type
     procedure Action_ViewExecute(Sender: TObject);
     procedure Action_ViewUpdate(Sender: TObject);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fProperty: TProperty;
 
+    fCertificateAttribute: RawUtf8;
     function CertToDoc(s: RawByteString; out PublishedCertificate: TPublishedCertificate): Boolean;
   public
     constructor Create(TheOwner: TComponent); override;
@@ -123,11 +125,11 @@ begin
     if not CertToDoc(FileContent, PublishedCertificate) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllWarning, 'Invalid certificate. (%)', [FilePath], Self);
+        fLog.Add.Log(sllWarning, 'Invalid certificate. (%)', [FilePath], Self);
       MessageDlg('Invalid Certificate', FormatUtf8('Certificate cannot be added. (%)', [FilePath]), mtWarning, mbOKCancel, 0);
       continue;
     end;
-    fProperty.Add('userCertificate', FileContent, aoAlways);
+    fProperty.Add(fCertificateAttribute, FileContent, aoAlways);
   end;
   Update(fProperty);
 end;
@@ -161,14 +163,14 @@ begin
   // No node, clear userCertificate
   if not Assigned(Node) then
   begin
-    fProperty.Add('userCertificate', '');
+    fProperty.Add(fCertificateAttribute, '');
     Exit;
   end;
   NodeData := TisGrid_ListX509.GetNodeAsPDocVariantData(Node);
   if not Assigned(Node) then
     Exit;
   // Clear and set first certificate
-  fProperty.Add('userCertificate', NodeData^.U['certificate']);
+  fProperty.Add(fCertificateAttribute, NodeData^.U['certificate']);
   Node := TisGrid_ListX509.GetNext(Node);
   // Add all certificates
   while Assigned(Node) do
@@ -177,7 +179,7 @@ begin
     Node := TisGrid_ListX509.GetNext(Node);
     if not Assigned(NodeData) then
       continue;
-    fProperty.Add('userCertificate', NodeData^.U['certificate'], aoAlways);
+    fProperty.Add(fCertificateAttribute, NodeData^.U['certificate'], aoAlways);
   end;
 end;
 
@@ -211,13 +213,13 @@ begin
     if not Certx509.LoadFromDer(der) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllWarning, 'Cannot load from DER certificate.');
+        fLog.Add.Log(sllWarning, 'Cannot load from DER certificate.');
       Exit;
     end;
     if (Certx509.SignatureAlgorithm = xsaNone) then
     begin
       if Assigned(fLog) then
-        fLog.Log(sllWarning, 'Cannot find certificate signature algorithm.');
+        fLog.Add.Log(sllWarning, 'Cannot find certificate signature algorithm.');
       Exit;
     end;
 
@@ -241,9 +243,9 @@ constructor TFrmPropertyPublishedCertificates.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Caption := 'Published Certificates';
 
@@ -259,14 +261,19 @@ var
   i: Integer;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Update', Self);
+    fLog.Add.Log(sllTrace, 'Update', Self);
 
   fProperty := Props;
 
   TisGrid_ListX509.Clear;
   TisGrid_ListX509.BeginUpdate;
   try
-    UserCertificate := fProperty.Get('userCertificate');
+    if fProperty.objectType = 'certificationAuthority' then
+      fCertificateAttribute := 'cACertificate'
+    else
+      fCertificateAttribute := 'userCertificate';
+
+    UserCertificate := fProperty.Get(fCertificateAttribute);
     if not Assigned(UserCertificate) then
       Exit;
     Row.Init();
@@ -276,13 +283,13 @@ begin
       if UserCert = '' then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllInfo, 'Empty cert in list. Continue.');
+          fLog.Add.Log(sllInfo, 'Empty cert in list. Continue.');
         continue;
       end;
       if not CertToDoc(UserCert, PublishedCertificate) then
       begin
         if Assigned(fLog) then
-          fLog.Log(sllWarning, 'Cannot convert certificate to TPublishedCertificate.');
+          fLog.Add.Log(sllWarning, 'Cannot convert certificate to TPublishedCertificate.');
         continue;
       end;
       Row.AddValue('certificate', PublishedCertificate.Certificate);

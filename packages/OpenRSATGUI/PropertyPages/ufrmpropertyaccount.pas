@@ -17,7 +17,8 @@ uses
   mormot.core.log,
   mormot.net.ldap,
   uproperty,
-  upropertyframe;
+  upropertyframe,
+  ulog;
 
 type
 
@@ -80,7 +81,7 @@ type
     procedure RadioButton_EndOfChange(Sender: TObject);
     procedure RadioButton_NeverChange(Sender: TObject);
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fProperty: TProperty;
 
     procedure UpdateLogonName;
@@ -105,6 +106,7 @@ uses
   uhelpersui,
   ursatldapclientui,
   uvislogonhours,
+  uschedulinglogic,
   uvislogonworkstation;
 
 {$R *.lfm}
@@ -165,15 +167,15 @@ begin
     Hours := default;
 
   // LogonHours Form
-  LogonHours := TVisLogonHours.Create(self, @Hours);
+  LogonHours := TVisLogonHours.Create(self, spkLogonHours);
   try
+    LogonHours.RawValue := Hours;
     if LogonHours.ShowModal() <> mrOK then
       Exit;
+    fProperty.Add('logonHours', LogonHours.RawValue);
   finally
     FreeAndNil(LogonHours);
   end;
-
-  fProperty.Add('logonHours', Hours);
 end;
 
 procedure TFrmPropertyAccount.Action_LogonToExecute(Sender: TObject);
@@ -347,11 +349,11 @@ const
   AES256 = $10;
 var
   UserAccountControl: TUserAccountControls;
-  pwdLastSet: RawUtf8;
   MsdsSupportedEncryptionTypes: TMsdsSupportedEncryptionTypes;
+  pwdLastSet: TLdapAttribute;
 begin
-  pwdLastSet := fProperty.GetReadable('pwdLastSet');
-  CheckBox_MustChange.CheckedNoChange := (pwdLastSet = '') or (pwdLastSet = '0');
+  pwdLastSet := fProperty.Get('pwdLastSet');
+  CheckBox_MustChange.CheckedNoChange := Assigned(pwdLastSet) and ((pwdLastSet.GetReadable() = '') or (pwdLastSet.GetReadable() = '0'));
 
   // https://ldapwiki.com/wiki/Wiki.jsp?page=User-Account-Control%20Attribute
   UserAccountControl := UserAccountControlsFromText(fProperty.GetReadable('userAccountControl'));
@@ -393,7 +395,7 @@ begin
     begin
       Value := 0;
       if Assigned(fLog) then
-        fLog.Log(sllWarning, 'Cannot convert str(%) to int.', [AccountExpires], Self);
+        fLog.Add.Log(sllWarning, 'Cannot convert str(%) to int.', [AccountExpires], Self);
     end;
     DateTimePicker_Expires.DateTimeNoChange := MSTimeToDateTime(Value);
   end;
@@ -425,9 +427,9 @@ constructor TFrmPropertyAccount.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   Caption := 'Account';
 end;
@@ -437,7 +439,7 @@ var
   Lockout_Value: RawUtf8;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Update', Self);
+    fLog.Add.Log(sllTrace, 'Update', Self);
 
   fProperty := Props;
 

@@ -111,74 +111,38 @@ end;
 
 procedure TFrmNewInetOrgPerson.BtnOK();
 var
-  NewObject: TVisNewObject;
-  AttList: TLdapAttributeList;
-  Att: TLdapAttribute;
-  DN: RawUtf8;
-  UAC: TUserAccountControls = [uacNormalAccount];
-  SecDesc: TSecurityDescriptor;
-  AceSelf, AceWorld: PSecAce;
+  Ldap: TLdapClient;
+  NewPerson: TLdapAttributeList;
+  DN, ObjectOU: RawUtf8;
 begin
-  NewObject := (owner as TVisNewObject);
-  AttList := TLdapAttributeList.Create();
+  Ldap := (Owner as TVisNewObject).Ldap;
+  ObjectOU := (Owner as TVisNewObject).ObjectOU;
+
+  NewPerson := PrepareInetOrgPerson(
+    Edit_FirstName.Text,
+    Edit_LastName.Text,
+    Edit_FullName.Text,
+    Edit_Initials.Text,
+    Edit_UserLogonName.Text,
+    FormatUtf8('%%', [Edit_UserLogonName.Text, ComboBox_UserLogonName.Text])
+  );
   try
-    Att := AttList.Add(atObjectClass, 'top');
-    Att.Add('person');
-    Att.Add('organizationalPerson');
-    Att.Add('user');
-    Att.Add('inetOrgPerson');
+    ChangePassword(NewPerson, Edit_Password.Text);
+    MustChangePassword(NewPerson, CheckBox_NextLogon.Checked);
+    PasswordNeverExpires(NewPerson, CheckBox_NeverExpires.Checked);
+    DisableAccount(NewPerson, CheckBox_AccountDisabled.Checked);
 
-    AttList.Add(atDisplayName, Edit_FullName.Text);
-    if Edit_FirstName.Text <> '' then
-       AttList.Add(atGivenName, Edit_FirstName.Text);
-    if Edit_Initials.Text <> '' then
-       AttList.Add(atInitials, Edit_Initials.Text);
-    if Edit_LastName.Text <> '' then
-       AttList.Add(atSurname, Edit_LastName.Text);
-    AttList.Add(atUserPrincipalName, FormatUtf8('%%', [Edit_UserLogonName.Text, ComboBox_UserLogonName.Text]));
-    AttList.Add(atSamAccountName, Edit_UserLogonName.Text);
-
-    AttList.AddUnicodePwd(Edit_Password.Text);
-    if CheckBox_NextLogon.Checked then
-      AttList.Add(atPwdLastSet, '0');
-    if CheckBox_NeverExpires.Checked then
-      Include(UAC, uacPasswordDoNotExpire);
-    if CheckBox_AccountDisabled.Checked then
-      Include(UAC, uacAccountDisable);
-    if UAC <> [] then
-      AttList.Add(atUserAccountControl, UserAccountControlsValue(UAC).ToString());
-
-    DN := FormatUtf8('CN=%,%', [Edit_FullName.Text, NewObject.ObjectOU]);
-    if not NewObject.Ldap.Add(DN, AttList) then
+    DN := FormatUtf8('CN=%,%', [Edit_FullName.Text, ObjectOU]);
+    if not Ldap.Add(DN, NewPerson) then
       Exit;
   finally
-    FreeAndNil(Att);
-    FreeAndNil(AttList);
+    FreeAndNil(NewPerson);
   end;
 
   if CheckBox_CannotChange.Checked then
-  begin
-    // https://learn.microsoft.com/en-us/windows/win32/adsi/modifying-user-cannot-change-password-ldap-provider
-    Att := NewObject.Ldap.SearchObject(atNTSecurityDescriptor, DN, '');
-    if not Assigned(Att) then
-      Exit;
+    CannotChangePassword(Ldap, DN);
 
-    SecDesc.FromBinary(Att.GetRaw());
-    AceSelf  := SecDescAddOrUpdateACE(@SecDesc, ATTR_UUID[kaUserChangePassword],
-      KnownRawSid(wksSelf),  satObjectAccessAllowed, [samControlAccess]);
-    AceWorld := SecDescAddOrUpdateACE(@SecDesc, ATTR_UUID[kaUserChangePassword],
-      KnownRawSid(wksWorld), satObjectAccessAllowed, [samControlAccess]);
-
-    AceSelf^.AceType  := satObjectAccessDenied;
-    AceWorld^.AceType := satObjectAccessDenied;
-
-    (NewObject.Ldap as TRsatLdapClient).OrderAcl(DN, (Owner as TVisNewObject).BaseDN, @SecDesc.Dacl);
-
-    if not NewObject.Ldap.Modify(DN, lmoReplace, atNTSecurityDescriptor, SecDesc.ToBinary()) then
-      Exit;
-  end;
-
-  NewObject.ModalResult := mrOK;
+  (Owner as TVisNewObject).ModalResult := mrOK;
 end;
 
 procedure TFrmNewInetOrgPerson.Edit_FirstNameChange(Sender: TObject);
@@ -366,17 +330,9 @@ end;
 constructor TFrmNewInetOrgPerson.Create(TheOwner: TComponent);
 var
   OwnerNewObject: TVisNewObject absolute TheOwner;
-  function UserLogonFormatDN(Text, Separator: RawUtf8): RawUtf8;
-  var
-    Position: Integer;
-  begin
-    result := '';
-    Position := Pos(Separator, Text);
-    if Position > 0 then
-      result := Copy(Text, 1, Position - 1)
-    else
-      result := Text;
-  end;
+  Ldap: TLdapClient;
+  SearchObject: TLdapResult;
+  Item: RawUtf8;
 begin
   inherited Create(TheOwner);
 
@@ -386,9 +342,23 @@ begin
   OwnerNewObject.Btn_Back.Action := ActionList.ActionByName('Action_Back');
   OwnerNewObject.Btn_Back.Caption := rsNewObjectBtnBack;
   PageID := 0;
-  ComboBox_UserLogonName.Items.Add(FormatUtf8('@%', [UserLogonFormatDN(OwnerNewObject.Edit_DN.Text, '/')]));
-  ComboBox_UserLogonName.ItemIndex := 0;
-  Edit_PreWindowsPrefix.Text := FormatUtf8('%/', [UpperCase(UserLogonFormatDN(OwnerNewObject.Edit_DN.Text, '.lan'))]);
+
+  Ldap := OwnerNewObject.Ldap;
+  ComboBox_UserLogonName.Items.BeginUpdate;
+  try
+    ComboBox_UserLogonName.Items.Add(FormatUtf8('@%', [DNToCN(Ldap.DefaultDN)]));
+    if Ldap.DefaultDN <> Ldap.RootDN then
+      ComboBox_UserLogonName.Items.Add(FormatUtf8('@%', [DNToCN(Ldap.RootDN)]));
+    SearchObject := Ldap.SearchObject(FormatUtf8('CN=Partitions,%', [Ldap.ConfigDN]), '', ['uPNSuffixes']);
+    if Assigned(SearchObject) then
+      for Item in SearchObject.Find('uPNSuffixes').GetAllReadable do
+        ComboBox_UserLogonName.Items.Add(FormatUtf8('@%', [Item]));
+  finally
+    ComboBox_UserLogonName.Items.EndUpdate;
+    ComboBox_UserLogonName.ItemIndex := 0;
+  end;
+
+  Edit_PreWindowsPrefix.Text := FormatUtf8('%/', [Ldap.NetbiosDN]);
   OwnerNewObject.CallBack := @Load;
 end;
 

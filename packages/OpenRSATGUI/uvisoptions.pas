@@ -21,7 +21,9 @@ uses
   ufrmrsatoptions,
   ufrmmodule,
   ufrmoption,
-  uoption;
+  uoption,
+  ufrmmodules,
+  ulog;
 
 type
 
@@ -51,13 +53,15 @@ type
       var AllowChange: Boolean);
     {$pop}
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
 
     fOptionFrames: Array of TFrameOption;
 
-    procedure CreateOptionFrames;
+    procedure CreateOptionFrames(RSATOptionClass: TFrameOptionClass;
+      RSATOption: TOption; Modules: TFrmModules);
   public
-    constructor Create(TheOwner: TComponent); reintroduce;
+    constructor Create(TheOwner: TComponent; RSATOptionClass: TFrameOptionClass;
+      RSATOption: TOption; Modules: TFrmModules); reintroduce;
     destructor Destroy; override;
   end;
 
@@ -67,8 +71,7 @@ uses
   mormot.core.text,
   mormot.core.base,
   ucoredatamodule,
-  IniFiles,
-  ufrmrsat;
+  IniFiles;
 
 {$R *.lfm}
 
@@ -80,20 +83,20 @@ resourcestring
 procedure TVisOptions.FormShow(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'FormShow', Self);
+    fLog.Add.Log(sllTrace, 'FormShow', Self);
 end;
 
 procedure TVisOptions.TreeView1Changing(Sender: TObject; Node: TTreeNode;
   var AllowChange: Boolean);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Change TreeView', Self);
+    fLog.Add.Log(sllTrace, 'Change TreeView', Self);
 
   if Assigned(TreeView1.Selected) and Assigned(TreeView1.Selected.Data) then
     TFrameOption(TreeView1.Selected.Data).Visible := False
   else
     if Assigned(fLog) then
-      fLog.Log(sllError, 'TreeView: No SelectedNode or no data assigned to SelectedNode', Self);
+      fLog.Add.Log(sllError, 'TreeView: No SelectedNode or no data assigned to SelectedNode', Self);
 
   if Assigned(Node) and Assigned(Node.Data) then
   begin
@@ -102,10 +105,10 @@ begin
   end
   else
     if Assigned(fLog) then
-      fLog.Log(sllError, 'TreeView: No Node or no data assigned to node', Self);
+      fLog.Add.Log(sllError, 'TreeView: No Node or no data assigned to node', Self);
 end;
 
-procedure TVisOptions.CreateOptionFrames;
+procedure TVisOptions.CreateOptionFrames(RSATOptionClass: TFrameOptionClass; RSATOption: TOption; Modules: TFrmModules);
 var
   Frame: TFrameModule;
 
@@ -124,32 +127,34 @@ var
 
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create Option Frames');
+    fLog.Add.Log(sllTrace, 'Create Option Frames');
 
-  AddFrame(FrmRSAT.FrmRSATOptionClass.Create(Self, FrmRSAT.RsatOption), rsOptionsGlobal).Selected := True;
+  AddFrame(RSATOptionClass.Create(Self, RsatOption), rsOptionsGlobal).Selected := True;
 
-  for Frame in FrmRSAT.FrmModules.Items do
+  for Frame in Modules.Items do
     if Assigned(Frame) and Assigned(Frame.FrmOptionClass) then
       AddFrame(Frame.FrmOptionClass.Create(Self, Frame.ModuleOption), Frame.ModuleDisplayName);
 end;
 
-constructor TVisOptions.Create(TheOwner: TComponent);
+constructor TVisOptions.Create(TheOwner: TComponent;
+  RSATOptionClass: TFrameOptionClass; RSATOption: TOption; Modules: TFrmModules
+  );
 begin
   inherited Create(TheOwner);
 
-  fLog := TSynLog.Add;
+  fLog := TOpenRSATLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   fOptionFrames := [];
 
-  CreateOptionFrames;
+  CreateOptionFrames(RSATOptionClass, RsatOption, Modules);
 end;
 
 destructor TVisOptions.Destroy;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Destroy', Self);
+    fLog.Add.Log(sllTrace, 'Destroy', Self);
 
   inherited Destroy;
 end;
@@ -161,7 +166,7 @@ begin
     27:
     begin
       if Assigned(fLog) then
-        fLog.Log(sllInfo, 'Escape pressed. Close page.', Self);
+        fLog.Add.Log(sllInfo, 'Escape pressed. Close page.', Self);
       Close;
     end;
   end;
@@ -186,7 +191,7 @@ end;
 procedure TVisOptions.Action_OKExecute(Sender: TObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_OK.Name], Self);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_OK.Name], Self);
 
   Action_Apply.Execute;
   Close;
@@ -198,7 +203,7 @@ var
   Frame: TFrameOption;
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_Apply.Name], Self);
+    fLog.Add.Log(sllTrace, '% - Execute', [Action_Apply.Name], Self);
 
   MessageResult := MessageDlg('Confirmation', 'Do you want to apply changes ?', mtConfirmation, mbYesNoCancel, 0);
 
@@ -206,7 +211,7 @@ begin
     mrYes:
     begin
       if Assigned(fLog) then
-        fLog.Log(sllInfo, 'User confirm to apply Options modifications.', Self);
+        fLog.Add.Log(sllInfo, 'User confirm to apply Options modifications.', Self);
 
       for Frame in fOptionFrames do
       begin
@@ -216,7 +221,7 @@ begin
     end;
     else
       if Assigned(fLog) then
-        fLog.Log(sllInfo, 'User cancel to apply Options modifications.', Self);
+        fLog.Add.Log(sllInfo, 'User cancel to apply Options modifications.', Self);
   end;
 end;
 

@@ -10,7 +10,8 @@ uses
   IniFiles,
   mormot.core.base,
   mormot.core.log,
-  uoption;
+  uoption,
+  ulog;
 
 type
 
@@ -18,13 +19,13 @@ type
 
   TModuleADUCOption = class(TOption)
   private
-    fLog: TSynLog;
+    fLog: TSynLogClass;
     fChanged: Boolean;
 
     fObservers: Array of TProcRsatOptionOfObject;
 
+    fVersion: Int64;
     fSearchPageSize: Integer;
-    fSearchPageNumber: Integer;
     fGridFilter: RawUtf8;
     fTreeFilter: RawUtf8;
     fTreeObjectClasses: TRawUtf8DynArray;
@@ -37,18 +38,19 @@ type
     procedure SetDeleteDomainControllers(AValue: RawUtf8);
     procedure SetGridAttributesFilter(AValue: TRawUtf8DynArray);
     procedure SetGridFilter(AValue: RawUtf8);
-    procedure SetSearchPageNumber(AValue: Integer);
     procedure SetSearchPageSize(AValue: Integer);
     procedure SetShowGPO(AValue: Boolean);
     procedure SetTreeFilter(AValue: RawUtf8);
     procedure SetTreeObjectClasses(AValue: TRawUtf8DynArray);
+    procedure SetVersion(AValue: Int64);
 
+    procedure UpgradeVersion;
   public
     constructor Create;
     destructor Destroy; override;
 
+    property Version: Int64 read fVersion write SetVersion;
     property SearchPageSize: Integer read fSearchPageSize write SetSearchPageSize;
-    property SearchPageNumber: Integer read fSearchPageNumber write SetSearchPageNumber;
     property GridFilter: RawUtf8 read fGridFilter write SetGridFilter;
     property TreeFilter: RawUtf8 read fTreeFilter write SetTreeFilter;
     property TreeObjectClasses: TRawUtf8DynArray read fTreeObjectClasses write SetTreeObjectClasses;
@@ -68,6 +70,7 @@ type
 
 const
   DEFAULT_GRID_ATTRIBUTES_FILTER: RawUtf8 = 'name;objectClass;description';
+  CURRENT_VERSION: Int64 = 1;
 
 implementation
 
@@ -103,15 +106,6 @@ begin
   if FGridAttributesFilter = AValue then
     Exit;
   fGridAttributesFilter := AValue;
-
-  fChanged := True;
-end;
-
-procedure TModuleADUCOption.SetSearchPageNumber(AValue: Integer);
-begin
-  if fSearchPageNumber = AValue then
-    Exit;
-  fSearchPageNumber := AValue;
 
   fChanged := True;
 end;
@@ -152,11 +146,35 @@ begin
   fChanged := True;
 end;
 
+procedure TModuleADUCOption.SetVersion(AValue: Int64);
+begin
+  if fVersion = AValue then
+    Exit;
+
+  fVersion := AValue;
+  fChanged := True;
+end;
+
+procedure TModuleADUCOption.UpgradeVersion;
+var
+  c: SizeInt;
+begin
+  if fVersion < 1 then
+  begin
+    c := Length(fTreeObjectClasses);
+    SetLength(fTreeObjectClasses, c + 1);
+    fTreeObjectClasses[c] := 'msDS-PasswordSettingsContainer';
+    fVersion := 1;
+  end;
+
+  Save;
+end;
+
 constructor TModuleADUCOption.Create;
 begin
-  fLog := TSynLog.Add;
+  fLog := TADUCLog;
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Create', Self);
+    fLog.Add.Log(sllTrace, 'Create', Self);
 
   fObservers := [];
   fChanged := False;
@@ -170,13 +188,13 @@ end;
 procedure TModuleADUCOption.Load(IniFile: TIniFile);
 const
   Section = 'ADUC';
-  DEFAULT_TREE_OBJECT_CLASSES = 'container;organizationalUnit;lostAndFound;builtinDomain;msDS-QuotaContainer;msTPM-InformationObjectsContainer';
+  DEFAULT_TREE_OBJECT_CLASSES = 'container;organizationalUnit;lostAndFound;builtinDomain;msDS-QuotaContainer;msTPM-InformationObjectsContainer;msDS-PasswordSettingsContainer';
 begin
   if Assigned(fLog) then
-    fLog.Log(sllDebug, 'Load', Self);
+    fLog.Add.Log(sllDebug, 'Load', Self);
 
+  fVersion := IniFile.ReadInt64(Section, 'Version', 0);
   fSearchPageSize := IniFile.ReadInt64(Section, 'SearchPageSize', 1000);
-  fSearchPageNumber := IniFile.ReadInt64(Section, 'SearchPageNumber', 2);
   fGridFilter := IniFile.ReadString(Section, 'GridFilter', '');
   fTreeFilter := IniFile.ReadString(Section, 'TreeFilter', '');
   fTreeObjectClasses := TRawUtf8DynArray(IniFile.ReadString(Section, 'TreeObjectClasses', DEFAULT_TREE_OBJECT_CLASSES).Split(';'));
@@ -186,6 +204,8 @@ begin
   fDeleteDomainControllers := IniFile.ReadString(Section, 'DeleteDomainControllers', '');
 
   fChanged := False;
+  if fVersion < CURRENT_VERSION then
+    UpgradeVersion;
 end;
 
 procedure TModuleADUCOption.Save(IniFile: TIniFile);
@@ -193,10 +213,10 @@ const
   SECTION = 'ADUC';
 begin
   if Assigned(fLog) then
-    fLog.Log(sllDebug, 'Save', Self);
+    fLog.Add.Log(sllDebug, 'Save', Self);
 
+  IniFile.WriteInt64(SECTION, 'Version', fVersion);
   IniFile.WriteInt64(SECTION, 'SearchPageSize', fSearchPageSize);
-  IniFile.WriteInt64(SECTION, 'SearchPageNumber', fSearchPageNumber);
   IniFile.WriteString(SECTION, 'GridFilter', fGridFilter);
   IniFile.WriteString(SECTION, 'TreeFilter', fTreeFilter);
   IniFile.WriteString(SECTION, 'TreeObjectClasses', String.Join(';', TStringArray(fTreeObjectClasses)));
@@ -216,7 +236,7 @@ end;
 procedure TModuleADUCOption.RegisterObserver(Observer: TProcRsatOptionOfObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'RegisterObserver', Self);
+    fLog.Add.Log(sllTrace, 'RegisterObserver', Self);
 
   MultiEventAdd(fObservers, TMethod(Observer));
 end;
@@ -224,7 +244,7 @@ end;
 procedure TModuleADUCOption.RemoveObserver(Observer: TProcRsatOptionOfObject);
 begin
   if Assigned(fLog) then
-    fLog.Log(sllTrace, 'RemoveObserver', Self);
+    fLog.Add.Log(sllTrace, 'RemoveObserver', Self);
 
   MultiEventRemove(fObservers, TMethod(Observer));
 end;

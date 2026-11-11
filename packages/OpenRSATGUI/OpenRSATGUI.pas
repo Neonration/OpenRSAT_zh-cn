@@ -9,7 +9,7 @@ interface
 
 uses
   ufrmmoduleaduc, ucoredatamodule, uvisconnectconfigs, ufrmmoduledns,
-  utreeselectionhistory, uvisproperties, uOmniselect, uvisadvancedsecurity,
+  utreeselectionhistory, uvisproperties, uvisadvancedsecurity,
   uvisattributeeditor, uvislistother, uvislogonhours, uvislogonworkstation,
   uvisaddaces, uvissearch, ufrmnewcomputer, ufrmnewcontact, ufrmnewgroup,
   ufrmnewou, ufrmnewsharedfolder, ufrmnewuser, uvisnewobject, uvischangedn,
@@ -28,9 +28,9 @@ uses
   ufrmpropertytelephone, ufrmpropertylocation, ufrmpropertyorganization,
   ufrmpropertypublishedcertificates, ufrmpropertymember, ufrmpropertysecurity,
   ufrmpropertyattributes, uhelpersui, ucommonui, ursatldapclientui,
-  ufrmoption, ufrmmodule, ufrmmoduleaducoption, ufrmrsat, ufrmmodules,
-  uvismodifygplink, uvisprofilemanager, uviseditaduccolumns,
-  uvisprofileconfiguration, uvisrootdseinfos, uvisshowrelationship, utheme,
+  ufrmoption, ufrmmodule, ufrmmoduleaducoption, ufrmmodules, uvismodifygplink,
+  uvisprofilemanager, uviseditaduccolumns, uvisprofileconfiguration,
+  uvisrootdseinfos, uvisshowrelationship, utheme,
   ufrmpropertyntauthcertificates, ufrmpropertyunixattributes,
   uvisselectobjectsid, ufrmnewinetorgperson,
   ufrmnewmsdsshadowprincipalcontainer, ufrmnewmsimagingpsps,
@@ -40,7 +40,10 @@ uses
   ufrmpropertygeneralntdssitesettings, ufrmpropertygeneralserver,
   ufrmpropertygeneralntdsdsa, ufrmpropertyconnections,
   ufrmnewmsdnsserversettings, ufrmpropertygeneralintersitetransport,
-  uvisviewkeytab, uvisbitlockerrecoverysearch, LazarusPackageIntf;
+  uvisviewkeytab, uopenrsatuicontextinterface, ufrmpropertygplinks,
+  uvislistgpo, ufrmpropertygeneralgpo, uvisrename, uvisobjectsselector,
+  ufrmpropertypso, uhintwindow, ufrmnewpasswordsettings,
+  uvisbitlockerrecoverysearch, LazarusPackageIntf;
 
 implementation
 
