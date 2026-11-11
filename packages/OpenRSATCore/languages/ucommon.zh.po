@@ -1413,3 +1413,19 @@ msgstr "此组织"
 msgid "Everyone"
 msgstr "Everyone"
 
+
+#: ucomputerdelete.rscomputerdeletewrongdomain
+msgid "The controller belongs to a different domain."
+msgstr "该域控制器属于其他域。"
+
+#: ucomputerdelete.rscomputerdeleteinvalididentity
+msgid "The object is not a workstation/member server computer, or its identity cannot be verified."
+msgstr "该对象不是工作站或成员服务器计算机，或无法验证其身份。"
+
+#: ucomputerdelete.rscomputerdeletenotstarted
+msgid "Deletion did not complete."
+msgstr "删除未完成。"
+
+#: ucomputerdelete.rscomputerdeleteincomplete
+msgid "Some child objects may have been deleted, but the computer deletion is not confirmed."
+msgstr "部分子对象可能已删除，但尚未确认计算机对象已删除。"

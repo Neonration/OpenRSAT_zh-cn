@@ -5032,28 +5032,28 @@ msgstr "获取记录："
 msgid "The user must logoff and then logon again for the change to take effect."
 msgstr "用户必须注销并重新登录后，更改才会生效。"
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldc
-msgid "Delete computer from all domain controllers..."
-msgstr "从所有域控制器删除计算机..."
+msgid "Batch delete computers from selected controllers..."
+msgstr "从所选域控制器批量删除计算机..."
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldctitle
-msgid "Delete computer from all domain controllers"
-msgstr "从所有域控制器删除计算机"
+msgid "Delete computers from selected controllers"
+msgstr "从所选域控制器删除计算机"
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcconfirm
-msgid "This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s"
-msgstr "将尝试从下面列出的每个域控制器中删除此计算机对象。%s%s计算机：%s%s%s域控制器：%s%s"
+msgid "Delete %d computers and their child objects from the controllers below? Deletions replicate throughout the domain and cannot be undone here.%s%sComputers:%s%s%sControllers:%s%s"
+msgstr "从以下域控制器删除 %d 台计算机及其子对象？删除会在整个域内复制，无法在此撤销。%s%s计算机：%s%s%s域控制器：%s%s"
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcnodc
 msgid "No domain controller could be found."
 msgstr "未找到域控制器。"
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldconlyone
-msgid "Select exactly one computer object."
-msgstr "请选择且仅选择一个计算机对象。"
+msgid "Select one or more workstation/member server computer objects."
+msgstr "请选择一个或多个工作站或成员服务器计算机对象。"
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcresult
-msgid "Deletion results for:%s%s%s%s"
-msgstr "删除结果：%s%s%s%s"
+msgid "Deletion results by controller and computer:%s%s"
+msgstr "各域控制器与计算机的删除结果：%s%s"
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcsuccess
 msgid "Deleted"
@@ -5087,12 +5087,12 @@ msgid "The target container cannot be one of the selected objects or a child of 
 msgstr "目标容器不能是已选对象本身或其子级。"
 
 #: ufrmmoduleaduc.rsaducbatchmoveouconfirm
-msgid "Move % objects to:%s%s"
-msgstr "将 % 个对象移动到：%s%s"
+msgid "Move % objects to:%%"
+msgstr "将 % 个对象移动到：%%"
 
 #: ufrmmoduleaduc.rsaducbatchmoveouresult
-msgid "Move results:%s%s"
-msgstr "移动结果：%s%s"
+msgid "Move results:%%"
+msgstr "移动结果：%%"
 
 #: ufrmmoduleaduc.rsaducbatchmoveousuccess
 msgid "Moved"
@@ -5101,10 +5101,6 @@ msgstr "已移动"
 #: ufrmmoduleaduc.rsaducbatchmoveoufailed
 msgid "Move failed"
 msgstr "移动失败"
-
-#: uvissearch.rssearchbatchmoveou
-msgid "Batch move to OU..."
-msgstr "批量移动到 OU..."
 
 #: codex.zh.manual
 msgid "End with"
@@ -5365,3 +5361,60 @@ msgstr "创建时间"
 #: codex.zh.manual
 msgid "Web page"
 msgstr "网页"
+
+#: ufrmmoduleaduc.rsaducdeleteobjectsconfirm
+msgid "Delete the following % selected objects and their child objects?%%"
+msgstr "删除以下 % 个已选对象及其子对象？%%"
+
+#: ufrmmoduleaduc.rsaducdeleteobjectsresult
+msgid "Deletion results:%%"
+msgstr "删除结果：%%"
+
+#: ufrmmoduleaduc.rsaducdeletedomainroot
+msgid "The domain root cannot be deleted."
+msgstr "不能删除域根对象。"
+
+#: ufrmmoduleaducoption.lfm
+msgctxt "tfrmmoduleaducoption.checkbox_enablemultidcdelete.caption"
+msgid "Enable multi-controller computer deletion"
+msgstr "启用多域控制器计算机删除"
+
+#: ufrmmoduleaducoption.lfm
+msgctxt "tfrmmoduleaducoption.label_deletedomaincontrollers.caption"
+msgid "Domain controller hostnames, one per line. Leave empty to use all writable controllers in the current domain."
+msgstr "域控制器主机名，每行一个；留空使用当前域的所有可写域控制器。"
+
+#: ufrmmoduleaducoption.lfm
+msgctxt "tfrmmoduleaducoption.label_multidcdeletewarning.caption"
+msgid "Deletion replicates across the domain. Disabling this option cannot restore deleted computers. The ordinary Delete action is unchanged."
+msgstr "删除会在域内复制。关闭此选项无法恢复已删除的计算机。普通“删除”操作不受此设置影响。"
+
+#: ufrmmoduleaduc.rsaducmultidcdisabled
+msgid "Enable multi-controller computer deletion in the Users and Computers options first."
+msgstr "请先在“用户和计算机”选项中启用多域控制器计算机删除。"
+
+#: ufrmmoduleaduc.rsaducinvaliddc
+msgid "This host is not a discovered writable controller in the current domain: %s"
+msgstr "以下主机不在当前域发现的可写域控制器列表中：%s"
+
+#: ufrmmoduleaduc.rsaducinvalidcomputer
+msgid "Cannot verify computer identity: %s%s%s"
+msgstr "无法验证计算机身份：%s%s%s"
+
+#: uvisoptions.rsoptionsglobal
+msgid "Global"
+msgstr "全局"
+
+#: ufrmmoduleaduc.lfm
+msgctxt "tfrmmoduleaduc.action_deletecomputerfromalldc.caption"
+msgid "Batch delete computers from selected controllers..."
+msgstr "从所选域控制器批量删除计算机..."
+
+#: uvissearch.lfm
+msgctxt "tvissearch.action_deletecomputerfromalldc.caption"
+msgid "Batch delete computers from selected controllers..."
+msgstr "从所选域控制器批量删除计算机..."
+
+#: lclstrconsts.rsmbok
+msgid "&OK"
+msgstr "确定(&O)"

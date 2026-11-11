@@ -396,6 +396,9 @@ type
 
     function Focus(DistinguishedName: String): Boolean;
     function BatchMoveObjects(const SelectedObjects: TRawUtf8DynArray): Boolean;
+    function DeleteComputersFromControllers(const SelectedObjects: TRawUtf8DynArray): Boolean;
+    function MultiDCDeleteEnabled: Boolean;
+    function DeleteObjects(const SelectedObjects: TRawUtf8DynArray): Boolean;
 
     procedure BeginUpdate;
     procedure EndUpdate;
@@ -412,6 +415,7 @@ type
 
 implementation
 uses
+  ucomputerdelete,
   uvissearch,
   utheme,
   uvisnewobject,
@@ -468,12 +472,15 @@ resourcestring
   rsADUCDescriptionDefaultApplicationData = 'Default location for storage of application data.';
   rsADUCDescriptionBuiltinSystemSettings = 'Builtin system settings';
   rsADUCComputerOpenFailed = 'The computer object could not be opened. It may be outside the current view or you may not have permission to read it.';
-  rsADUCDeleteComputerFromAllDC = 'Delete computer from all domain controllers...';
-  rsADUCDeleteComputerFromAllDCTitle = 'Delete computer from all domain controllers';
-  rsADUCDeleteComputerFromAllDCConfirm = 'This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s';
+  rsADUCDeleteComputerFromAllDC = 'Batch delete computers from selected controllers...';
+  rsADUCDeleteComputerFromAllDCTitle = 'Delete computers from selected controllers';
+  rsADUCDeleteComputerFromAllDCConfirm = 'Delete %d computers and their child objects from the controllers below? Deletions replicate throughout the domain and cannot be undone here.%s%sComputers:%s%s%sControllers:%s%s';
   rsADUCDeleteComputerFromAllDCNoDC = 'No domain controller could be found.';
-  rsADUCDeleteComputerFromAllDCOnlyOne = 'Select exactly one computer object.';
-  rsADUCDeleteComputerFromAllDCResult = 'Deletion results for:%s%s%s%s';
+  rsADUCDeleteComputerFromAllDCOnlyOne = 'Select one or more workstation/member server computer objects.';
+  rsADUCMultiDCDisabled = 'Enable multi-controller computer deletion in the Users and Computers options first.';
+  rsADUCInvalidDC = 'This host is not a discovered writable controller in the current domain: %s';
+  rsADUCInvalidComputer = 'Cannot verify computer identity: %s%s%s';
+  rsADUCDeleteComputerFromAllDCResult = 'Deletion results by controller and computer:%s%s';
   rsADUCDeleteComputerFromAllDCSuccess = 'Deleted';
   rsADUCDeleteComputerFromAllDCAlreadyAbsent = 'Already absent';
   rsADUCDeleteComputerFromAllDCConnectFailed = 'Connection failed';
@@ -482,10 +489,13 @@ resourcestring
   rsADUCBatchMoveOUTitle = 'Batch move to OU';
   rsADUCBatchMoveOUOnlyOU = 'Select two or more objects.';
   rsADUCBatchMoveOUInvalidTarget = 'The target container cannot be one of the selected objects or a child of one of them.';
-  rsADUCBatchMoveOUConfirm = 'Move % objects to:%s%s';
-  rsADUCBatchMoveOUResult = 'Move results:%s%s';
+  rsADUCBatchMoveOUConfirm = 'Move % objects to:%%';
+  rsADUCBatchMoveOUResult = 'Move results:%%';
   rsADUCBatchMoveOUSuccess = 'Moved';
   rsADUCBatchMoveOUFailed = 'Move failed';
+  rsADUCDeleteObjectsConfirm = 'Delete the following % selected objects and their child objects?%%';
+  rsADUCDeleteObjectsResult = 'Deletion results:%%';
+  rsADUCDeleteDomainRoot = 'The domain root cannot be deleted.';
 
 type
   // Enumeration of actions new on ldap
@@ -790,135 +800,236 @@ begin
 end;
 
 procedure TFrmModuleADUC.Action_DeleteExecute(Sender: TObject);
-var
-  SelectedObject: RawUtf8;
-  SelectedObjects: TRawUtf8DynArray;
-  SelectedObjectCount: SizeInt;
-  MessageResult: TModalResult;
 begin
-  if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Execute', Action_Delete);
-
-  SelectedObjects := GetSelectedObjects;
-
-  SelectedObjectCount := Length(SelectedObjects);
-
-  // No object
-  if (SelectedObjectCount <= 0) then
-  begin
-    if Assigned(fLog) then
-      fLog.Log(sllTrace, 'No object to delete', Action_Delete);
-    Exit;
-  end;
-
-  MessageResult := mrNone;
-  for SelectedObject in SelectedObjects do
-  begin
-    if (SelectedObject = '') then
-      continue;
-    if MessageResult <> mrYesToAll then
-    begin
-      MessageResult := MessageDlg(rsDelete, FormatUtf8(rsDeleteConfirm, [SelectedObject]), mtConfirmation, [mbYesToAll, mbYes, mbNo, mbNoToAll, mbCancel], 0);
-
-      // Cancel action
-      if (MessageResult = mrNoToAll) or (MessageResult = mrCancel) then
-      begin
-        if Assigned(fLog) then
-          fLog.Log(sllInfo, 'User cancel action', Action_Delete);
-        Exit;
-      end;
-    end;
-
-    // Delete object
-    if (MessageResult = mrYesToAll) or (MessageResult = mrYes) then
-    begin
-      if not FrmRSAT.LdapClient.Delete(SelectedObject, True) then
-      begin
-        if Assigned(fLog) then
-          fLog.Log(sllError, 'Ldap deletion failed: "%"', [FrmRSAT.LdapClient.ResultString], Action_Delete);
-        Exit;
-      end;
-    end;
-  end;
-
-  // Select parent node
-  if TreeADUC.Focused then
-    TreeADUC.Selected := TreeADUC.Selected.Parent;
-
-  Action_Refresh.Execute;
+  DeleteObjects(GetSelectedObjects);
 end;
 
-procedure TFrmModuleADUC.Action_DeleteComputerFromAllDCExecute(Sender: TObject);
+function TFrmModuleADUC.DeleteObjects(
+  const SelectedObjects: TRawUtf8DynArray): Boolean;
 var
-  DC, DCList, ResultLine, Results, SelectedObject: RawUtf8;
-  DCs, SelectedObjects: TRawUtf8DynArray;
-  LdapClient: TRsatLdapClient;
+  DN, ObjectList, ResultLine, Results, ErrorDetail: RawUtf8;
+  Failed: Boolean;
+  SavedOnError: TNotifyEvent;
 begin
-  if Assigned(fLog) then
-    fLog.Log(sllTrace, 'Execute', Action_DeleteComputerFromAllDC);
-
-  SelectedObjects := GetSelectedObjects;
-  if (Length(SelectedObjects) <> 1) or (GetFocusedObjectClass <> 'computer') then
-  begin
-    MessageDlg(rsADUCDeleteComputerFromAllDCTitle, rsADUCDeleteComputerFromAllDCOnlyOne, mtWarning, [mbOK], 0);
+  result := False;
+  if not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected or
+    (Length(SelectedObjects) = 0) then
     Exit;
-  end;
 
-  SelectedObject := SelectedObjects[0];
-  DCs := GetDomainControllerHosts;
-  if Length(DCs) = 0 then
+  ObjectList := '';
+  for DN in SelectedObjects do
   begin
-    MessageDlg(rsADUCDeleteComputerFromAllDCTitle, rsADUCDeleteComputerFromAllDCNoDC, mtError, [mbOK], 0);
-    Exit;
+    if (DN = '') or SameText(String(DN), String(FrmRSAT.LdapClient.DefaultDN)) then
+    begin
+      MessageDlg(rsDelete, rsADUCDeleteDomainRoot, mtWarning, [mbOK], 0);
+      Exit;
+    end;
+    if ObjectList <> '' then
+      ObjectList := ObjectList + LineEnding;
+    ObjectList := ObjectList + DN;
   end;
-  DCList := '';
-  for DC in DCs do
-  begin
-    if DCList <> '' then
-      DCList := DCList + LineEnding;
-    DCList := DCList + DC;
-  end;
-
-  if MessageDlg(rsADUCDeleteComputerFromAllDCTitle,
-    Format(rsADUCDeleteComputerFromAllDCConfirm, [LineEnding, LineEnding, LineEnding, String(SelectedObject), LineEnding, LineEnding, String(DCList)]),
-    mtWarning, [mbYes, mbNo], 0) <> mrYes then
+  if not ShowOperationDetails(rsDelete,
+    FormatUtf8(rsADUCDeleteObjectsConfirm,
+      [Length(SelectedObjects), LineEnding, ObjectList]),
+    True) then
     Exit;
 
   Results := '';
-  for DC in DCs do
-  begin
-    LdapClient := TRsatLdapClient.Create(FrmRSAT.LdapClient.Settings);
-    try
-      LdapClient.Settings.TargetHost := DC;
-      LdapClient.Settings.KerberosSpn := '';
-      if not LdapClient.Connect() then
-        ResultLine := FormatUtf8('%: % - %', [DC, rsADUCDeleteComputerFromAllDCConnectFailed, LdapClient.ResultString])
-      else if LdapClient.Delete(SelectedObject, True) then
-        ResultLine := FormatUtf8('%: %', [DC, rsADUCDeleteComputerFromAllDCSuccess])
-      else if LdapClient.ResultError = leNoSuchObject then
-        ResultLine := FormatUtf8('%: %', [DC, rsADUCDeleteComputerFromAllDCAlreadyAbsent])
-      else
-        ResultLine := FormatUtf8('%: % - %', [DC, rsADUCDeleteComputerFromAllDCDeleteFailed, LdapClient.ResultString]);
-    finally
-      FreeAndNil(LdapClient);
+  Failed := False;
+  SavedOnError := FrmRSAT.LdapClient.OnError;
+  FrmRSAT.LdapClient.OnError := nil;
+  try
+    for DN in SelectedObjects do
+    begin
+      try
+        if FrmRSAT.LdapClient.Delete(DN, True) then
+          ResultLine := FormatUtf8('%: %', [DN, rsADUCDeleteComputerFromAllDCSuccess])
+        else
+        begin
+          ErrorDetail := FrmRSAT.LdapClient.ResultString;
+          if (FrmRSAT.LdapClient.ResultError = leNoSuchObject) and
+            not Assigned(FrmRSAT.LdapClient.SearchObject(DN, '', ['objectClass'])) and
+            (FrmRSAT.LdapClient.ResultError = leNoSuchObject) then
+            ResultLine := FormatUtf8('%: %', [DN, rsADUCDeleteComputerFromAllDCAlreadyAbsent])
+          else
+          begin
+            Failed := True;
+            ResultLine := FormatUtf8('%: % - %',
+              [DN, rsADUCDeleteComputerFromAllDCDeleteFailed, ErrorDetail]);
+          end;
+        end;
+      except
+        on E: Exception do
+        begin
+          Failed := True;
+          ResultLine := FormatUtf8('%: % - %',
+            [DN, rsADUCDeleteComputerFromAllDCDeleteFailed, E.Message]);
+        end;
+      end;
+      if Results <> '' then
+        Results := Results + LineEnding;
+      Results := Results + ResultLine;
     end;
-
-    if Results <> '' then
-      Results := Results + LineEnding;
-    Results := Results + ResultLine;
+  finally
+    FrmRSAT.LdapClient.OnError := SavedOnError;
   end;
 
-  MessageDlg(rsADUCDeleteComputerFromAllDCTitle,
-    Format(rsADUCDeleteComputerFromAllDCResult, [LineEnding, String(SelectedObject), LineEnding, String(Results)]),
-    mtInformation, [mbOK], 0);
+  if TreeADUC.Focused and Assigned(TreeADUC.Selected) and
+    Assigned(TreeADUC.Selected.Parent) then
+    TreeADUC.Selected := TreeADUC.Selected.Parent;
   Action_Refresh.Execute;
+  if Failed then
+    ShowOperationDetails(rsDelete + ' - ' + rsADUCDeleteComputerFromAllDCDeleteFailed,
+      FormatUtf8(rsADUCDeleteObjectsResult, [LineEnding, Results]))
+  else
+    ShowOperationDetails(rsDelete,
+      FormatUtf8(rsADUCDeleteObjectsResult, [LineEnding, Results]));
+  result := True;
+end;
+
+function TFrmModuleADUC.MultiDCDeleteEnabled: Boolean;
+begin
+  Result := fModuleAduc.ADUCOption.EnableMultiDCDelete;
+end;
+
+procedure TFrmModuleADUC.Action_DeleteComputerFromAllDCExecute(Sender: TObject);
+begin
+  DeleteComputersFromControllers(GetSelectedObjects);
 end;
 
 procedure TFrmModuleADUC.Action_DeleteComputerFromAllDCUpdate(Sender: TObject);
 begin
-  Action_DeleteComputerFromAllDC.Enabled :=
+  Action_DeleteComputerFromAllDC.Enabled := MultiDCDeleteEnabled and
     Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and
-    (Length(GetSelectedObjects) = 1) and (GetFocusedObjectClass = 'computer');
+    GridSelectionContainsOnlyObjectClass('computer');
+end;
+
+function TFrmModuleADUC.DeleteComputersFromControllers(
+  const SelectedObjects: TRawUtf8DynArray): Boolean;
+const
+  MaxParallelControllers = 4;
+var
+  DCs, Available: TRawUtf8DynArray;
+  Targets: TComputerDeleteTargets;
+  Workers: array of TComputerDeleteThread;
+  Entry: TLdapResult;
+  InvalidHost, DomainDN, ComputerList, DCList, Results, Status: RawUtf8;
+  I, J, First, Count: Integer;
+  HadFailure: Boolean;
+begin
+  Result := False;
+  if not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected then
+    Exit;
+  if not MultiDCDeleteEnabled then
+  begin
+    MessageDlg(rsADUCDeleteComputerFromAllDCTitle, rsADUCMultiDCDisabled, mtWarning, [mbOK], 0);
+    Exit;
+  end;
+  if Length(SelectedObjects) = 0 then
+    Exit;
+  try
+    DomainDN := FrmRSAT.LdapClient.DefaultDN;
+    Available := GetDomainControllerHosts;
+    if Length(Available) = 0 then
+    begin
+      MessageDlg(rsADUCDeleteComputerFromAllDCTitle, rsADUCDeleteComputerFromAllDCNoDC,
+        mtError, [mbOK], 0);
+      Exit;
+    end;
+    if not ResolveDeleteControllers(fModuleAduc.ADUCOption.DeleteDomainControllers,
+      Available, DCs, InvalidHost) then
+    begin
+      MessageDlg(rsADUCDeleteComputerFromAllDCTitle, Format(rsADUCInvalidDC, [InvalidHost]),
+        mtError, [mbOK], 0);
+      Exit;
+    end;
+    SetLength(Targets, Length(SelectedObjects));
+    ComputerList := '';
+    for I := 0 to High(SelectedObjects) do
+    begin
+      Entry := FrmRSAT.LdapClient.SearchObject(SelectedObjects[I], '',
+        ['objectGUID', 'objectClass', 'userAccountControl']);
+      if not ComputerGuidDN(Entry, Targets[I].GuidDN) then
+      begin
+        MessageDlg(rsADUCDeleteComputerFromAllDCTitle,
+          Format(rsADUCInvalidComputer, [SelectedObjects[I], LineEnding,
+            rsComputerDeleteInvalidIdentity + LineEnding + FrmRSAT.LdapClient.ResultString]),
+          mtError, [mbOK], 0);
+        Exit;
+      end;
+      Targets[I].DN := SelectedObjects[I];
+      ComputerList := ComputerList + Targets[I].DN + LineEnding;
+    end;
+  except
+    on E: Exception do
+    begin
+      MessageDlg(rsADUCDeleteComputerFromAllDCTitle, E.Message, mtError, [mbOK], 0);
+      Exit;
+    end;
+  end;
+  DCList := String.Join(LineEnding, TStringArray(DCs));
+  if not ShowOperationDetails(rsADUCDeleteComputerFromAllDCTitle,
+    Format(rsADUCDeleteComputerFromAllDCConfirm, [Length(Targets), LineEnding,
+      LineEnding, LineEnding, ComputerList, LineEnding, LineEnding, DCList]), True) then
+    Exit;
+
+  Results := '';
+  HadFailure := False;
+  Screen.Cursor := crHourGlass;
+  try
+    First := 0;
+    while First < Length(DCs) do
+    begin
+      Count := Length(DCs) - First;
+      if Count > MaxParallelControllers then
+        Count := MaxParallelControllers;
+      SetLength(Workers, Count);
+      try
+        // Construct serially because TLdapClient.Create updates the source settings key.
+        for I := 0 to Count - 1 do
+          Workers[I] := TComputerDeleteThread.Create(FrmRSAT.LdapClient,
+            DCs[First + I], DomainDN, Targets);
+        for I := 0 to Count - 1 do
+          Workers[I].Start;
+        for I := 0 to Count - 1 do
+        begin
+          Workers[I].WaitFor;
+          for J := 0 to High(Targets) do
+          begin
+            case Workers[I].Results[J].Status of
+              cdsDeleted: Status := rsADUCDeleteComputerFromAllDCSuccess;
+              cdsAbsent: Status := rsADUCDeleteComputerFromAllDCAlreadyAbsent;
+              else
+              begin
+                Status := rsADUCDeleteComputerFromAllDCDeleteFailed + ': ' + Workers[I].Results[J].Detail;
+                HadFailure := True;
+              end;
+            end;
+            Results := Results + DCs[First + I] + ' | ' + Targets[J].DN + ': ' + Status + LineEnding;
+          end;
+        end;
+      finally
+        for I := 0 to High(Workers) do
+          FreeAndNil(Workers[I]);
+      end;
+      Inc(First, Count);
+    end;
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      HadFailure := True;
+      Results := Results + rsComputerDeleteNotStarted + ': ' + E.Message;
+      Result := True; // Refresh after an interrupted operation may have changed some objects.
+    end;
+  end;
+  Screen.Cursor := crDefault;
+  Status := rsADUCDeleteComputerFromAllDCTitle;
+  if HadFailure then
+    Status := Status + ' - ' + rsADUCDeleteComputerFromAllDCDeleteFailed;
+  ShowOperationDetails(Status,
+    Format(rsADUCDeleteComputerFromAllDCResult, [LineEnding, Results]));
+  Action_Refresh.Execute;
 end;
 
 procedure TFrmModuleADUC.Action_DeleteUpdate(Sender: TObject);
@@ -1861,93 +1972,21 @@ begin
 end;
 
 procedure TFrmModuleADUC.Action_TaskBatchMoveOUExecute(Sender: TObject);
-var
-  DN, NewDN, ResultLine, Results, TargetDN: RawUtf8;
-  DNs: TNameValueDNs;
-  SelectedObjects: TRawUtf8DynArray;
-
-  function IsInvalidTarget(AMoveDN, ATargetDN: RawUtf8): Boolean;
-  var
-    Suffix, Target: String;
-  begin
-    Suffix := ',' + String(AMoveDN);
-    Target := String(ATargetDN);
-    result := SameText(String(AMoveDN), Target) or
-      ((Length(Target) > Length(Suffix)) and
-      SameText(Copy(Target, Length(Target) - Length(Suffix) + 1, Length(Suffix)), Suffix));
-  end;
-
 begin
-  if Assigned(fLog) then
-    fLog.Log(sllTrace, '% - Execute', [Action_TaskBatchMoveOU.Caption]);
-
-  SelectedObjects := GetSelectedObjects;
-  if Length(SelectedObjects) < 2 then
-  begin
-    MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUOnlyOU, mtWarning, [mbOK], 0);
-    Exit;
-  end;
-
-  With TVisChangeDN.Create(Self, FrmRSAT.LdapClient, GetParentDN(SelectedObjects[0]), FrmRSAT.LdapClient.DefaultDN) do
-  try
-    if (mrOK <> ShowModal) or (SelectedDN = '') then
-      Exit;
-    TargetDN := SelectedDN;
-  finally
-    Free;
-  end;
-
-  for DN in SelectedObjects do
-    if IsInvalidTarget(DN, TargetDN) then
-    begin
-      MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUInvalidTarget, mtWarning, [mbOK], 0);
-      Exit;
-    end;
-
-  if MessageDlg(rsADUCBatchMoveOUTitle,
-    FormatUtf8(rsADUCBatchMoveOUConfirm, [Length(SelectedObjects), LineEnding, TargetDN]),
-    mtWarning, [mbYes, mbNo], 0) <> mrYes then
-    Exit;
-
-  Results := '';
-  for DN in SelectedObjects do
-  begin
-    ParseDN(DN, DNs, True);
-    if Length(DNs) <= 0 then
-      Continue;
-    NewDN := DNs[0].Name + '=' + DNs[0].Value + ',' + TargetDN;
-    if FrmRSAT.LdapClient.MoveLdapEntry(DN, NewDN) then
-      ResultLine := FormatUtf8('%: %', [DN, rsADUCBatchMoveOUSuccess])
-    else
-      ResultLine := FormatUtf8('%: % - %', [DN, rsADUCBatchMoveOUFailed, FrmRSAT.LdapClient.ResultString]);
-    if Results <> '' then
-      Results := Results + LineEnding;
-    Results := Results + ResultLine;
-  end;
-
-  MessageDlg(rsADUCBatchMoveOUTitle, FormatUtf8(rsADUCBatchMoveOUResult, [LineEnding, Results]), mtInformation, [mbOK], 0);
-  Action_Refresh.Execute;
+  BatchMoveObjects(GetSelectedObjects);
 end;
 
 function TFrmModuleADUC.BatchMoveObjects(
   const SelectedObjects: TRawUtf8DynArray): Boolean;
 var
   DN, NewDN, ResultLine, Results, TargetDN: RawUtf8;
-  DNs: TNameValueDNs;
-
-  function IsInvalidTarget(AMoveDN, ATargetDN: RawUtf8): Boolean;
-  var
-    Suffix, Target: String;
-  begin
-    Suffix := ',' + String(AMoveDN);
-    Target := String(ATargetDN);
-    result := SameText(String(AMoveDN), Target) or
-      ((Length(Target) > Length(Suffix)) and
-      SameText(Copy(Target, Length(Target) - Length(Suffix) + 1, Length(Suffix)), Suffix));
-  end;
-
+  Failed: Boolean;
+  Index: Integer;
+  SavedOnError: TNotifyEvent;
 begin
   result := False;
+  if not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected then
+    Exit;
   if Length(SelectedObjects) < 2 then
   begin
     MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUOnlyOU, mtWarning, [mbOK], 0);
@@ -1964,7 +2003,7 @@ begin
   end;
 
   for DN in SelectedObjects do
-    if IsInvalidTarget(DN, TargetDN) then
+    if not TryBuildMoveDN(DN, TargetDN, NewDN) then
     begin
       MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUInvalidTarget, mtWarning, [mbOK], 0);
       Exit;
@@ -1976,22 +2015,43 @@ begin
     Exit;
 
   Results := '';
-  for DN in SelectedObjects do
-  begin
-    ParseDN(DN, DNs, True);
-    if Length(DNs) <= 0 then
-      Continue;
-    NewDN := DNs[0].Name + '=' + DNs[0].Value + ',' + TargetDN;
-    if FrmRSAT.LdapClient.MoveLdapEntry(DN, NewDN) then
-      ResultLine := FormatUtf8('%: %', [DN, rsADUCBatchMoveOUSuccess])
-    else
-      ResultLine := FormatUtf8('%: % - %', [DN, rsADUCBatchMoveOUFailed, FrmRSAT.LdapClient.ResultString]);
-    if Results <> '' then
-      Results := Results + LineEnding;
-    Results := Results + ResultLine;
+  Failed := False;
+  SavedOnError := FrmRSAT.LdapClient.OnError;
+  FrmRSAT.LdapClient.OnError := nil;
+  try
+    for Index in GetDNMoveOrder(SelectedObjects) do
+    begin
+      DN := SelectedObjects[Index];
+      TryBuildMoveDN(DN, TargetDN, NewDN);
+      try
+        if (DN = NewDN) or FrmRSAT.LdapClient.MoveLdapEntry(DN, NewDN) then
+          ResultLine := FormatUtf8('%: %', [DN, rsADUCBatchMoveOUSuccess])
+        else
+        begin
+          Failed := True;
+          ResultLine := FormatUtf8('%: % - %', [DN, rsADUCBatchMoveOUFailed, FrmRSAT.LdapClient.ResultString]);
+        end;
+      except
+        on E: Exception do
+        begin
+          Failed := True;
+          ResultLine := FormatUtf8('%: % - %', [DN, rsADUCBatchMoveOUFailed, E.Message]);
+        end;
+      end;
+      if Results <> '' then
+        Results := Results + LineEnding;
+      Results := Results + ResultLine;
+    end;
+  finally
+    FrmRSAT.LdapClient.OnError := SavedOnError;
   end;
 
-  MessageDlg(rsADUCBatchMoveOUTitle, FormatUtf8(rsADUCBatchMoveOUResult, [LineEnding, Results]), mtInformation, [mbOK], 0);
+  if Failed then
+    ShowOperationDetails(rsADUCBatchMoveOUTitle + ' - ' + rsADUCBatchMoveOUFailed,
+      FormatUtf8(rsADUCBatchMoveOUResult, [LineEnding, Results]))
+  else
+    ShowOperationDetails(rsADUCBatchMoveOUTitle,
+      FormatUtf8(rsADUCBatchMoveOUResult, [LineEnding, Results]));
   Action_Refresh.Execute;
   result := True;
 end;
@@ -2004,7 +2064,7 @@ end;
 
 procedure TFrmModuleADUC.Action_TaskMoveExecute(Sender: TObject);
 var
-  DistinguishedName: String;
+  DistinguishedName, NewDN: RawUtf8;
 begin
   if Assigned(fLog) then
     fLog.Log(sllTrace, '% - Execute', [Action_TaskMove.Caption]);
@@ -2018,7 +2078,12 @@ begin
         fLog.Log(sllInfo, '% - Task canceled.');
       Exit;
     end;
-    if not FrmRSAT.LdapClient.MoveLdapEntry(DistinguishedName, Join([DistinguishedName.Split(',')[0], ',', SelectedDN])) then
+    if not TryBuildMoveDN(DistinguishedName, SelectedDN, NewDN) then
+    begin
+      MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUInvalidTarget, mtWarning, [mbOK], 0);
+      Exit;
+    end;
+    if not FrmRSAT.LdapClient.MoveLdapEntry(DistinguishedName, NewDN) then
     begin
       if Assigned(fLog) then
         fLog.Log(sllError, '% - Failed to move ldap entry "%" to "%": %', [DistinguishedName, SelectedDN, FrmRSAT.LdapClient.ResultString]);
@@ -2278,8 +2343,8 @@ procedure TFrmModuleADUC.TreeADUCDragDrop(Sender, Source: TObject; X,
 var
   TreeNode: TTreeNode;
   Node: PVirtualNode;
-  BaseDN, oldDN, newDN: String;
-  oldDNS, newDNS: Array of String;
+  BaseDN, oldDN, newDN: RawUtf8;
+  oldDNS, newDNS: TRawUtf8DynArray;
   NodeData: TADUCTreeNodeObject;
 begin
   if Assigned(fLog) then
@@ -2309,7 +2374,11 @@ begin
   end;
   repeat
     oldDN := GridADUC.GetNodeAsPDocVariantData(Node)^.U['objectName'];
-    newDN := String.Join(',', [oldDN.Split(',')[0], BaseDN]);
+    if not TryBuildMoveDN(oldDN, BaseDN, newDN) then
+    begin
+      MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUInvalidTarget, mtWarning, [mbOK], 0);
+      Exit;
+    end;
     Insert(oldDN, oldDNS, Length(oldDNS));
     Insert(newDN, newDNS, Length(newDNS));
     Node := GridADUC.GetNextSelected(Node);
@@ -2453,7 +2522,7 @@ begin
     MenuItem_Refresh,
     MenuItem_Properties
   ];
-  Action_TaskBatchMoveOU.Caption := '批量移动到 OU...';
+  Action_TaskBatchMoveOU.Caption := rsADUCBatchMoveOU;
   Action_TaskBatchMoveOU.Enabled := Assigned(FrmRSAT.LdapClient) and
     FrmRSAT.LdapClient.Connected and Assigned(GridADUC) and
     (GridADUC.SelectedCount >= 2);
@@ -2516,9 +2585,9 @@ procedure TFrmModuleADUC.GridADUCDragDrop(Sender: TBaseVirtualTree;
 var
   HitInfo: THitInfo;
   Data: PDocVariantData;
-  BaseDN, oldDN, newDN: String;
+  BaseDN, oldDN, newDN: RawUtf8;
   Node: PVirtualNode;
-  newDNS, oldDNS: Array of String;
+  newDNS, oldDNS: TRawUtf8DynArray;
   NewColName: RawUtf8;
 begin
   oldDNS := [];
@@ -2532,6 +2601,8 @@ begin
     GridADUC.GetHitTestInfoAt(Pt.x, Pt.y, True, HitInfo);
 
     Data := GridADUC.GetNodeAsPDocVariantData(HitInfo.HitNode);
+    if not Assigned(Data) or not Data^.Exists('objectName') then
+      Exit;
     BaseDN := Data^.U['objectName'];
 
     Node := GridADUC.GetFirstSelected();
@@ -2545,7 +2616,11 @@ begin
     repeat
       Data := GridADUC.GetNodeAsPDocVariantData(Node);
       oldDN := data^.U['objectName'];
-      newDN := String.Join(',', [oldDN.split(',')[0], BaseDN]);
+      if not TryBuildMoveDN(oldDN, BaseDN, newDN) then
+      begin
+        MessageDlg(rsADUCBatchMoveOUTitle, rsADUCBatchMoveOUInvalidTarget, mtWarning, [mbOK], 0);
+        Exit;
+      end;
       Insert(newDN, newDNS, Length(newDNS));
       Insert(oldDN, oldDNS, Length(oldDNS));
       Node := GridADUC.GetNextSelected(Node);
@@ -3372,15 +3447,13 @@ var
 begin
   result := [];
 
-  if Assigned(GridADUC) and (GridADUC.SelectedCount > 0) then
+  if TreeADUC.Focused then
+    result := GetSelectedObjectsInTree
+  else if Assigned(GridADUC) and (GridADUC.SelectedCount > 0) then
   begin
     result := GetSelectedObjectsInGrid;
     if (Length(result) = 0) then // If no result, fallback to tree selection
       result := GetSelectedObjectsInTree;
-  end
-  else if TreeADUC.Focused then
-  begin
-    result := GetSelectedObjectsInTree;
   end
   else
   begin
@@ -3537,33 +3610,33 @@ function TFrmModuleADUC.GetDomainControllerHosts: TRawUtf8DynArray;
 var
   HostName: RawUtf8;
   Ldap: TRsatLdapClient;
-  SearchResult: TLdapResult;
+  Entry: TLdapResult;
+  Attribute: TLdapAttribute;
 begin
-  result := [];
-  if not Assigned(FrmRSAT) or not Assigned(FrmRSAT.LdapClient) then
-    Exit;
-
+  Result := nil;
   Ldap := FrmRSAT.LdapClient;
   Ldap.SearchBegin();
   try
     Ldap.SearchScope := lssWholeSubtree;
     repeat
-      if not Ldap.Search(Ldap.ConfigDN, False, '(objectClass=server)', ['dNSHostName', 'name']) then
+      // Query only writable DC computer accounts in this domain, not forest-wide server objects.
+      if not Ldap.Search(Ldap.DefaultDN, False,
+        '(&(objectCategory=computer)(userAccountControl:1.2.840.113556.1.4.803:=8192)(!(userAccountControl:1.2.840.113556.1.4.803:=67108864)))',
+        ['dNSHostName']) then
       begin
-        if Assigned(fLog) then
-          fLog.Log(sllError, 'Ldap Search Error: "%"', [Ldap.ResultString]);
+        Result := nil;
         Exit;
       end;
-
-      for SearchResult in Ldap.SearchResult.Items do
+      for Entry in Ldap.SearchResult.Items do
       begin
-        if not Assigned(SearchResult) then
-          continue;
-        HostName := SearchResult.Find('dNSHostName').GetReadable();
-        if HostName = '' then
-          HostName := SearchResult.Find('name').GetReadable();
-        if (HostName <> '') and not result.Contains(HostName) then
-          Insert(HostName, result, Length(result));
+        if not Assigned(Entry) then
+          Continue;
+        Attribute := Entry.Find('dNSHostName');
+        if not Assigned(Attribute) then
+          Continue;
+        HostName := Attribute.GetReadable;
+        if HostName <> '' then
+          Insert(HostName, Result, Length(Result));
       end;
     until Ldap.SearchCookie = '';
   finally

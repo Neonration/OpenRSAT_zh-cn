@@ -694,7 +694,7 @@ object FrmModuleADUC: TFrmModuleADUC
       OnUpdate = Action_DeleteUpdate
     end
     object Action_DeleteComputerFromAllDC: TAction
-      Caption = 'Delete computer from all domain controllers...'
+      Caption = 'Batch delete computers from selected controllers...'
       OnExecute = Action_DeleteComputerFromAllDCExecute
       OnUpdate = Action_DeleteComputerFromAllDCUpdate
     end

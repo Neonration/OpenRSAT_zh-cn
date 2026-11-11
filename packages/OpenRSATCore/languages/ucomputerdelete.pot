@@ -1,0 +1,19 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: ucomputerdelete.rscomputerdeleteincomplete
+msgid "Some child objects may have been deleted, but the computer deletion is not confirmed."
+msgstr ""
+
+#: ucomputerdelete.rscomputerdeleteinvalididentity
+msgid "The object is not a workstation/member server computer, or its identity cannot be verified."
+msgstr ""
+
+#: ucomputerdelete.rscomputerdeletenotstarted
+msgid "Deletion did not complete."
+msgstr ""
+
+#: ucomputerdelete.rscomputerdeletewrongdomain
+msgid "The controller belongs to a different domain."
+msgstr ""
+

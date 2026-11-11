@@ -461,9 +461,7 @@ end;
 
 function TRsatLdapClient.MoveLdapEntry(oldDN, newDN: string): Boolean;
 var
-  DNs: TNameValueDNs;
-  newRdn, newParentDN: String;
-  i: Integer;
+  newRdn, newParentDN: RawUtf8;
   aLog: ISynLog;
 begin
   result := False;
@@ -479,11 +477,8 @@ begin
       aLog.Log(sllDebug, 'oldDN or newDN is empty');
     Exit;
   end;
-  ParseDN(newDN, DNs);
-  newRdn := DNs[0].Name + '=' + DNs[0].Value;
-  newParentDN := DNs[1].Name + '=' + DNs[1].Value;
-  for i := 2 to High(DNs) do
-    newParentDN += ',' + DNs[i].Name + '=' + DNs[i].Value;
+  if not SplitObjectDN(newDN, newRdn, newParentDN) then
+    Exit;
   if Assigned(aLog) then
     aLog.Log(sllDebug, FormatUtf8('Moving Ldap entry "%" as "%" to "%".', [oldDN, newRDN, newParentDN]));
 

@@ -261,4 +261,59 @@ object FrmModuleADUCOption: TFrmModuleADUCOption
       WordWrap = True
     end
   end
+  object Panel_MultiDCDelete: TPanel
+    Left = 4
+    Height = 260
+    Top = 657
+    Width = 516
+    Align = alTop
+    AutoSize = True
+    BorderSpacing.Around = 4
+    BevelOuter = bvNone
+    TabOrder = 2
+    object CheckBox_EnableMultiDCDelete: TCheckBox
+      Left = 8
+      Height = 23
+      Top = 8
+      Width = 500
+      Align = alTop
+      BorderSpacing.Around = 8
+      Caption = 'Enable multi-controller computer deletion'
+      TabOrder = 0
+      OnChange = MultiDCDeleteChange
+    end
+    object Label_DeleteDomainControllers: TLabel
+      Left = 8
+      Height = 36
+      Top = 47
+      Width = 500
+      Align = alTop
+      BorderSpacing.Around = 8
+      Caption = 'Domain controller hostnames, one per line. Leave empty to use all writable controllers in the current domain.'
+      FocusControl = Memo_DeleteDomainControllers
+      WordWrap = True
+    end
+    object Memo_DeleteDomainControllers: TMemo
+      Left = 8
+      Height = 90
+      Top = 99
+      Width = 500
+      Align = alTop
+      BorderSpacing.Around = 8
+      Enabled = False
+      ScrollBars = ssVertical
+      TabOrder = 1
+      OnChange = MultiDCDeleteChange
+    end
+    object Label_MultiDCDeleteWarning: TLabel
+      Left = 8
+      Height = 47
+      Top = 205
+      Width = 500
+      Align = alTop
+      BorderSpacing.Around = 8
+      Caption = 'Deletion replicates across the domain. Disabling this option cannot restore deleted computers. The ordinary Delete action is unchanged.'
+      WordWrap = True
+    end
+  end
 end

@@ -72,6 +72,9 @@ uses
 
 {$R *.lfm}
 
+resourcestring
+  rsOptionsGlobal = 'Global';
+
 { TVisOptions }
 
 procedure TVisOptions.FormShow(Sender: TObject);
@@ -123,7 +126,7 @@ begin
   if Assigned(fLog) then
     fLog.Log(sllTrace, 'Create Option Frames');
 
-  AddFrame(FrmRSAT.FrmRSATOptionClass.Create(Self, FrmRSAT.RsatOption), 'Global').Selected := True;
+  AddFrame(FrmRSAT.FrmRSATOptionClass.Create(Self, FrmRSAT.RsatOption), rsOptionsGlobal).Selected := True;
 
   for Frame in FrmRSAT.FrmModules.Items do
     if Assigned(Frame) and Assigned(Frame.FrmOptionClass) then

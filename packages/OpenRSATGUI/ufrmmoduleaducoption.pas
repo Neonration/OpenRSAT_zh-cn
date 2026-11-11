@@ -24,6 +24,7 @@ type
   { TFrmModuleADUCOption }
 
   TFrmModuleADUCOption = class(TFrameOption)
+    CheckBox_EnableMultiDCDelete: TCheckBox;
     CheckBox_ShowGPO: TCheckBox;
     CheckListBox2: TCheckListBox;
     Edit_SearchPageNumber: TEdit;
@@ -36,10 +37,14 @@ type
     Label_Filter: TLabel;
     Label_SearchPageNumber: TLabel;
     Label_SearchPageSize: TLabel;
+    Label_DeleteDomainControllers: TLabel;
+    Label_MultiDCDeleteWarning: TLabel;
     Memo2: TMemo;
     Memo_Filter: TMemo;
+    Memo_DeleteDomainControllers: TMemo;
     Panel1: TPanel;
     Panel2: TPanel;
+    Panel_MultiDCDelete: TPanel;
     TisSearchEdit3: TTisSearchEdit;
     procedure CheckBox_ShowGPOChange(Sender: TObject);
     procedure CheckListBox2ClickCheck(Sender: TObject);
@@ -47,6 +52,7 @@ type
     procedure Edit_SearchPageSizeChange(Sender: TObject);
     procedure Memo2Change(Sender: TObject);
     procedure Memo_FilterChange(Sender: TObject);
+    procedure MultiDCDeleteChange(Sender: TObject);
   private
     fSection: String;
     fLog: TSynLog;
@@ -93,6 +99,12 @@ uses
 {$R *.lfm}
 
 { TFrmModuleADUCOption }
+
+procedure TFrmModuleADUCOption.MultiDCDeleteChange(Sender: TObject);
+begin
+  Memo_DeleteDomainControllers.Enabled := CheckBox_EnableMultiDCDelete.Checked;
+  fChanged := True;
+end;
 
 procedure TFrmModuleADUCOption.Memo2Change(Sender: TObject);
 begin
@@ -257,6 +269,10 @@ begin
   TreeFilter := ADUCOption.TreeFilter;
   TreeObjectClasses := ADUCOption.TreeObjectClasses;
   ShowGPO := ADUCOption.ShowGPO;
+  CheckBox_EnableMultiDCDelete.Checked := ADUCOption.EnableMultiDCDelete;
+  Memo_DeleteDomainControllers.Text := StringReplace(ADUCOption.DeleteDomainControllers,
+    ';', LineEnding, [rfReplaceAll]);
+  Memo_DeleteDomainControllers.Enabled := ADUCOption.EnableMultiDCDelete;
 
   fChanged := False;
 end;
@@ -281,6 +297,9 @@ begin
   ADUCOption.TreeFilter := TreeFilter;
   ADUCOption.TreeObjectClasses := TreeObjectClasses;
   ADUCOption.ShowGPO := ShowGPO;
+  ADUCOption.EnableMultiDCDelete := CheckBox_EnableMultiDCDelete.Checked;
+  ADUCOption.DeleteDomainControllers := StringReplace(Trim(Memo_DeleteDomainControllers.Text),
+    LineEnding, ';', [rfReplaceAll]);
 
   IniFile := TIniFile.Create(OptionFilePath);
   try

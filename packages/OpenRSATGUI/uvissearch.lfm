@@ -587,8 +587,13 @@ object VisSearch: TVisSearch
       OnExecute = Action_ShowInViewExecute
       OnUpdate = Action_ShowInViewUpdate
     end
+    object Action_Delete: TAction
+      Caption = 'Delete'
+      OnExecute = Action_DeleteExecute
+      OnUpdate = Action_DeleteUpdate
+    end
     object Action_DeleteComputerFromAllDC: TAction
-      Caption = 'Delete computer from all domain controllers...'
+      Caption = 'Batch delete computers from selected controllers...'
       OnExecute = Action_DeleteComputerFromAllDCExecute
       OnUpdate = Action_DeleteComputerFromAllDCUpdate
     end
@@ -625,6 +630,9 @@ object VisSearch: TVisSearch
     end
     object MenuItem_BatchMoveOU: TMenuItem
       Action = Action_BatchMoveOU
+    end
+    object MenuItem_Delete: TMenuItem
+      Action = Action_Delete
     end
     object MenuItem_DeleteComputerFromAllDC: TMenuItem
       Action = Action_DeleteComputerFromAllDC

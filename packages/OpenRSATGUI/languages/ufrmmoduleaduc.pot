@@ -6,7 +6,7 @@ msgid "Batch move to OU..."
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveouconfirm
-msgid "Move % objects to:%s%s"
+msgid "Move % objects to:%%"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveoufailed
@@ -22,8 +22,7 @@ msgid "Select two or more objects."
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveouresult
-#, object-pascal-format
-msgid "Move results:%s%s"
+msgid "Move results:%%"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducbatchmoveousuccess
@@ -39,7 +38,7 @@ msgid "The computer object could not be opened. It may be outside the current vi
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldc
-msgid "Delete computer from all domain controllers..."
+msgid "Batch delete computers from selected controllers..."
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcalreadyabsent
@@ -48,7 +47,7 @@ msgstr ""
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcconfirm
 #, object-pascal-format
-msgid "This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s"
+msgid "Delete %d computers and their child objects from the controllers below? Deletions replicate throughout the domain and cannot be undone here.%s%sComputers:%s%s%sControllers:%s%s"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcconnectfailed
@@ -64,12 +63,12 @@ msgid "No domain controller could be found."
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldconlyone
-msgid "Select exactly one computer object."
+msgid "Select one or more workstation/member server computer objects."
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcresult
 #, object-pascal-format
-msgid "Deletion results for:%s%s%s%s"
+msgid "Deletion results by controller and computer:%s%s"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldcsuccess
@@ -77,7 +76,19 @@ msgid "Deleted"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducdeletecomputerfromalldctitle
-msgid "Delete computer from all domain controllers"
+msgid "Delete computers from selected controllers"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeletedomainroot
+msgid "The domain root cannot be deleted."
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeleteobjectsconfirm
+msgid "Delete the following % selected objects and their child objects?%%"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducdeleteobjectsresult
+msgid "Deletion results:%%"
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducdescriptionbuiltinsystemsettings
@@ -106,6 +117,20 @@ msgstr ""
 
 #: ufrmmoduleaduc.rsaducdescriptiondefaultsecurityidentifiers
 msgid "Default container for security identifiers (SIDs) associated with objects from external, trusted domains"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducinvalidcomputer
+#, object-pascal-format
+msgid "Cannot verify computer identity: %s%s%s"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducinvaliddc
+#, object-pascal-format
+msgid "This host is not a discovered writable controller in the current domain: %s"
+msgstr ""
+
+#: ufrmmoduleaduc.rsaducmultidcdisabled
+msgid "Enable multi-controller computer deletion in the Users and Computers options first."
 msgstr ""
 
 #: ufrmmoduleaduc.rsaducobjectclassbuiltindomain

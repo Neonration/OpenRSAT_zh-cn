@@ -30,45 +30,7 @@ msgid "Start with"
 msgstr ""
 
 #: uvissearch.rssearchdeletecomputerfromalldc
-msgid "Delete computer from all domain controllers..."
-msgstr ""
-
-#: uvissearch.rssearchdeletecomputerfromalldcalreadyabsent
-msgid "Already absent"
-msgstr ""
-
-#: uvissearch.rssearchdeletecomputerfromalldcconfirm
-#, object-pascal-format
-msgid "This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s"
-msgstr ""
-
-#: uvissearch.rssearchdeletecomputerfromalldcconnectfailed
-msgid "Connection failed"
-msgstr ""
-
-#: uvissearch.rssearchdeletecomputerfromalldcdeletefailed
-msgid "Deletion failed"
-msgstr ""
-
-#: uvissearch.rssearchdeletecomputerfromalldcnodc
-msgid "No domain controller could be found."
-msgstr ""
-
-#: uvissearch.rssearchdeletecomputerfromalldconlyone
-msgid "Select exactly one computer object."
-msgstr ""
-
-#: uvissearch.rssearchdeletecomputerfromalldcresult
-#, object-pascal-format
-msgid "Deletion results for:%s%s%s%s"
-msgstr ""
-
-#: uvissearch.rssearchdeletecomputerfromalldcsuccess
-msgid "Deleted"
-msgstr ""
-
-#: uvissearch.rssearchdeletecomputerfromalldctitle
-msgid "Delete computer from all domain controllers"
+msgid "Batch delete computers from selected controllers..."
 msgstr ""
 
 #: uvissearch.rssearchobjectclassbuiltindomain

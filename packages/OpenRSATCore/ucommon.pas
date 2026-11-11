@@ -555,6 +555,9 @@ function ExpandIPv6(ShortIPv6: RawUtf8): RawUtf8;
 function GetAceParentCount(Ace: TSecAce; sdArr: Array of TSecurityDescriptor; count: Integer = 0): Integer;
 function GetDNName(DistinguishedName: RawUtf8): RawUtf8;
 function GetParentDN(DN: RawUtf8): RawUtf8;
+function SplitObjectDN(const DN: RawUtf8; out RDN, ParentDN: RawUtf8): Boolean;
+function TryBuildMoveDN(const DN, TargetDN: RawUtf8; out NewDN: RawUtf8): Boolean;
+function GetDNMoveOrder(const DNs: TRawUtf8DynArray): TIntegerDynArray;
 function IsContainer(ObjectClass: RawUtf8): Boolean;
 function IsLocalPath(path: RawUtf8): Boolean;
 function ISOToTimeFormat(str: String): String;
@@ -778,16 +781,79 @@ end;
 
 function GetParentDN(DN: RawUtf8): RawUtf8;
 var
-  dns: TNameValueDNs;
+  RDN: RawUtf8;
+begin
+  SplitObjectDN(DN, RDN, result);
+end;
+
+function SplitObjectDN(const DN: RawUtf8; out RDN, ParentDN: RawUtf8): Boolean;
+var
+  i: SizeInt;
+begin
+  result := False;
+  RDN := '';
+  ParentDN := '';
+  i := 1;
+  while i <= Length(DN) do
+  begin
+    if DN[i] = '\' then
+      Inc(i)
+    else if DN[i] = ',' then
+    begin
+      RDN := Copy(DN, 1, i - 1);
+      ParentDN := Copy(DN, i + 1, MaxInt);
+      result := (Pos('=', RDN) > 1) and (ParentDN <> '');
+      Exit;
+    end;
+    Inc(i);
+  end;
+end;
+
+function TryBuildMoveDN(const DN, TargetDN: RawUtf8; out NewDN: RawUtf8): Boolean;
+var
+  RDN, ParentDN, CurrentDN: RawUtf8;
+  Parts: TNameValueDNs;
+begin
+  result := False;
+  NewDN := '';
+  if not SplitObjectDN(DN, RDN, ParentDN) or
+    not ParseDN(DN, Parts, True) or not ParseDN(TargetDN, Parts, True) then
+    Exit;
+
+  CurrentDN := TargetDN;
+  while CurrentDN <> '' do
+  begin
+    if Utf8CompareIOS(PUtf8Char(DN), PUtf8Char(CurrentDN)) = 0 then
+      Exit;
+    CurrentDN := GetParentDN(CurrentDN);
+  end;
+  NewDN := RDN + ',' + TargetDN;
+  result := True;
+end;
+
+function CompareMoveDNs(List: TStringList; Index1, Index2: Integer): Integer;
+begin
+  result := Length(List[Index2]) - Length(List[Index1]);
+  if result = 0 then
+    result := PtrInt(List.Objects[Index1]) - PtrInt(List.Objects[Index2]);
+end;
+
+function GetDNMoveOrder(const DNs: TRawUtf8DynArray): TIntegerDynArray;
+var
+  Items: TStringList;
   i: Integer;
 begin
-  result := '';
-  ParseDN(Dn, dns, true);
-  for i := 1 to High(dns) do
-  begin
-    if i <> 1 then
-      result += ',';
-    result += dns[i].Name + '=' + dns[i].Value;
+  Items := TStringList.Create;
+  try
+    for i := 0 to High(DNs) do
+      Items.AddObject(DNs[i], TObject(PtrInt(i)));
+    // A descendant DN is longer than its ancestor; move it before the ancestor changes its path.
+    Items.CustomSort(@CompareMoveDNs);
+    SetLength(result, Items.Count);
+    for i := 0 to Items.Count - 1 do
+      result[i] := PtrInt(Items.Objects[i]);
+  finally
+    Items.Free;
   end;
 end;
 

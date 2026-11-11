@@ -29,6 +29,7 @@ type
     Action_AdvAdd: TAction;
     Action_AdvDel: TAction;
     Action_BatchMoveOU: TAction;
+    Action_Delete: TAction;
     Action_DeleteComputerFromAllDC: TAction;
     Action_Properties: TAction;
     Action_SearchFrom: TAction;
@@ -48,6 +49,7 @@ type
     Label_PageCount: TLabel;
     Memo_ExpFilter: TMemo;
     MenuItem_BatchMoveOU: TMenuItem;
+    MenuItem_Delete: TMenuItem;
     MenuItem_DeleteComputerFromAllDC: TMenuItem;
     MenuItem_Properties: TMenuItem;
     MenuItem_SearchFrom: TMenuItem;
@@ -86,6 +88,8 @@ type
     procedure Action_AdvDelUpdate(Sender: TObject);
     procedure Action_BatchMoveOUExecute(Sender: TObject);
     procedure Action_BatchMoveOUUpdate(Sender: TObject);
+    procedure Action_DeleteExecute(Sender: TObject);
+    procedure Action_DeleteUpdate(Sender: TObject);
     procedure Action_ChangeDNExecute(Sender: TObject);
     procedure Action_DeleteComputerFromAllDCExecute(Sender: TObject);
     procedure Action_DeleteComputerFromAllDCUpdate(Sender: TObject);
@@ -112,7 +116,6 @@ type
   private
     SearchWord: RawUtf8;
     fModule: TFrmModuleADUC;
-    function GetDomainControllerHosts: TRawUtf8DynArray;
     function GetFocusedResultDN: RawUtf8;
     function GetFocusedResultObjectClass: RawUtf8;
     function GetSelectedResultDNs: TRawUtf8DynArray;
@@ -162,16 +165,7 @@ resourcestring
   rsSearchConditionDifferent = 'Is different';
   rsSearchConditionPresent = 'Present';
   rsSearchConditionAbsent = 'Absent';
-  rsSearchDeleteComputerFromAllDC = 'Delete computer from all domain controllers...';
-  rsSearchDeleteComputerFromAllDCTitle = 'Delete computer from all domain controllers';
-  rsSearchDeleteComputerFromAllDCConfirm = 'This will try to delete the computer object from every domain controller listed below.%s%sComputer:%s%s%sDomain controllers:%s%s';
-  rsSearchDeleteComputerFromAllDCNoDC = 'No domain controller could be found.';
-  rsSearchDeleteComputerFromAllDCOnlyOne = 'Select exactly one computer object.';
-  rsSearchDeleteComputerFromAllDCResult = 'Deletion results for:%s%s%s%s';
-  rsSearchDeleteComputerFromAllDCSuccess = 'Deleted';
-  rsSearchDeleteComputerFromAllDCAlreadyAbsent = 'Already absent';
-  rsSearchDeleteComputerFromAllDCConnectFailed = 'Connection failed';
-  rsSearchDeleteComputerFromAllDCDeleteFailed = 'Deletion failed';
+  rsSearchDeleteComputerFromAllDC = 'Batch delete computers from selected controllers...';
   rsSearchBatchMoveOU = 'Batch move to OU...';
 
 function TranslateSearchObjectClass(const AValue: RawUtf8): String;
@@ -209,6 +203,7 @@ var
 begin
   Action_DeleteComputerFromAllDC.Caption := rsSearchDeleteComputerFromAllDC;
   Action_BatchMoveOU.Caption := rsSearchBatchMoveOU;
+  Action_Delete.Caption := rsDelete;
   ComboBox_AdvCondition.Items.Clear;
   ComboBox_AdvCondition.Items.AddStrings([
     rsSearchConditionStartWith,
@@ -348,48 +343,6 @@ begin
       Insert(Row^.S['distinguishedName'], result, Length(result));
 end;
 
-function TVisSearch.GetDomainControllerHosts: TRawUtf8DynArray;
-var
-  ExistingHost, HostName: RawUtf8;
-  Ldap: TRsatLdapClient;
-  SearchResult: TLdapResult;
-  Found: Boolean;
-begin
-  result := [];
-  if not Assigned(FrmRSAT) or not Assigned(FrmRSAT.LdapClient) then
-    Exit;
-
-  Ldap := FrmRSAT.LdapClient;
-  Ldap.SearchBegin();
-  try
-    Ldap.SearchScope := lssWholeSubtree;
-    repeat
-      if not Ldap.Search(Ldap.ConfigDN, False, '(objectClass=server)', ['dNSHostName', 'name']) then
-        Exit;
-
-      for SearchResult in Ldap.SearchResult.Items do
-      begin
-        if not Assigned(SearchResult) then
-          continue;
-        HostName := SearchResult.Find('dNSHostName').GetReadable();
-        if HostName = '' then
-          HostName := SearchResult.Find('name').GetReadable();
-        Found := False;
-        for ExistingHost in result do
-          if SameText(String(ExistingHost), String(HostName)) then
-          begin
-            Found := True;
-            Break;
-          end;
-        if (HostName <> '') and not Found then
-          Insert(HostName, result, Length(result));
-      end;
-    until Ldap.SearchCookie = '';
-  finally
-    Ldap.SearchEnd();
-  end;
-end;
-
 procedure TVisSearch.Action_SearchFromExecute(Sender: TObject);
 begin
   Action_SearchNewExecute(Sender);
@@ -430,6 +383,18 @@ begin
     (Length(GetSelectedResultDNs) >= 2);
 end;
 
+procedure TVisSearch.Action_DeleteExecute(Sender: TObject);
+begin
+  if Assigned(fModule) and fModule.DeleteObjects(GetSelectedResultDNs) then
+    Action_Search.Execute;
+end;
+
+procedure TVisSearch.Action_DeleteUpdate(Sender: TObject);
+begin
+  Action_Delete.Enabled := Assigned(fModule) and Assigned(FrmRSAT.LdapClient) and
+    FrmRSAT.LdapClient.Connected and (Length(GetSelectedResultDNs) > 0);
+end;
+
 procedure TVisSearch.Action_ShowInViewExecute(Sender: TObject);
 var
   aLog: ISynLog;
@@ -456,79 +421,28 @@ begin
 end;
 
 procedure TVisSearch.Action_DeleteComputerFromAllDCExecute(Sender: TObject);
-var
-  DC, DCList, ResultLine, Results, SelectedObject: RawUtf8;
-  DCs: TRawUtf8DynArray;
-  LdapClient: TRsatLdapClient;
 begin
-  if GetFocusedResultObjectClass <> 'computer' then
-  begin
-    MessageDlg(rsSearchDeleteComputerFromAllDCTitle, rsSearchDeleteComputerFromAllDCOnlyOne, mtWarning, [mbOK], 0);
-    Exit;
-  end;
-
-  SelectedObject := GetFocusedResultDN;
-  if SelectedObject = '' then
-  begin
-    MessageDlg(rsSearchDeleteComputerFromAllDCTitle, rsSearchDeleteComputerFromAllDCOnlyOne, mtWarning, [mbOK], 0);
-    Exit;
-  end;
-
-  DCs := GetDomainControllerHosts;
-  if Length(DCs) = 0 then
-  begin
-    MessageDlg(rsSearchDeleteComputerFromAllDCTitle, rsSearchDeleteComputerFromAllDCNoDC, mtError, [mbOK], 0);
-    Exit;
-  end;
-
-  DCList := '';
-  for DC in DCs do
-  begin
-    if DCList <> '' then
-      DCList := DCList + LineEnding;
-    DCList := DCList + DC;
-  end;
-
-  if MessageDlg(rsSearchDeleteComputerFromAllDCTitle,
-    Format(rsSearchDeleteComputerFromAllDCConfirm, [LineEnding, LineEnding, LineEnding, String(SelectedObject), LineEnding, LineEnding, String(DCList)]),
-    mtWarning, [mbYes, mbNo], 0) <> mrYes then
-    Exit;
-
-  Results := '';
-  for DC in DCs do
-  begin
-    LdapClient := TRsatLdapClient.Create(FrmRSAT.LdapClient.Settings);
-    try
-      LdapClient.Settings.TargetHost := DC;
-      LdapClient.Settings.KerberosSpn := '';
-      if not LdapClient.Connect() then
-        ResultLine := FormatUtf8('%: % - %', [DC, rsSearchDeleteComputerFromAllDCConnectFailed, LdapClient.ResultString])
-      else if LdapClient.Delete(SelectedObject, True) then
-        ResultLine := FormatUtf8('%: %', [DC, rsSearchDeleteComputerFromAllDCSuccess])
-      else if LdapClient.ResultError = leNoSuchObject then
-        ResultLine := FormatUtf8('%: %', [DC, rsSearchDeleteComputerFromAllDCAlreadyAbsent])
-      else
-        ResultLine := FormatUtf8('%: % - %', [DC, rsSearchDeleteComputerFromAllDCDeleteFailed, LdapClient.ResultString]);
-    finally
-      FreeAndNil(LdapClient);
-    end;
-
-    if Results <> '' then
-      Results := Results + LineEnding;
-    Results := Results + ResultLine;
-  end;
-
-  MessageDlg(rsSearchDeleteComputerFromAllDCTitle,
-    Format(rsSearchDeleteComputerFromAllDCResult, [LineEnding, String(SelectedObject), LineEnding, String(Results)]),
-    mtInformation, [mbOK], 0);
-  Action_Search.Execute;
+  if Assigned(fModule) and fModule.DeleteComputersFromControllers(GetSelectedResultDNs) then
+    Action_Search.Execute;
 end;
 
 procedure TVisSearch.Action_DeleteComputerFromAllDCUpdate(Sender: TObject);
+var
+  Rows: TDocVariantData;
+  Row: PDocVariantData;
 begin
-  Action_DeleteComputerFromAllDC.Enabled :=
-    Assigned(FrmRSAT.LdapClient) and FrmRSAT.LdapClient.Connected and
-    (GetFocusedResultObjectClass = 'computer') and (GetFocusedResultDN <> '');
+  Action_DeleteComputerFromAllDC.Enabled := False;
+  if not Assigned(fModule) or not fModule.MultiDCDeleteEnabled or
+    not Assigned(FrmRSAT.LdapClient) or not FrmRSAT.LdapClient.Connected or
+    (TisGrid_Result.SelectedCount = 0) then
+    Exit;
+  Rows := TisGrid_Result.SelectedRows;
+  if Rows.Count = 0 then
+    Exit;
+  for Row in Rows.Objects do
+    if not Assigned(Row) or (Row^.S['objectClassRaw'] <> 'computer') then
+      Exit;
+  Action_DeleteComputerFromAllDC.Enabled := True;
 end;
 
 procedure TVisSearch.ComboBox_AdvConditionChange(Sender: TObject);

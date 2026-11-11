@@ -30,7 +30,11 @@ type
     fTreeObjectClasses: TRawUtf8DynArray;
     fShowGPO: Boolean;
     fGridAttributesFilter: TRawUtf8DynArray;
+    fEnableMultiDCDelete: Boolean;
+    fDeleteDomainControllers: RawUtf8;
 
+    procedure SetEnableMultiDCDelete(AValue: Boolean);
+    procedure SetDeleteDomainControllers(AValue: RawUtf8);
     procedure SetGridAttributesFilter(AValue: TRawUtf8DynArray);
     procedure SetGridFilter(AValue: RawUtf8);
     procedure SetSearchPageNumber(AValue: Integer);
@@ -50,6 +54,8 @@ type
     property TreeObjectClasses: TRawUtf8DynArray read fTreeObjectClasses write SetTreeObjectClasses;
     property ShowGPO: Boolean read fShowGPO write SetShowGPO;
     property GridAttributesFilter: TRawUtf8DynArray read FGridAttributesFilter write SetGridAttributesFilter;
+    property EnableMultiDCDelete: Boolean read fEnableMultiDCDelete write SetEnableMultiDCDelete;
+    property DeleteDomainControllers: RawUtf8 read fDeleteDomainControllers write SetDeleteDomainControllers;
 
   /// TOption
   public
@@ -66,6 +72,22 @@ const
 implementation
 
 { TModuleADUCOption }
+
+procedure TModuleADUCOption.SetEnableMultiDCDelete(AValue: Boolean);
+begin
+  if fEnableMultiDCDelete = AValue then
+    Exit;
+  fEnableMultiDCDelete := AValue;
+  fChanged := True;
+end;
+
+procedure TModuleADUCOption.SetDeleteDomainControllers(AValue: RawUtf8);
+begin
+  if fDeleteDomainControllers = AValue then
+    Exit;
+  fDeleteDomainControllers := AValue;
+  fChanged := True;
+end;
 
 procedure TModuleADUCOption.SetGridFilter(AValue: RawUtf8);
 begin
@@ -160,6 +182,8 @@ begin
   fTreeObjectClasses := TRawUtf8DynArray(IniFile.ReadString(Section, 'TreeObjectClasses', DEFAULT_TREE_OBJECT_CLASSES).Split(';'));
   fShowGPO := IniFile.ReadBool(Section, 'ShowGPO', False);
   fGridAttributesFilter := TRawUtf8DynArray(IniFile.ReadString(Section, 'GridAttributesFilter', DEFAULT_GRID_ATTRIBUTES_FILTER).Split(';'));
+  fEnableMultiDCDelete := IniFile.ReadBool(Section, 'EnableMultiDCDelete', False);
+  fDeleteDomainControllers := IniFile.ReadString(Section, 'DeleteDomainControllers', '');
 
   fChanged := False;
 end;
@@ -178,6 +202,8 @@ begin
   IniFile.WriteString(SECTION, 'TreeObjectClasses', String.Join(';', TStringArray(fTreeObjectClasses)));
   IniFile.WriteBool(SECTION, 'ShowGPO', fShowGPO);
   IniFile.WriteString(SECTION, 'GridAttributesFilter', String.Join(';', TStringArray(fGridAttributesFilter)));
+  IniFile.WriteBool(SECTION, 'EnableMultiDCDelete', fEnableMultiDCDelete);
+  IniFile.WriteString(SECTION, 'DeleteDomainControllers', fDeleteDomainControllers);
 
   fChanged := False;
 end;

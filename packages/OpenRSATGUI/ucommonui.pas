@@ -17,10 +17,54 @@ procedure SearchInGrid(const Timer: TTimer; const TisGrid: TTisGrid; var SearchW
 procedure TTisGridClearSelection(grid: TTisGrid);
 function TTisGridGetNextUnselected(grid: TTisGrid; Node: PVirtualNode): PVirtualNode;
 procedure UnifyButtonsWidth(Butons: array of TControl; default: Integer = -1);
+function ShowOperationDetails(const ACaption, Details: String;
+  Confirm: Boolean = False): Boolean;
 
 implementation
 uses
+  Forms,
+  StdCtrls,
+  ButtonPanel,
   mormot.core.variants;
+
+function ShowOperationDetails(const ACaption, Details: String;
+  Confirm: Boolean): Boolean;
+var
+  Dialog: TForm;
+  Memo: TMemo;
+  Buttons: TButtonPanel;
+begin
+  Dialog := TForm.CreateNew(nil);
+  try
+    Dialog.Caption := ACaption;
+    Dialog.Position := poScreenCenter;
+    Dialog.SetBounds(0, 0, 760, 520);
+    Dialog.Constraints.MinWidth := 420;
+    Dialog.Constraints.MinHeight := 280;
+    Buttons := TButtonPanel.Create(Dialog);
+    Buttons.Parent := Dialog;
+    Buttons.Align := alBottom;
+    Buttons.ShowButtons := [pbOK];
+    if Confirm then
+    begin
+      Buttons.ShowButtons := [pbOK, pbCancel];
+      Buttons.OKButton.Default := False;
+      Buttons.CancelButton.Default := True;
+      Dialog.ActiveControl := Buttons.CancelButton;
+    end;
+    Memo := TMemo.Create(Dialog);
+    Memo.Parent := Dialog;
+    Memo.Align := alClient;
+    Memo.BorderSpacing.Around := 8;
+    Memo.ReadOnly := True;
+    Memo.ScrollBars := ssAutoBoth;
+    Memo.WordWrap := False;
+    Memo.Lines.Text := Details;
+    result := Dialog.ShowModal = mrOK;
+  finally
+    Dialog.Free;
+  end;
+end;
 
 procedure SearchInGrid(const Timer: TTimer;
   const TisGrid: TTisGrid; var SearchWord: RawUtf8; const Key: Char);

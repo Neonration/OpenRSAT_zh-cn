@@ -5,6 +5,9 @@ uses
   integrationtest.uadvancedsecuritypresenter,
   unittest.uadvancedsecuritypresenter,
   unittest.ugeneratekeytab,
+  unittest.udnoperations,
+  unittest.ucomputerdelete,
+  unittest.umoduleaducoption,
   unittest.uviewkeytabpresenter;
 
 type
@@ -26,6 +29,9 @@ begin
   AddCase([
     TTestAdvancedSecurityPresenter,
     TUnitTestGenerateKeyTab,
+    TUnitTestDNOperations,
+    TUnitTestComputerDelete,
+    TUnitTestModuleADUCOption,
     TUnitTestViewKeyTabPresenter
   ]);
 end;

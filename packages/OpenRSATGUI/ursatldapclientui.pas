@@ -19,7 +19,7 @@ type
   { TRSATLdapClientHelper }
 
   TRSATLdapClientHelper = class helper for TRsatLdapClient
-    function MoveLdapEntries(oldDN, newDN: array of String): Boolean;
+    function MoveLdapEntries(const oldDN, newDN: TRawUtf8DynArray): Boolean;
     function GetAceRoot(DN: RawUtf8; Ace: TSecAce): RawUtf8;
     procedure OrderAcl(DN, baseDN: RawUtf8; Acl: PSecAcl);
     function ProtectAgainstAccidentalDeletion(DN, BaseDN: RawUtf8;
@@ -175,7 +175,7 @@ end;
 
 { TRSATLdapClientHelper }
 
-function TRSATLdapClientHelper.MoveLdapEntries(oldDN, newDN: array of String
+function TRSATLdapClientHelper.MoveLdapEntries(const oldDN, newDN: TRawUtf8DynArray
   ): Boolean;
 var
   i: Integer;
@@ -189,7 +189,7 @@ begin
   //if MessageDlg(rsWarning, rsLdapMoveWarningMessage, mtWarning, [mbYes, mbNo, mbCancel], 0) <> mrYes then
   //  Exit;
 
-  for i := 0 to Length(oldDN) - 1 do
+  for i in GetDNMoveOrder(oldDN) do
   begin
     result := MoveLdapEntry(oldDN[i], newDN[i]);
     if not result then
