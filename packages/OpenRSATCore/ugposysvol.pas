@@ -151,11 +151,12 @@ function GpoCompareFileEvidence(const Before,After:TGpoFileEvidence):TGpoPreflig
 // a successful file capture still lacks metadata and never authorizes writing.
 function GpoCapturePreflightFiles(const Target:TGpoPreflightTarget; out Files:TGpoCapturedFiles):TGpoPreflightResult;
 // A missing policy leaf requires guarded parent evidence; missing ancestors remain unavailable.
-function GpoCapturePreflightEvidence(const Target:TGpoPreflightTarget; out Files:TGpoObservedFiles):TGpoPreflightResult;
+function GpoCapturePreflightEvidence(const Target:TGpoPreflightTarget; out Files:TGpoObservedFiles;
+  Control:TGpoReadControl=nil):TGpoPreflightResult;
 // Synchronous, on the caller's serialized LDAP client. No credentials or permissions are changed.
 // Captures only owner/group/DACL; success remains evidence-incomplete.
 function GpoCaptureLdapEvidence(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
-  out Evidence:TGpoLdapEvidence):TGpoPreflightResult;
+  out Evidence:TGpoLdapEvidence; Control:TGpoReadControl=nil):TGpoPreflightResult;
 // Serialized, synchronous LDAP/SMB reads only; equality is never write authorization.
 function GpoBeginReadOnlyPreflight(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
   const Plan:TGpoOfflinePlan; out Bound:TGpoBoundPlan):TGpoPreflightResult;
@@ -163,17 +164,18 @@ function GpoCheckReadOnlyPreflight(Client:TLdapClient; const ExpectedDN,Expected
   Bound:TGpoBoundPlan):TGpoPreflightResult;
 // Creates a target-bound draft from live LDAP/SMB evidence; serial client access required.
 function GpoCaptureObservedDraft(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
-  out Draft:TGpoObservedDraft):TGpoPreflightResult;
+  out Draft:TGpoObservedDraft; Control:TGpoReadControl=nil):TGpoPreflightResult;
 function GpoBuildObservedDraftPlan(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
   Draft:TGpoObservedDraft; const UserCandidate,MachineCandidate:TGpoPolicyImage;
   out Plan:TGpoOfflinePlan):TGpoPreflightResult;
 // The resulting candidate keeps the draft's verified target/session binding.
 function GpoBindObservedDraftPlan(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
   Draft:TGpoObservedDraft; const UserCandidate,MachineCandidate:TGpoPolicyImage;
-  out Bound:TGpoBoundPlan):TGpoPreflightResult;
+  out Bound:TGpoBoundPlan; Control:TGpoReadControl=nil):TGpoPreflightResult;
 // Shared capture flow; a supplied transport is not authenticated by this interface.
 function GpoCaptureLdapFromTransport(const Transport:IGpoLdapEvidenceTransport;
-  const ExpectedDN,ExpectedGuid:string; out Evidence:TGpoLdapEvidence):TGpoPreflightResult;
+  const ExpectedDN,ExpectedGuid:string; out Evidence:TGpoLdapEvidence;
+  Control:TGpoReadControl=nil):TGpoPreflightResult;
 // Parses a caller-supplied LDAP result, but does not verify its origin or session.
 function GpoParseLdapGpc(Entry:TLdapResult; const Domain,DC,ExpectedDN,ExpectedGuid:string;
   out Evidence:TGpoLdapEvidence):TGpoPreflightResult;
@@ -195,6 +197,9 @@ function GpoTestReadGuardedEvidence(const NativeRoot, RelativePath:UnicodeString
 implementation
 
 uses mormot.core.os.security{$ifdef windows}, Windows{$endif};
+
+function GpoReadStopped(Control:TGpoReadControl):Boolean;
+begin Result:=Assigned(Control) and (Control.Status<>grsOk); end;
 
 function ValidFileSecurityEvidence(const Data:TBytes):Boolean;
 var Control,Owner,Group,Sacl,Dacl:Cardinal;
@@ -345,8 +350,9 @@ end;
 
 function ValidObservedFile(Artifact:TGpoFile; const Item:TGpoObservedFile):Boolean; forward;
 
-function GpoCapturePreflightEvidence(const Target:TGpoPreflightTarget; out Files:TGpoObservedFiles):TGpoPreflightResult;
-var Token:ILdapSessionToken; Control:TGpoReadControl; Artifact:TGpoFile; Path:string;
+function GpoCapturePreflightEvidence(const Target:TGpoPreflightTarget; out Files:TGpoObservedFiles;
+  Control:TGpoReadControl):TGpoPreflightResult;
+var Token:ILdapSessionToken; ActiveControl:TGpoReadControl; OwnControl:Boolean; Artifact:TGpoFile; Path:string;
 begin
   Files:=Default(TGpoObservedFiles);
   for Artifact:=Low(TGpoFile) to High(TGpoFile) do Files.Items[Artifact].Status:=grsIoError;
@@ -354,20 +360,23 @@ begin
      not Token.IsValid then Exit(gprSessionInvalid);
   if (Target.DN='') or (Length(Target.ObjectGuid)<>16) or SameText(Target.Domain,Target.DC) or
      (GpoBuildSafePath(Target.FileSysPath,Target.Domain,Target.DC,Target.Guid,gfGptIni,Path)<>grsOk) then Exit(gprInvalid);
-  Control:=TGpoReadControl.Create(30000,Target.Session);
+  ActiveControl:=Control; OwnControl:=not Assigned(ActiveControl);
+  if OwnControl then ActiveControl:=TGpoReadControl.Create(30000,Target.Session);
   try
     for Artifact:=Low(TGpoFile) to High(TGpoFile) do
     begin
+      if GpoReadStopped(ActiveControl) then Exit(gprReadUnavailable);
       Files.Items[Artifact].Attempted:=True;
       Files.Items[Artifact].Status:=GpoReadFileEvidence(Target.FileSysPath,Target.Domain,Target.DC,Target.Guid,
-        Artifact,Files.Items[Artifact].Data,Files.Items[Artifact].Observation,Files.Items[Artifact].Metadata,Control);
+        Artifact,Files.Items[Artifact].Data,Files.Items[Artifact].Observation,Files.Items[Artifact].Metadata,ActiveControl);
       if not Token.IsValid then Exit(gprSessionInvalid);
+      if GpoReadStopped(ActiveControl) then Exit(gprReadUnavailable);
       if not ValidObservedFile(Artifact,Files.Items[Artifact]) then Exit(gprReadUnavailable);
     end;
     Files.Target:=Target; Files.Target.ObjectGuid:=Copy(Target.ObjectGuid); Files.Captured:=True;
     if not Token.IsValid then begin Files.Captured:=False; Exit(gprSessionInvalid); end;
     Result:=gprEvidenceIncomplete;
-  finally Control.Free; end;
+  finally if OwnControl then ActiveControl.Free; end;
 end;
 
 class function TGpoBoundPlan.BindEvidence(const Evidence:TGpoLdapEvidence; const Plan:TGpoOfflinePlan;
@@ -516,17 +525,19 @@ begin
 end;
 
 function GpoCaptureObservedDraft(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
-  out Draft:TGpoObservedDraft):TGpoPreflightResult;
+  out Draft:TGpoObservedDraft; Control:TGpoReadControl):TGpoPreflightResult;
 var Before,After:TGpoLdapEvidence; Files:TGpoObservedFiles; Complete:Boolean;
 begin
   Draft:=nil; Complete:=False;
   try
     try
-      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,Before); if Result<>gprEvidenceIncomplete then Exit;
-      Result:=GpoCapturePreflightEvidence(Before.Target,Files); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,Before,Control); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=GpoCapturePreflightEvidence(Before.Target,Files,Control); if Result<>gprEvidenceIncomplete then Exit;
+      if GpoReadStopped(Control) then begin Result:=gprReadUnavailable; Exit; end;
       Result:=TGpoObservedDraft.Bind(Before,Files,Draft); if not Assigned(Draft) then Exit;
-      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,After); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,After,Control); if Result<>gprEvidenceIncomplete then Exit;
       Result:=Draft.fBound.CompareWithFiles(After,Files); Complete:=Result=gprEvidenceIncomplete;
+      if GpoReadStopped(Control) then begin Complete:=False; Result:=gprReadUnavailable; end;
     except Result:=gprReadUnavailable; end;
   finally if not Complete then FreeAndNil(Draft); end;
 end;
@@ -552,18 +563,20 @@ end;
 
 function GpoBindObservedDraftPlan(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
   Draft:TGpoObservedDraft; const UserCandidate,MachineCandidate:TGpoPolicyImage;
-  out Bound:TGpoBoundPlan):TGpoPreflightResult;
+  out Bound:TGpoBoundPlan; Control:TGpoReadControl):TGpoPreflightResult;
 var Before,After:TGpoLdapEvidence; Files:TGpoObservedFiles; Complete:Boolean;
 begin
   Bound:=nil; Complete:=False;
   if not Assigned(Draft) then Exit(gprInvalid);
   try
     try
-      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,Before); if Result<>gprEvidenceIncomplete then Exit;
-      Result:=GpoCapturePreflightEvidence(Before.Target,Files); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,Before,Control); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=GpoCapturePreflightEvidence(Before.Target,Files,Control); if Result<>gprEvidenceIncomplete then Exit;
+      if GpoReadStopped(Control) then begin Result:=gprReadUnavailable; Exit; end;
       Result:=Draft.BindPlan(Before,Files,UserCandidate,MachineCandidate,Bound); if not Assigned(Bound) then Exit;
-      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,After); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,After,Control); if Result<>gprEvidenceIncomplete then Exit;
       Result:=Bound.CompareWithFiles(After,Files); Complete:=Result=gprEvidenceIncomplete;
+      if GpoReadStopped(Control) then begin Complete:=False; Result:=gprReadUnavailable; end;
     except Result:=gprReadUnavailable; end;
   finally if not Complete then FreeAndNil(Bound); end;
 end;
@@ -735,17 +748,18 @@ function TGpoClientEvidenceTransport.Search(const DN,Filter:RawUtf8; const Attri
 begin Result:=fClient.SearchObject(DN,Filter,Attributes); end;
 
 function GpoCaptureLdapEvidence(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
-  out Evidence:TGpoLdapEvidence):TGpoPreflightResult;
+  out Evidence:TGpoLdapEvidence; Control:TGpoReadControl):TGpoPreflightResult;
 var Transport:IGpoLdapEvidenceTransport;
 begin
   Evidence:=Default(TGpoLdapEvidence);
   if not Assigned(Client) then Exit(gprSessionInvalid);
   Transport:=TGpoClientEvidenceTransport.Create(Client);
-  Result:=GpoCaptureLdapFromTransport(Transport,ExpectedDN,ExpectedGuid,Evidence);
+  Result:=GpoCaptureLdapFromTransport(Transport,ExpectedDN,ExpectedGuid,Evidence,Control);
 end;
 
 function GpoCaptureLdapFromTransport(const Transport:IGpoLdapEvidenceTransport;
-  const ExpectedDN,ExpectedGuid:string; out Evidence:TGpoLdapEvidence):TGpoPreflightResult;
+  const ExpectedDN,ExpectedGuid:string; out Evidence:TGpoLdapEvidence;
+  Control:TGpoReadControl):TGpoPreflightResult;
 var Token:ILdapSessionToken; SavedFlags:TLdapSearchSDFlags;
   Root:TLdapResult; Original,NowState:TGpoLdapSessionState; Domain,DC:string;
   E:TGpoLdapEvidence; ParseResult:TGpoPreflightResult;
@@ -760,6 +774,7 @@ var Token:ILdapSessionToken; SavedFlags:TLdapSearchSDFlags;
 begin
   Evidence:=Default(TGpoLdapEvidence); E:=Default(TGpoLdapEvidence);
   try
+  if GpoReadStopped(Control) then Exit(gprReadUnavailable);
   if not Assigned(Transport) or not Transport.State(Original) or not Original.Connected or
      not Original.Bound or (Original.UserName='') or not Assigned(Original.Socket) then Exit(gprSessionInvalid);
   if not Assigned(Original.Session) or not Supports(Original.Session,ILdapSessionToken,Token) or not Token.IsValid then Exit(gprSessionInvalid);
@@ -768,8 +783,10 @@ begin
   try
     try
       Transport.SetSDFlags([]);
+      if GpoReadStopped(Control) then Exit(gprReadUnavailable);
       if not SameSession then Exit(gprSessionInvalid);
       Root:=Transport.Search('','',['dnsHostName','defaultNamingContext','supportedControl']);
+      if GpoReadStopped(Control) then Exit(gprReadUnavailable);
       if not SameSession then Exit(gprSessionInvalid);
       if not Assigned(Root) or not Assigned(Root.Find('dnsHostName')) or
          not Assigned(Root.Find('defaultNamingContext')) or not Assigned(Root.Find('supportedControl')) or
@@ -779,13 +796,16 @@ begin
       Domain:=DNToCN(Original.DefaultDN,True,[dnDC]);
       if (Domain='') or (DC='') or SameText(Domain,DC) or not SameText(DC,Original.Host) then Exit(gprTargetMismatch);
       Transport.SetSDFlags(lsfMain);
+      if GpoReadStopped(Control) then Exit(gprReadUnavailable);
       if not SameSession then Exit(gprSessionInvalid);
       Root:=Transport.Search(ExpectedDN,'(objectClass=groupPolicyContainer)',
         ['name','objectGUID','gPCFileSysPath','versionNumber','flags','uSNChanged','nTSecurityDescriptor']);
+      if GpoReadStopped(Control) then Exit(gprReadUnavailable);
       if not SameSession then Exit(gprSessionInvalid);
       ParseResult:=GpoParseLdapGpc(Root,Domain,DC,ExpectedDN,ExpectedGuid,E);
       if ParseResult<>gprEvidenceIncomplete then Exit(ParseResult);
       E.Target.Session:=Original.Session;
+      if GpoReadStopped(Control) then Exit(gprReadUnavailable);
       if not SameSession then Exit(gprSessionInvalid);
       Evidence:=E; Result:=gprEvidenceIncomplete;
     except

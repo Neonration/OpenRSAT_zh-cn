@@ -100,6 +100,21 @@ type
     function AcceptsSession(const Token:IInterface):Boolean;
     function ResultText:string;
   end;
+  TGpoDomainDraftState = (gddsLoading,gddsReady,gddsChecking,gddsResult,gddsStopped);
+  IGpoDomainDraftBackend = interface
+    ['{45AC1D9D-A2C7-49D2-AE43-931E5EF5D3BC}']
+    function Open(const Request:TGpoBaselineRequest; Control:TGpoReadControl; out User,Machine:TGpoPolicyImage):Boolean;
+    function Check(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl):TGpoPreflightResult;
+  end;
+  IGpoDomainDraftJob = interface
+    ['{F838258C-8D43-44D8-9EB0-1EDB471EAC1A}']
+    procedure Execute;
+    procedure Cancel;
+    function State:TGpoDomainDraftState;
+    function Initial(out User,Machine:TGpoPolicyImage):Boolean;
+    function Submit(const User,Machine:TGpoPolicyImage):Boolean;
+    function ResultText:string;
+  end;
 
   TFrmPropertyGpoSettings = class(TPropertyFrame)
   private
@@ -107,22 +122,26 @@ type
     fSummary: TMemo;
     fState: TLabel;
     fDetails: TButton;
-    fLoad, fCancel, fBaseline: TButton;
+    fLoad, fCancel, fBaseline, fDomainDraft: TButton;
     fPages: TPageControl;
     fMachine, fUser: TListView;
     fComputerPane, fUserPane: TGpoRegistryPane;
-    fTimer, fBaselineTimer: TTimer;
+    fTimer, fBaselineTimer, fDomainDraftTimer: TTimer;
   protected
     fJob: IGpoSettingsRead;
     fBaselineJob:IGpoBaselineJob;
+    fDomainDraftJob:IGpoDomainDraftJob;
     procedure Poll(Sender: TObject);
     procedure PollBaseline(Sender:TObject);
+    procedure PollDomainDraft(Sender:TObject);
     function CurrentSessionToken: IInterface; virtual;
   private
     fClient, fSocket: TObject;
     fSessionToken: IInterface;
     fTarget, fDN, fGuid, fBoundUser, fPort, fServer, fDomain: string;
     fObjectGuid:RawByteString;
+    fDomainDraftWindowOpen:Boolean;
+    fDomainDraftStarted:QWord;
     function SameConnection: Boolean;
     function CanCheckBaseline:Boolean;
     procedure SetSummary(const Value:string; const State:string = '');
@@ -130,6 +149,7 @@ type
     procedure LoadClick(Sender: TObject);
     procedure CancelClick(Sender: TObject);
     procedure BaselineClick(Sender:TObject);
+    procedure DomainDraftClick(Sender:TObject);
     procedure LoadSettings;
     procedure ClearRows;
     function NewList(const Title: string; out Pane: TGpoRegistryPane): TListView;
@@ -148,6 +168,7 @@ type
     property LoadButton: TButton read fLoad;
     property CancelButton: TButton read fCancel;
     property BaselineButton:TButton read fBaseline;
+    property DomainDraftButton:TButton read fDomainDraft;
   end;
 
 // Returns nil while two previous jobs still own their OS resources.
@@ -155,11 +176,13 @@ function GpoCreateSettingsRead(const Value: TGpoSettingsSnapshot;
   const Transport: IGpoSettingsTransport = nil): IGpoSettingsRead;
 function GpoCreateBaselineJob(const Request:TGpoBaselineRequest;
   const Transport:IGpoBaselineTransport=nil):IGpoBaselineJob;
+function GpoCreateDomainDraftJob(const Request:TGpoBaselineRequest;
+  const Backend:IGpoDomainDraftBackend=nil):IGpoDomainDraftJob;
 function GpoLdapFailureText(ResultCode: Integer): string;
 
 implementation
 
-uses mormot.net.ldap, Dialogs
+uses mormot.net.ldap, Dialogs, SyncObjs, ufrmgpoofflinedraft
   {$IFDEF WINDOWS}, Windows, CommCtrl{$ENDIF};
 
 {$R *.lfm}
@@ -230,9 +253,196 @@ type
   protected procedure Execute; override;
   public constructor Create(const Job:IGpoBaselineJob);
   end;
+  TGpoDomainBackend = class(TInterfacedObject,IGpoDomainDraftBackend)
+  private
+    fClient:TLdapClient;
+    fDraft:TGpoObservedDraft;
+    fDN,fGuid:string;
+  public
+    destructor Destroy; override;
+    function Open(const Request:TGpoBaselineRequest; Control:TGpoReadControl; out User,Machine:TGpoPolicyImage):Boolean;
+    function Check(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl):TGpoPreflightResult;
+  end;
+  TGpoDomainDraftJob = class(TInterfacedObject,IGpoDomainDraftJob)
+  private
+    fRequest:TGpoBaselineRequest;
+    fSource:ILdapSessionToken;
+    fBackend:IGpoDomainDraftBackend;
+    fLock:SyncObjs.TCriticalSection;
+    fWake:SyncObjs.TEvent;
+    fControl:TGpoReadControl;
+    fState:TGpoDomainDraftState;
+    fCancelled:LongInt;
+    fSlot:Boolean;
+    fUser,fMachine,fNewUser,fNewMachine:TGpoPolicyImage;
+    fResult:string;
+    function Active:Boolean;
+    function BeginOperation:TGpoReadControl;
+    procedure EndOperation;
+  public
+    constructor Create(const Request:TGpoBaselineRequest; const Backend:IGpoDomainDraftBackend);
+    destructor Destroy; override;
+    procedure Execute;
+    procedure Cancel;
+    function State:TGpoDomainDraftState;
+    function Initial(out User,Machine:TGpoPolicyImage):Boolean;
+    function Submit(const User,Machine:TGpoPolicyImage):Boolean;
+    function ResultText:string;
+  end;
+  TGpoDomainDraftThread = class(TThread)
+  private fJob:IGpoDomainDraftJob;
+  protected procedure Execute; override;
+  public constructor Create(const Job:IGpoDomainDraftJob);
+  end;
 
 var
   GpoPendingReads: LongInt;
+
+destructor TGpoDomainBackend.Destroy;
+begin fDraft.Free; fClient.Free; inherited Destroy; end;
+function TGpoDomainBackend.Open(const Request:TGpoBaselineRequest; Control:TGpoReadControl; out User,Machine:TGpoPolicyImage):Boolean;
+var R:TGpoPreflightResult;
+begin
+  Result:=False; User:=Default(TGpoPolicyImage); Machine:=Default(TGpoPolicyImage);
+  fClient:=TLdapClient.Create; fDN:=Request.DN; fGuid:=Request.Guid;
+  fClient.Settings.TargetHost:=Request.DC; fClient.Settings.TargetPort:=Request.Port;
+  fClient.Settings.AutoReconnect:=False; fClient.Settings.AutoBind:=lcbNone;
+  fClient.Settings.KerberosSignSeal:=lksForced;
+  if (Control.Status<>grsOk) or not fClient.Connect([lccNoDiscovery],0) or (Control.Status<>grsOk) or not fClient.BindSaslKerberos or
+    (fClient.Transmission<>lctEncrypted) or not SameText(fClient.BoundUser,Request.User) then Exit;
+  if Control.Status<>grsOk then Exit;
+  R:=GpoCaptureObservedDraft(fClient,fDN,fGuid,fDraft,Control);
+  Result:=(R=gprEvidenceIncomplete) and Assigned(fDraft) and
+    (Control.Status=grsOk) and fDraft.MatchesObjectGuid(Request.ObjectGuid) and fDraft.GetBaseline(User,Machine);
+end;
+function TGpoDomainBackend.Check(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl):TGpoPreflightResult;
+var Bound:TGpoBoundPlan;
+begin
+  Bound:=nil;
+  try
+    Result:=GpoBindObservedDraftPlan(fClient,fDN,fGuid,fDraft,User,Machine,Bound,Control);
+    if (Result=gprEvidenceIncomplete) and not Assigned(Bound) then Result:=gprReadUnavailable;
+  finally Bound.Free; end;
+end;
+constructor TGpoDomainDraftJob.Create(const Request:TGpoBaselineRequest; const Backend:IGpoDomainDraftBackend);
+begin
+  inherited Create; fRequest:=Request; fRequest.ObjectGuid:=Copy(Request.ObjectGuid);
+  Supports(Request.SessionToken,ILdapSessionToken,fSource); fBackend:=Backend;
+  fLock:=SyncObjs.TCriticalSection.Create; fWake:=SyncObjs.TEvent.Create(nil,False,False,''); fSlot:=True;
+end;
+destructor TGpoDomainDraftJob.Destroy;
+begin
+  if fSlot then InterlockedDecrement(GpoPendingReads);
+  fControl.Free; fWake.Free; fLock.Free; inherited Destroy;
+end;
+function TGpoDomainDraftJob.Active:Boolean;
+begin Result:=(InterlockedCompareExchange(fCancelled,0,0)=0) and Assigned(fSource) and fSource.IsValid; end;
+procedure TGpoDomainDraftJob.Cancel;
+begin
+  InterlockedExchange(fCancelled,1);
+  fLock.Acquire; try if Assigned(fControl) then fControl.Cancel; finally fLock.Release; end;
+  fWake.SetEvent;
+end;
+function TGpoDomainDraftJob.BeginOperation:TGpoReadControl;
+begin
+  Result:=nil; fLock.Acquire;
+  try if Active then begin fControl:=TGpoReadControl.Create(30000,fSource); Result:=fControl; end;
+  finally fLock.Release; end;
+end;
+procedure TGpoDomainDraftJob.EndOperation;
+begin fLock.Acquire; try FreeAndNil(fControl); finally fLock.Release; end; end;
+function TGpoDomainDraftJob.State:TGpoDomainDraftState;
+begin
+  if not Active then Exit(gddsStopped);
+  fLock.Acquire; try Result:=fState; finally fLock.Release; end;
+end;
+function TGpoDomainDraftJob.Initial(out User,Machine:TGpoPolicyImage):Boolean;
+begin
+  User:=Default(TGpoPolicyImage); Machine:=Default(TGpoPolicyImage); Result:=False;
+  if not Active then Exit;
+  fLock.Acquire;
+  try
+    if fState<>gddsReady then Exit;
+    User.Exists:=fUser.Exists; User.Data:=Copy(fUser.Data);
+    Machine.Exists:=fMachine.Exists; Machine.Data:=Copy(fMachine.Data);
+    Result:=Active;
+    if not Result then begin User:=Default(TGpoPolicyImage); Machine:=Default(TGpoPolicyImage); end;
+  finally fLock.Release; end;
+end;
+function TGpoDomainDraftJob.Submit(const User,Machine:TGpoPolicyImage):Boolean;
+begin
+  Result:=False;
+  if not Active or (Length(User.Data)>GpoMaxFileBytes) or (Length(Machine.Data)>GpoMaxFileBytes) then Exit;
+  fLock.Acquire;
+  try
+    if not Active or not (fState in [gddsReady,gddsResult]) then Exit;
+    fNewUser.Exists:=User.Exists; fNewUser.Data:=Copy(User.Data);
+    fNewMachine.Exists:=Machine.Exists; fNewMachine.Data:=Copy(Machine.Data);
+    fResult:=''; fState:=gddsChecking; Result:=True;
+  finally fLock.Release; end;
+  if Result then fWake.SetEvent;
+end;
+function TGpoDomainDraftJob.ResultText:string;
+begin
+  if not Active then Exit('域会话已失效；草稿仍可导出，不能继续域检查。');
+  fLock.Acquire; try Result:=fResult; finally fLock.Release; end;
+end;
+procedure TGpoDomainDraftJob.Execute;
+var U,M:TGpoPolicyImage; R:TGpoPreflightResult; Work,Ok:Boolean; Control:TGpoReadControl;
+begin
+  try
+    try
+      if not Active then Exit;
+      if not Assigned(fBackend) then fBackend:=TGpoDomainBackend.Create;
+      Control:=BeginOperation; if not Assigned(Control) then Exit;
+      try Ok:=fBackend.Open(fRequest,Control,U,M) and (Control.Status=grsOk); finally EndOperation; end;
+      if not Ok or not Active then Exit;
+      fLock.Acquire;
+      try fUser:=U; fMachine:=M; fState:=gddsReady; finally fLock.Release; end;
+      while Active do
+      begin
+        fWake.WaitFor(200);
+        if not Active then Break;
+        fLock.Acquire;
+        try Work:=fState=gddsChecking; if Work then begin U:=fNewUser; M:=fNewMachine; end;
+        finally fLock.Release; end;
+        if not Work then Continue;
+        Control:=BeginOperation; if not Assigned(Control) then Break;
+        try R:=fBackend.Check(U,M,Control); Ok:=Control.Status=grsOk; finally EndOperation; end;
+        if not Ok then begin Cancel; Break; end;
+        if not Active then Break;
+        fLock.Acquire;
+        try
+          if R=gprEvidenceIncomplete then fResult:='候选计划与原域基线的只读复核一致；安全证据仍不完整，不能授权写入。'
+          else if R=gprConflict then fResult:='域基线已变化；本次检查阻断，草稿保留，可导出后重新采集。'
+          else if R=gprTargetMismatch then fResult:='域控或目标身份已变化；本次检查阻断，草稿保留。'
+          else fResult:='只读复核未完成，证据不足或会话失效；草稿保留。';
+          fState:=gddsResult;
+        finally fLock.Release; end;
+      end;
+    except
+      fLock.Acquire; try fResult:='后台只读检查失败；草稿保留。'; finally fLock.Release; end;
+    end;
+  finally
+    fBackend:=nil;
+    fLock.Acquire; try fState:=gddsStopped; finally fLock.Release; end;
+    if fSlot then begin fSlot:=False; InterlockedDecrement(GpoPendingReads); end;
+  end;
+end;
+constructor TGpoDomainDraftThread.Create(const Job:IGpoDomainDraftJob);
+begin inherited Create(True); FreeOnTerminate:=True; fJob:=Job; Start; end;
+procedure TGpoDomainDraftThread.Execute; begin fJob.Execute; end;
+function GpoCreateDomainDraftJob(const Request:TGpoBaselineRequest;
+  const Backend:IGpoDomainDraftBackend):IGpoDomainDraftJob;
+var Token:ILdapSessionToken;
+begin
+  Result:=nil;
+  if not Assigned(Request.SessionToken) or not Supports(Request.SessionToken,ILdapSessionToken,Token) or not Token.IsValid then Exit;
+  if InterlockedIncrement(GpoPendingReads)>GpoMaxPendingReads then
+  begin InterlockedDecrement(GpoPendingReads); Exit; end;
+  try Result:=TGpoDomainDraftJob.Create(Request,Backend);
+  except InterlockedDecrement(GpoPendingReads); raise; end;
+end;
 
 function CheckBaseline(const Request:TGpoBaselineRequest; Control:TGpoReadControl):string;
 var Client:TLdapClient; Draft:TGpoObservedDraft; Bound:TGpoBoundPlan;
@@ -248,12 +458,12 @@ begin
     if not Client.Connect([lccNoDiscovery],0) or (Control.Status<>grsOk) or
       not Client.BindSaslKerberos or (Client.Transmission<>lctEncrypted) or
       not SameText(Client.BoundUser,Request.User) or (Control.Status<>grsOk) then Exit;
-    R:=GpoCaptureObservedDraft(Client,Request.DN,Request.Guid,Draft);
+    R:=GpoCaptureObservedDraft(Client,Request.DN,Request.Guid,Draft,Control);
     if (R<>gprEvidenceIncomplete) or not Assigned(Draft) or (Control.Status<>grsOk) then Exit;
     if not Draft.MatchesObjectGuid(Request.ObjectGuid) then
     begin Result:='只读检查已阻断：当前对象标识与打开属性时不同。'; Exit; end;
     if not Draft.GetBaseline(User,Machine) then Exit;
-    R:=GpoBindObservedDraftPlan(Client,Request.DN,Request.Guid,Draft,User,Machine,Bound);
+    R:=GpoBindObservedDraftPlan(Client,Request.DN,Request.Guid,Draft,User,Machine,Bound,Control);
     if Control.Status<>grsOk then Exit;
     if (R=gprEvidenceIncomplete) and Assigned(Bound) then
       Result:='当前 GPO 的双侧基线在两次只读采集中一致；安全证据仍不完整，不能授权写入。'+LineEnding+
@@ -720,6 +930,9 @@ begin
   fBaseline:=TButton.Create(Self); fBaseline.Parent:=Bar; fBaseline.Align:=alLeft; fBaseline.Width:=145;
   fBaseline.Caption:='只读基线检查'; fBaseline.OnClick:=@BaselineClick;
   fBaseline.ShowHint:=True; fBaseline.Hint:='仅支持当前 Windows 身份的 Kerberos（无显式凭据、无 TLS），并要求对象 GUID 和有效连接。';
+  fDomainDraft:=TButton.Create(Self); fDomainDraft.Parent:=Bar; fDomainDraft.Align:=alLeft; fDomainDraft.Width:=115;
+  fDomainDraft.Caption:='建立域草稿'; fDomainDraft.OnClick:=@DomainDraftClick;
+  fDomainDraft.ShowHint:=True; fDomainDraft.Hint:=fBaseline.Hint;
   fCancel := TButton.Create(Self); fCancel.Parent:=Bar; fCancel.Align:=alLeft; fCancel.Width:=90;
   fCancel.Caption:='取消读取'; fCancel.Enabled:=False; fCancel.OnClick:=@CancelClick;
   fDetails:=TButton.Create(Self); fDetails.Parent:=Bar; fDetails.Align:=alRight; fDetails.Width:=105;
@@ -747,6 +960,8 @@ begin
   fTimer.OnTimer := @Poll;
   fBaselineTimer:=TTimer.Create(Self); fBaselineTimer.Enabled:=False;
   fBaselineTimer.Interval:=100; fBaselineTimer.OnTimer:=@PollBaseline;
+  fDomainDraftTimer:=TTimer.Create(Self); fDomainDraftTimer.Enabled:=False;
+  fDomainDraftTimer.Interval:=100; fDomainDraftTimer.OnTimer:=@PollDomainDraft;
   Update(nil);
 end;
 
@@ -765,17 +980,21 @@ destructor TFrmPropertyGpoSettings.Destroy;
 begin
   if Assigned(fTimer) then fTimer.Enabled := False;
   if Assigned(fBaselineTimer) then fBaselineTimer.Enabled:=False;
+  if Assigned(fDomainDraftTimer) then fDomainDraftTimer.Enabled:=False;
   if Assigned(fJob) then fJob.Cancel;
   if Assigned(fBaselineJob) then fBaselineJob.Cancel;
+  if Assigned(fDomainDraftJob) then fDomainDraftJob.Cancel;
   fJob := nil;
   fBaselineJob:=nil;
+  fDomainDraftJob:=nil;
   inherited Destroy;
 end;
 
 procedure TFrmPropertyGpoSettings.CancelClick(Sender: TObject);
 begin
   if Assigned(fJob) then fJob.Cancel
-  else if Assigned(fBaselineJob) then fBaselineJob.Cancel else Exit;
+  else if Assigned(fBaselineJob) then fBaselineJob.Cancel
+  else if Assigned(fDomainDraftJob) then fDomainDraftJob.Cancel else Exit;
   fCancel.Enabled := False;
   ClearRows;
   SetSummary('已请求取消，正在等待系统 LDAP/SMB 调用返回；可以关闭窗口。', SGpoStateWaitingCancel);
@@ -802,11 +1021,14 @@ var Attr:TLdapAttribute;
 begin
   fTimer.Enabled := False;
   fBaselineTimer.Enabled:=False;
+  fDomainDraftTimer.Enabled:=False;
   // Stop further work after any in-flight OS call and discard obsolete results.
   if Assigned(fJob) then fJob.Cancel;
   if Assigned(fBaselineJob) then fBaselineJob.Cancel;
+  if Assigned(fDomainDraftJob) then fDomainDraftJob.Cancel;
   fJob := nil;
   fBaselineJob:=nil;
+  fDomainDraftJob:=nil; fDomainDraftWindowOpen:=False;
   fCancel.Enabled := False;
   fProperty := Props;
   fSessionToken := nil;
@@ -833,6 +1055,7 @@ begin
     '基线检查仅支持当前 Windows 身份的 Kerberos（无显式凭据、无 TLS）且需要对象 GUID。', SGpoStateInitial);
   fLoad.Enabled := Assigned(Props);
   fBaseline.Enabled:=CanCheckBaseline;
+  fDomainDraft.Enabled:=CanCheckBaseline;
 end;
 
 function TFrmPropertyGpoSettings.CanCheckBaseline:Boolean;
@@ -869,7 +1092,7 @@ end;
 procedure TFrmPropertyGpoSettings.BaselineClick(Sender:TObject);
 var Request:TGpoBaselineRequest;
 begin
-  if Assigned(fJob) or Assigned(fBaselineJob) then Exit;
+  if Assigned(fJob) or Assigned(fBaselineJob) or Assigned(fDomainDraftJob) then Exit;
   if not SameConnection then begin SetSummary('连接或对象已变化，请重新打开属性。'); Exit; end;
   {$ifndef windows}
   SetSummary('当前平台不支持独立 Windows Kerberos 只读基线检查。'); Exit;
@@ -882,12 +1105,12 @@ begin
   try
     fBaselineJob:=GpoCreateBaselineJob(Request);
     if not Assigned(fBaselineJob) then begin SetSummary('已有读取仍在等待系统调用，请稍后重试。'); Exit; end;
-    fLoad.Enabled:=False; fBaseline.Enabled:=False; fCancel.Enabled:=True;
+    fLoad.Enabled:=False; fBaseline.Enabled:=False; fDomainDraft.Enabled:=False; fCancel.Enabled:=True;
     SetSummary('后台独立连接正在只读检查当前 GPO 基线；可以关闭窗口。','正在只读检查当前 GPO…');
     TGpoBaselineThread.Create(fBaselineJob); fBaselineTimer.Enabled:=True;
   except
     if Assigned(fBaselineJob) then fBaselineJob.Cancel;
-    fBaselineJob:=nil; fLoad.Enabled:=Assigned(fProperty); fBaseline.Enabled:=CanCheckBaseline;
+    fBaselineJob:=nil; fLoad.Enabled:=Assigned(fProperty); fBaseline.Enabled:=CanCheckBaseline; fDomainDraft.Enabled:=CanCheckBaseline;
     fCancel.Enabled:=False; SetSummary('无法启动只读检查，请稍后重试。');
   end;
 end;
@@ -908,7 +1131,56 @@ begin
   if fBaselineJob.AcceptsSession(Token) then
   begin MessageText:=fBaselineJob.ResultText; SetSummary(MessageText,MessageText); end
   else SetSummary('结果已丢弃：检查取消、超时、连接或对象变化。');
-  fBaselineJob:=nil; fLoad.Enabled:=Assigned(fProperty); fBaseline.Enabled:=CanCheckBaseline;
+  fBaselineJob:=nil; fLoad.Enabled:=Assigned(fProperty); fBaseline.Enabled:=CanCheckBaseline; fDomainDraft.Enabled:=CanCheckBaseline;
+end;
+
+procedure TFrmPropertyGpoSettings.DomainDraftClick(Sender:TObject);
+var Request:TGpoBaselineRequest;
+begin
+  if Assigned(fJob) or Assigned(fBaselineJob) or Assigned(fDomainDraftJob) then Exit;
+  if not CanCheckBaseline then begin SetSummary('当前连接不支持建立域草稿，请重新打开属性并检查认证方式。'); Exit; end;
+  Request:=Default(TGpoBaselineRequest); Request.SessionToken:=fSessionToken;
+  Request.DC:=fTarget; Request.Port:=fPort; Request.DN:=fDN; Request.Guid:=fGuid; Request.User:=fBoundUser;
+  SetLength(Request.ObjectGuid,16); Move(fObjectGuid[1],Request.ObjectGuid[0],16);
+  try
+    fDomainDraftJob:=GpoCreateDomainDraftJob(Request);
+    if not Assigned(fDomainDraftJob) then begin SetSummary('已有读取仍在等待系统调用，或连接已失效。'); Exit; end;
+    fLoad.Enabled:=False; fBaseline.Enabled:=False; fDomainDraft.Enabled:=False; fCancel.Enabled:=True;
+    fDomainDraftWindowOpen:=False;
+    fDomainDraftStarted:=GetTickCount64;
+    SetSummary('后台独立连接正在采集域草稿基线；关闭页面会取消。','正在建立只读域草稿…');
+    TGpoDomainDraftThread.Create(fDomainDraftJob); fDomainDraftTimer.Enabled:=True;
+  except
+    if Assigned(fDomainDraftJob) then fDomainDraftJob.Cancel;
+    fDomainDraftJob:=nil; fCancel.Enabled:=False; fLoad.Enabled:=Assigned(fProperty);
+    fBaseline.Enabled:=CanCheckBaseline; fDomainDraft.Enabled:=CanCheckBaseline;
+    SetSummary('无法启动域草稿采集。');
+  end;
+end;
+
+procedure TFrmPropertyGpoSettings.PollDomainDraft(Sender:TObject);
+var Window:TFrmGpoOfflineDraft;
+begin
+  if not Assigned(fDomainDraftJob) then Exit;
+  if not SameConnection then fDomainDraftJob.Cancel;
+  if (fDomainDraftJob.State=gddsLoading) and (GetTickCount64-fDomainDraftStarted>=30000) then fDomainDraftJob.Cancel;
+  if (fDomainDraftJob.State=gddsReady) and not fDomainDraftWindowOpen then
+  begin
+    if not SameConnection then begin fDomainDraftJob.Cancel; Exit; end;
+    Window:=TFrmGpoOfflineDraft.Create(Application);
+    try
+      if not Window.InitializeDomainDraft(fDomainDraftJob,fTarget,fDN) then
+      begin Window.Free; fDomainDraftJob.Cancel; Exit; end;
+      fDomainDraftWindowOpen:=True; fCancel.Enabled:=False; Window.Show;
+      SetSummary('域草稿已独立打开；关闭或切换属性页将使域复核失效，草稿仍可本地导出。','域草稿已建立（只读）');
+    except Window.Free; fDomainDraftJob.Cancel; SetSummary('无法打开域草稿；未修改域。'); end;
+  end;
+  if fDomainDraftJob.State=gddsStopped then
+  begin
+    fDomainDraftTimer.Enabled:=False; fDomainDraftJob:=nil; fDomainDraftWindowOpen:=False;
+    fCancel.Enabled:=False; fLoad.Enabled:=Assigned(fProperty); fBaseline.Enabled:=CanCheckBaseline; fDomainDraft.Enabled:=CanCheckBaseline;
+    SetSummary('域草稿会话已结束或失效；已打开的草稿仍可本地导出。后台系统调用可能仍在等待返回，并在返回前占用读取名额。');
+  end;
 end;
 
 procedure TFrmPropertyGpoSettings.LoadClick(Sender: TObject);
@@ -925,13 +1197,14 @@ begin
     fTimer.Enabled := False;
     fLoad.Enabled := Assigned(fProperty);
     fBaseline.Enabled:=CanCheckBaseline;
+    fDomainDraft.Enabled:=CanCheckBaseline;
   end;
 end;
 
 procedure TFrmPropertyGpoSettings.LoadSettings;
 var Value: TGpoSettingsSnapshot; SafePath: string; Root: TLdapResult;
 begin
-  if Assigned(fJob) or Assigned(fBaselineJob) or not Assigned(fProperty) then Exit;
+  if Assigned(fJob) or Assigned(fBaselineJob) or Assigned(fDomainDraftJob) or not Assigned(fProperty) then Exit;
   ClearRows;
   if not Assigned(fProperty.LdapClient) or not fProperty.LdapClient.Connected or
      not Assigned(fProperty.LdapClient.Settings) then
@@ -984,11 +1257,12 @@ begin
     '只读 SMB 使用当前 Windows 身份；可以关闭窗口。', SGpoStateLoading);
   fLoad.Enabled := False;
   fBaseline.Enabled:=False;
+  fDomainDraft.Enabled:=False;
   fJob := GpoCreateSettingsRead(Value);
   if not Assigned(fJob) then
   begin
     SetSummary('前两次读取仍在等待系统 SMB 调用，请稍后重试。');
-    fLoad.Enabled := True; fBaseline.Enabled:=CanCheckBaseline; Exit;
+    fLoad.Enabled := True; fBaseline.Enabled:=CanCheckBaseline; fDomainDraft.Enabled:=CanCheckBaseline; Exit;
   end;
   fCancel.Enabled := True;
   TGpoReadThread.Create(fJob);
@@ -1027,6 +1301,7 @@ begin
   fJob := nil;
   fLoad.Enabled := Assigned(fProperty);
   fBaseline.Enabled:=CanCheckBaseline;
+  fDomainDraft.Enabled:=CanCheckBaseline;
 end;
 
 procedure TFrmPropertyGpoSettings.ShowSnapshot(const Value: TGpoSettingsSnapshot);

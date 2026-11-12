@@ -15,6 +15,7 @@ type
     procedure CombinedSnapshotStates;
     procedure CancelPollStates;
     procedure BaselineJobLifecycle;
+    procedure DomainDraftJobLifecycle;
     procedure HeaderUsesSystemColors;
   end;
 implementation
@@ -29,6 +30,7 @@ type
     procedure PollNow;
     procedure TestAttachBaseline(const Job:IGpoBaselineJob);
     procedure PollBaselineNow;
+    procedure TestAttachDomain(const Job:IGpoDomainDraftJob);
   protected
     function CurrentSessionToken:IInterface; override;
   end;
@@ -62,6 +64,37 @@ type
     Job:IGpoBaselineJob;
     procedure Execute; override;
   end;
+  TDomainProbe = class(TInterfacedObject,IGpoDomainDraftBackend)
+    Entered,Release:TEvent;
+    CheckResult:TGpoPreflightResult;
+    BlockOpen:Boolean;
+    AfterReleaseStatus:TGpoReadStatus;
+    FirstGuid,FirstUserByte:Byte;
+    constructor Create;
+    destructor Destroy; override;
+    function Open(const Request:TGpoBaselineRequest; Control:TGpoReadControl; out User,Machine:TGpoPolicyImage):Boolean;
+    function Check(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl):TGpoPreflightResult;
+  end;
+  TDomainTestThread = class(TThread)
+    Job:IGpoDomainDraftJob;
+    procedure Execute; override;
+  end;
+constructor TDomainProbe.Create;
+begin inherited Create; Entered:=TEvent.Create(nil,True,False,''); Release:=TEvent.Create(nil,True,False,''); CheckResult:=gprConflict; end;
+destructor TDomainProbe.Destroy;
+begin Entered.Free; Release.Free; inherited Destroy; end;
+function TDomainProbe.Open(const Request:TGpoBaselineRequest; Control:TGpoReadControl; out User,Machine:TGpoPolicyImage):Boolean;
+begin
+  FirstGuid:=Request.ObjectGuid[0]; User:=Default(TGpoPolicyImage); Machine:=Default(TGpoPolicyImage);
+  if BlockOpen then begin Entered.SetEvent; Release.WaitFor(5000); AfterReleaseStatus:=Control.Status; end;
+  Machine.Exists:=True; Machine.Data:=TBytes.Create(Ord('P'),Ord('R'),Ord('e'),Ord('g'),1,0,0,0); Result:=True;
+end;
+function TDomainProbe.Check(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl):TGpoPreflightResult;
+begin
+  if Length(User.Data)>0 then FirstUserByte:=User.Data[0];
+  Entered.SetEvent; Release.WaitFor(5000); Result:=CheckResult;
+end;
+procedure TDomainTestThread.Execute; begin Job.Execute; end;
 constructor TBlockingBaseline.Create;
 begin inherited Create; Entered:=TEvent.Create(nil,True,False,''); Release:=TEvent.Create(nil,True,False,''); end;
 destructor TBlockingBaseline.Destroy;
@@ -128,6 +161,8 @@ procedure TTestGpoFrame.PollNow;
 begin Poll(nil); end;
 procedure TTestGpoFrame.PollBaselineNow;
 begin PollBaseline(nil); end;
+procedure TTestGpoFrame.TestAttachDomain(const Job:IGpoDomainDraftJob);
+begin if Assigned(fDomainDraftJob) then fDomainDraftJob.Cancel; fDomainDraftJob:=Job; end;
 procedure TTestGpoFrame.TestAttachBaseline(const Job:IGpoBaselineJob);
 begin if Assigned(fBaselineJob) then fBaselineJob.Cancel; fBaselineJob:=Job; end;
 procedure TTestGpoFrame.TestAttachRead(const Job: IGpoSettingsRead);
@@ -164,12 +199,14 @@ begin
     Check(Frame.ComputerRows.ReadOnly and Frame.UserRows.ReadOnly);
     Check(not Frame.LoadButton.Enabled);
     Check(not Frame.BaselineButton.Enabled);
+    Check(not Frame.DomainDraftButton.Enabled);
     Check(not Frame.CancelButton.Enabled);
     Frame.Update(Props);
     Check(not Props.IsModified);
     Frame.LoadButton.Click;
     Check(Pos('没有已连接的 LDAP', Frame.Summary.Text) > 0);
     Check(not Frame.BaselineButton.Enabled,'Unbound entry must remain disabled');
+    Check(not Frame.DomainDraftButton.Enabled,'Unbound domain draft entry must remain disabled');
     Value := Default(TGpoSettingsSnapshot);
     Value.DC := 'dc.example.test'; Value.Domain := 'example.test';
     Value.Container.Version := $00020003; Value.GptVersion := $00010003;
@@ -349,6 +386,49 @@ begin
     finally Block.Release.SetEvent; Worker.WaitFor; Worker.Free; end;
     Check(Job.Finished); Check(Job.ResultText='','Late result must not be published after close');
   finally Job:=nil; Other:=nil; Transport:=nil; Frame.Free; Client.Free; end;
+end;
+procedure TUnitTestGpoSettings.DomainDraftJobLifecycle;
+var Client:TLdapSessionProbe; Frame:TTestGpoFrame; Job:IGpoDomainDraftJob;
+  Request:TGpoBaselineRequest; Probe:TDomainProbe; Backend:IGpoDomainDraftBackend;
+  Worker:TDomainTestThread; User,Machine,CopyUser,CopyMachine:TGpoPolicyImage; I:Integer;
+begin
+  Client:=TLdapSessionProbe.Create; Frame:=TTestGpoFrame.Create(nil); Worker:=nil;
+  try
+    Client.ResetSameSocket('A'); Request:=Default(TGpoBaselineRequest); Request.SessionToken:=Client.SessionToken;
+    SetLength(Request.ObjectGuid,16); Request.ObjectGuid[0]:=7;
+    Probe:=TDomainProbe.Create; Backend:=Probe; Job:=GpoCreateDomainDraftJob(Request,Backend);
+    Request.ObjectGuid[0]:=8; Check(Assigned(Job)); Worker:=TDomainTestThread.Create(True); Worker.Job:=Job; Worker.Start;
+    for I:=1 to 200 do begin if Job.State=gddsReady then Break; Sleep(10); end;
+    Check(Job.State=gddsReady); Check(Probe.FirstGuid=7); Check(Job.Initial(User,Machine));
+    Check(not User.Exists and Machine.Exists); Machine.Data[0]:=0;
+    Check(Job.Initial(CopyUser,CopyMachine)); Check(CopyMachine.Data[0]=Ord('P'),'Initial snapshot is independently owned');
+    User.Exists:=True; User.Data:=TBytes.Create(1,2,3); Check(Job.Submit(User,CopyMachine));
+    Check(Probe.Entered.WaitFor(2000)=wrSignaled); User.Data[0]:=9; Check(Probe.FirstUserByte=1);
+    Frame.TestAttachDomain(Job); Frame.Update(nil); Check(Job.State=gddsStopped,'Target change cancels domain job');
+    Probe.Release.SetEvent; Worker.WaitFor; FreeAndNil(Worker);
+    Check(Job.State=gddsStopped); Check(Pos('失效',Job.ResultText)>0,'Late conflict cannot be published after cancel');
+    Job:=nil; Backend:=nil;
+    Request.SessionToken:=Client.SessionToken; Probe:=TDomainProbe.Create; Backend:=Probe;
+    Job:=GpoCreateDomainDraftJob(Request,Backend); Worker:=TDomainTestThread.Create(True); Worker.Job:=Job; Worker.Start;
+    for I:=1 to 200 do begin if Job.State=gddsReady then Break; Sleep(10); end;
+    Check(Job.State=gddsReady); Check(Job.Initial(User,Machine)); Check(Job.Submit(User,Machine));
+    Check(Probe.Entered.WaitFor(2000)=wrSignaled); Probe.Release.SetEvent;
+    for I:=1 to 200 do begin if Job.State=gddsResult then Break; Sleep(10); end;
+    Check(Job.State=gddsResult); Check(Pos('基线已变化',Job.ResultText)>0);
+    Client.ResetSameSocket('B'); Check(Job.State=gddsStopped,'Reconnect revokes an idle draft');
+    Worker.WaitFor; FreeAndNil(Worker);
+    Job:=nil; Backend:=nil;
+    Request.SessionToken:=Client.SessionToken; Probe:=TDomainProbe.Create; Probe.BlockOpen:=True; Backend:=Probe;
+    Job:=GpoCreateDomainDraftJob(Request,Backend); Worker:=TDomainTestThread.Create(True); Worker.Job:=Job; Worker.Start;
+    Check(Probe.Entered.WaitFor(2000)=wrSignaled); Frame.TestAttachDomain(Job); Frame.Free; Frame:=nil;
+    Check(Job.State=gddsStopped,'Closing during capture revokes the draft'); Probe.Release.SetEvent;
+    Worker.WaitFor; FreeAndNil(Worker); Check(Probe.AfterReleaseStatus=grsCancelled,'Cancellation reaches active capture control');
+    Check(not Job.Initial(User,Machine),'Late capture cannot be published');
+  finally
+    if Assigned(Job) then Job.Cancel;
+    if Assigned(Worker) then begin Probe.Release.SetEvent; Worker.WaitFor; Worker.Free; end;
+    Job:=nil; Backend:=nil; Frame.Free; Client.Free;
+  end;
 end;
 procedure TUnitTestGpoSettings.SessionChangesRejectDelayedJobs;
 var Client:TLdapSessionProbe; Job:IGpoSettingsRead; Value:TGpoSettingsSnapshot;

@@ -40,6 +40,7 @@ type
     Flags,RootFlags,GpcFlags:TLdapSearchSDFlags;
     Root,RootWithoutControl,Gpc:TLdapResult;
     Token:ILdapSessionToken;
+    CancelControl:TGpoReadControl;
     Mode,Calls:Integer;
     AskedSupport,AskedSD:Boolean;
     constructor Create;
@@ -93,6 +94,7 @@ begin
   begin
     RootFlags:=Flags;
     if Mode=1 then Token.Invalidate;
+    if (Mode=11) and Assigned(CancelControl) then CancelControl.Cancel;
     if Mode=2 then begin T:=TPreflightToken.Create; T.Valid:=True; Current.Session:=T; end;
     if Mode=8 then Current.Host:='dc2.example.test';
     if Mode=5 then Exit(RootWithoutControl);
@@ -108,6 +110,7 @@ begin
 end;
 procedure TUnitTestGpoReadOnly.LdapCaptureTransport;
 var F:TFakeEvidenceTransport; Transport:IGpoLdapEvidenceTransport; E:TGpoLdapEvidence; Mode:Integer; R:TGpoPreflightResult;
+  Control:TGpoReadControl;
 begin
   for Mode:=0 to 10 do
   begin
@@ -128,6 +131,13 @@ begin
     end;
     Transport:=nil;
   end;
+  F:=TFakeEvidenceTransport.Create; Transport:=F; F.Mode:=11;
+  Control:=TGpoReadControl.Create(30000,F.Token); F.CancelControl:=Control;
+  try
+    R:=GpoCaptureLdapFromTransport(Transport,TestEvidenceDN,TestEvidenceGuid,E,Control);
+    Check(R=gprReadUnavailable); Check(F.Calls=1,'Cancellation prevents the second LDAP query');
+    Check(F.Flags=[lsfSaclSecurityInformation]); Check(Length(E.SecurityDescriptor)=0);
+  finally Control.Free; Transport:=nil; end;
 end;
 
 procedure TUnitTestGpoReadOnly.VersionPlanning;

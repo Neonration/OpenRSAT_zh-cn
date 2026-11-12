@@ -14,10 +14,11 @@ type
     procedure FindRecords;
     procedure CloseAndDiffAfter64;
     procedure LocalPlanRehearsal;
+    procedure DomainDraftWorkflow;
   end;
 implementation
 uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugpolocalfiles,
-  ufrmgpoofflinedraft
+  ufrmgpoofflinedraft, ufrmpropertygposettings
   {$ifdef windows},Windows{$endif};
 {$ifdef windows}
 function CreateTestSymbolicLinkW(LinkName, TargetName:PWideChar; Flags:DWORD):LongBool;
@@ -37,6 +38,7 @@ type
     GptChoice, VersionChoice:Boolean; PlanReports:Integer;
     MutateOnVersion, MutateOnGpt, RebaseOnGpt, InjectedEditOk:Boolean;
     constructor Create(TheOwner:TComponent); override;
+    procedure PollDomainNow;
   protected
     function ConfirmDiscard:Boolean; override;
     function ConfirmClose(const Branches:string):TGpoCloseChoice; override;
@@ -68,6 +70,29 @@ type
   protected
     procedure Execute; override;
   end;
+  TFakeDomainJob=class(TInterfacedObject,IGpoDomainDraftJob)
+    Current:TGpoDomainDraftState;
+    LastUser,LastMachine:TGpoPolicyImage;
+    InitialUser,InitialMachine:TGpoPolicyImage;
+    procedure Execute;
+    procedure Cancel;
+    function State:TGpoDomainDraftState;
+    function Initial(out User,Machine:TGpoPolicyImage):Boolean;
+    function Submit(const User,Machine:TGpoPolicyImage):Boolean;
+    function ResultText:string;
+  end;
+procedure TFakeDomainJob.Execute; begin end;
+procedure TFakeDomainJob.Cancel; begin Current:=gddsStopped; end;
+function TFakeDomainJob.State:TGpoDomainDraftState; begin Result:=Current; end;
+function TFakeDomainJob.Initial(out User,Machine:TGpoPolicyImage):Boolean;
+begin User:=InitialUser;User.Data:=Copy(InitialUser.Data);Machine:=InitialMachine;Machine.Data:=Copy(InitialMachine.Data);Result:=Current=gddsReady; end;
+function TFakeDomainJob.Submit(const User,Machine:TGpoPolicyImage):Boolean;
+begin
+  Result:=Current in [gddsReady,gddsResult]; if not Result then Exit;
+  LastUser.Exists:=User.Exists; LastUser.Data:=Copy(User.Data);
+  LastMachine.Exists:=Machine.Exists; LastMachine.Data:=Copy(Machine.Data); Current:=gddsChecking;
+end;
+function TFakeDomainJob.ResultText:string; begin Result:='模拟复核：证据不完整'; end;
 function TKeyboardOfflineForm.InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
 begin Result:=EditRecord(R,Adding); end;
 function TKeyboardOfflineForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
@@ -100,6 +125,7 @@ end;
 constructor TTestOfflineForm.Create(TheOwner:TComponent);
 var H:PtrUInt;
 begin inherited Create(TheOwner); H:=Pane.Rows.Handle; H:=Tree.Handle; end;
+procedure TTestOfflineForm.PollDomainNow; begin PollDomainPlan(nil); end;
 constructor TConcurrentWriter.Create(const APath:string; const AData:TBytes; AGate:TEvent);
 begin inherited Create(True); FreeOnTerminate:=False; Path:=APath; Payload:=Copy(AData); Gate:=AGate; end;
 procedure TConcurrentWriter.Execute;
@@ -155,6 +181,37 @@ begin
 end;
 function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
+procedure TUnitTestGpoOfflineDraftUI.DomainDraftWorkflow;
+var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; User,Machine:TGpoPolicyImage; Empty:TBytes;
+  {$ifdef windows}Dir,Path:string;{$endif}
+begin
+  Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job; F:=TTestOfflineForm.Create(nil);
+  try
+    User:=Default(TGpoPolicyImage); Machine:=Default(TGpoPolicyImage);
+    Check(SerializeRegistryPol(nil,Empty)=grsOk); Machine.Exists:=True; Machine.Data:=Copy(Empty);
+    Job.InitialUser.Data:=Copy(Empty); Job.InitialMachine:=Machine;
+    Check(not F.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'),'Absent baseline cannot contain bytes');
+    Job.InitialUser:=User; Job.InitialMachine:=Machine;
+    Check(F.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
+    Check(not F.NewButton.Enabled); Check(not F.OpenButton.Enabled); Check(F.PlanButton.Enabled);
+    F.PlanButton.Click; Check(Job.Current=gddsChecking); Check(not Job.LastUser.Exists); Check(Job.LastMachine.Exists);
+    Job.Current:=gddsResult; F.PollDomainNow; Check(F.PlanReports=1);
+    Check(Pos('不会执行域写入',F.PlanReport)>0);
+    F.SelectSide(gdsUser); F.EditChoice:=True; F.NextRecord:=Item('QA\User','V',3,[1]); F.AddButton.Click;
+    {$ifdef windows}
+    Dir:=GetTempDir(False)+'openrsat-bound-export-'+IntToStr(GetCurrentProcessId);
+    Check(CreateDir(Dir)); Path:=Dir+'\draft.pol'; F.SelectChoice:=True; F.NextPath:=Path;
+    F.SaveButton.Click; Check(FileExists(Path)); Check(F.Draft(gdsUser).Dirty,'Export must not rebase the domain snapshot');
+    Check(SysUtils.DeleteFile(Path)); Check(RemoveDir(Dir));
+    {$endif}
+    F.PlanButton.Click; Check(Job.LastUser.Exists,'Editing a missing side creates a candidate');
+    F.NextRecord:=Item('QA\Later','V',3,[2]); F.AddButton.Click;
+    Job.Current:=gddsResult; F.PollDomainNow; Check(F.PlanReports=1); Check(Pos('结果已丢弃',F.LastError)>0);
+    F.PlanButton.Click; Check(Job.LastUser.Exists); Check(Length(Job.LastUser.Data)>Length(Empty));
+    Job.Cancel; F.PollDomainNow; Check(not F.PlanButton.Enabled); Check(F.Draft(gdsUser).Dirty);
+    Check(F.SaveButton.Enabled,'Expired domain draft remains exportable');
+  finally F.Free; Ref:=nil; end;
+end;
 procedure TUnitTestGpoOfflineDraftUI.RecordEditorKeyboardLayout;
 var F:TKeyboardOfflineForm; R:TGpoRegistryRecord; I,J:Integer;
 begin

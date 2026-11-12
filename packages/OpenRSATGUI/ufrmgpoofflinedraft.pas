@@ -12,6 +12,14 @@ type
   private
     fDrafts: array[TGpoDraftSide] of TGpoRegistryDraft;
     fPaths: array[TGpoDraftSide] of string;
+    fDomainJob:IGpoDomainDraftJob;
+    fDomain:Boolean;
+    fDomainExists:array[TGpoDraftSide] of Boolean;
+    fDomainTarget:string;
+    fDomainTimer:TTimer;
+    fDomainWaiting:Boolean;
+    fDomainStarted:QWord;
+    fPendingUser,fPendingMachine:TGpoPolicyImage;
     fSide: TGpoDraftSide;
     fValidSide:Boolean;
     fSavedPage, fSavedIndex:array[TGpoDraftSide] of Integer;
@@ -36,6 +44,9 @@ type
     procedure ResetClick(Sender:TObject);
     procedure PreviewClick(Sender:TObject);
     procedure PlanClick(Sender:TObject);
+    procedure DomainPlanClick;
+    procedure DomainClosed(Sender:TObject; var CloseAction:TCloseAction);
+    function DomainCandidates(out User,Machine:TGpoPolicyImage):Boolean;
     procedure FindClick(Sender:TObject);
     procedure FindChanged(Sender:TObject);
     procedure FindKeyDown(Sender:TObject; var Key:Word; Shift:TShiftState);
@@ -46,6 +57,7 @@ type
     function Current:TGpoRegistryDraft;
     function PreviewSummary:string;
   protected
+    procedure PollDomainPlan(Sender:TObject);
     function ConfirmDiscard:Boolean; virtual;
     function ConfirmClose(const Branches:string):TGpoCloseChoice; virtual;
     function ConfirmRestore:Boolean; virtual;
@@ -64,6 +76,7 @@ type
     function Draft(Side:TGpoDraftSide):TGpoRegistryDraft;
     function PreviewText(Page:Integer=0):string;
     function CreatePreviewWindow:TForm;
+    function InitializeDomainDraft(const Job:IGpoDomainDraftJob; const DC,DN:string):Boolean;
     property Tree:TTreeView read fTree;
     property Pane:TGpoRegistryPane read fPane;
     property StatusLabel:TLabel read fStatus;
@@ -412,7 +425,8 @@ var Window:TForm; Memo:TMemo; CloseButton:TButton;
 begin
   Window:=TForm.CreateNew(Self,0);
   try
-    Window.Caption:='本地计划预演（不会应用到域）'; Window.Width:=900; Window.Height:=500;
+    if fDomain then Window.Caption:='域草稿只读复核（不会应用到域）'
+    else Window.Caption:='本地计划预演（不会应用到域）'; Window.Width:=900; Window.Height:=500;
     Window.Position:=poScreenCenter;
     CloseButton:=TButton.Create(Window); CloseButton.Parent:=Window; CloseButton.Align:=alBottom;
     CloseButton.Height:=36; CloseButton.Caption:='关闭'; CloseButton.ModalResult:=mrClose;
@@ -443,6 +457,7 @@ var Input,Path,Err,Report,UserPath,MachinePath:string; Gpc,Gpt:Cardinal;
     end;
   end;
 begin
+  if fDomain then begin DomainPlanClick; Exit; end;
   if (fPaths[gdsUser]='') or (fPaths[gdsComputer]='') then
   begin ShowError('请先为计算机和用户两侧分别打开或导出本地 Registry.pol 基线。'); Exit; end;
   UserPath:=fPaths[gdsUser]; MachinePath:=fPaths[gdsComputer];
@@ -483,9 +498,92 @@ begin
   ShowPlanReport(Report);
 end;
 
+function TFrmGpoOfflineDraft.InitializeDomainDraft(const Job:IGpoDomainDraftJob; const DC,DN:string):Boolean;
+var Empty,UserBytes,MachineBytes:TBytes; User,Machine:TGpoPolicyImage;
+begin
+  Result:=False;
+  if not Assigned(Job) or (Job.State<>gddsReady) or not Job.Initial(User,Machine) or (DC='') or (DN='') or
+    (SerializeRegistryPol(nil,Empty)<>grsOk) then Exit;
+  if ((not User.Exists) and (Length(User.Data)<>0)) or
+    ((not Machine.Exists) and (Length(Machine.Data)<>0)) then Exit;
+  if User.Exists then UserBytes:=Copy(User.Data) else UserBytes:=Copy(Empty);
+  if Machine.Exists then MachineBytes:=Copy(Machine.Data) else MachineBytes:=Copy(Empty);
+  if (fDrafts[gdsUser].Load(UserBytes)<>grsOk) or (fDrafts[gdsComputer].Load(MachineBytes)<>grsOk) then Exit;
+  if Job.State<>gddsReady then Exit;
+  fDomain:=True; fDomainJob:=Job; fDomainExists[gdsUser]:=User.Exists;
+  fDomainExists[gdsComputer]:=Machine.Exists; fDomainTarget:=DC+' / '+DN;
+  Caption:='域目标绑定草稿（只读，不会应用到域）';
+  fPlan.Caption:='只读复核草稿…'; fTree.Items[0].Text:='域目标绑定草稿';
+  OnClose:=@DomainClosed;
+  fDomainTimer:=TTimer.Create(Self); fDomainTimer.Interval:=100; fDomainTimer.OnTimer:=@PollDomainPlan; fDomainTimer.Enabled:=True;
+  RefreshView; Result:=True;
+end;
+
+function TFrmGpoOfflineDraft.DomainCandidates(out User,Machine:TGpoPolicyImage):Boolean;
+begin
+  User:=Default(TGpoPolicyImage); Machine:=Default(TGpoPolicyImage);
+  User.Exists:=fDomainExists[gdsUser] or fDrafts[gdsUser].Dirty;
+  Machine.Exists:=fDomainExists[gdsComputer] or fDrafts[gdsComputer].Dirty;
+  Result:=(fDrafts[gdsUser].Export(User.Data)=grsOk) and (fDrafts[gdsComputer].Export(Machine.Data)=grsOk);
+  if not User.Exists then User.Data:=nil;
+  if not Machine.Exists then Machine.Data:=nil;
+end;
+
+procedure TFrmGpoOfflineDraft.DomainPlanClick;
+begin
+  if fDomainWaiting or not Assigned(fDomainJob) then Exit;
+  if not DomainCandidates(fPendingUser,fPendingMachine) then begin ShowError('无法读取域草稿内容。'); Exit; end;
+  if not fDomainJob.Submit(fPendingUser,fPendingMachine) then
+  begin ShowError('域会话已失效或后台仍在工作；草稿可继续编辑和本地导出。'); Exit; end;
+  fDomainWaiting:=True; fPlan.Enabled:=False;
+  fDomainStarted:=GetTickCount64;
+  fStatus.Caption:='正在后台只读复核原域目标；关闭属性页或连接变化会使结果失效。';
+end;
+
+procedure TFrmGpoOfflineDraft.PollDomainPlan(Sender:TObject);
+var User,Machine:TGpoPolicyImage; MessageText:string;
+  function SameImage(const A,B:TGpoPolicyImage):Boolean;
+  begin
+    Result:=(A.Exists=B.Exists) and (Length(A.Data)=Length(B.Data));
+    if Result and (Length(A.Data)>0) then Result:=CompareMem(@A.Data[0],@B.Data[0],Length(A.Data));
+  end;
+  function ActionText(Side:TGpoDraftSide; const Candidate:TGpoPolicyImage):string;
+  begin
+    if not fDomainExists[Side] and Candidate.Exists then Exit('创建');
+    if fDomainExists[Side] and fDrafts[Side].Dirty then Exit('替换');
+    Result:='无变化';
+  end;
+begin
+  if not Assigned(fDomainJob) then Exit;
+  if fDomainWaiting and (GetTickCount64-fDomainStarted>=30000) then fDomainJob.Cancel;
+  if fDomainJob.State=gddsStopped then
+  begin
+    fPlan.Enabled:=False; fDomainWaiting:=False;
+    fStatus.Caption:='域会话已失效；草稿仍可编辑和导出，不可继续域复核。后台系统调用可能仍在等待返回。'; Exit;
+  end;
+  if not fDomainWaiting or (fDomainJob.State<>gddsResult) then Exit;
+  fDomainWaiting:=False; fPlan.Enabled:=True;
+  if not DomainCandidates(User,Machine) or not SameImage(User,fPendingUser) or not SameImage(Machine,fPendingMachine) then
+  begin ShowError('复核期间草稿已变化，旧结果已丢弃；请重新复核。'); Exit; end;
+  MessageText:=fDomainJob.ResultText;
+  if MessageText='' then MessageText:='只读复核未完成；草稿保留。';
+  ShowPlanReport(MessageText+LineEnding+'目标：'+fDomainTarget+LineEnding+
+    '计算机文件：'+ActionText(gdsComputer,Machine)+'；用户文件：'+ActionText(gdsUser,User)+LineEnding+
+    '结果仅反映本次采集，之后可能发生变化；不会执行域写入。');
+end;
+
+procedure TFrmGpoOfflineDraft.DomainClosed(Sender:TObject; var CloseAction:TCloseAction);
+begin
+  if Assigned(fDomainJob) then fDomainJob.Cancel;
+  fDomainJob:=nil; CloseAction:=caFree;
+end;
+
 destructor TFrmGpoOfflineDraft.Destroy;
 var Side:TGpoDraftSide;
 begin
+  if Assigned(fDomainTimer) then fDomainTimer.Enabled:=False;
+  if Assigned(fDomainJob) then fDomainJob.Cancel;
+  fDomainJob:=nil;
   for Side:=Low(TGpoDraftSide) to High(TGpoDraftSide) do fDrafts[Side].Free;
   inherited Destroy;
 end;
@@ -527,7 +625,7 @@ var Rows:TGpoRegistryRecords; State,SideName,Path:string; Row:Integer;
 begin
   fComputerNode.Text:=SComputer; if fDrafts[gdsComputer].Dirty then fComputerNode.Text:=SComputer+SDirty;
   fUserNode.Text:=SUser; if fDrafts[gdsUser].Dirty then fUserNode.Text:=SUser+SDirty;
-  fNew.Enabled:=fValidSide; fOpen.Enabled:=fValidSide; fSave.Enabled:=fValidSide;
+  fNew.Enabled:=fValidSide and not fDomain; fOpen.Enabled:=fValidSide and not fDomain; fSave.Enabled:=fValidSide;
   fAdd.Enabled:=fValidSide; fPreview.Enabled:=fValidSide; fFindButton.Enabled:=fValidSide;
   if not fValidSide then begin
     fPane.Bind(nil); fStatus.Caption:=SChooseSide; fEdit.Enabled:=False; fDelete.Enabled:=False;
@@ -547,6 +645,14 @@ begin
   Path:=fPaths[fSide]; if Path='' then Path:='新建空草稿';
   fStatus.Caption:='本地离线草稿 | '+SideName+' | '+State+' | '+Path+
     '。仅原始 Registry.pol；不会应用到域。';
+  if fDomain then
+  begin
+    if fDomainExists[fSide] then Path:='域基线文件存在'
+    else Path:='域基线文件缺失；增加记录后候选为创建';
+    fStatus.Caption:='域目标绑定草稿 | '+SideName+' | '+State+' | '+Path+
+      '。'+fDomainTarget+'；只读，不会应用到域。';
+    fPlan.Enabled:=not fDomainWaiting and Assigned(fDomainJob) and (fDomainJob.State in [gddsReady,gddsResult]);
+  end;
   fEdit.Enabled:=Assigned(fPane.Rows.Selected); fDelete.Enabled:=fEdit.Enabled;
   fUndo.Enabled:=Current.CanUndo; fReset.Enabled:=Current.Dirty;
 end;
@@ -609,10 +715,12 @@ begin
   begin
     if Side=gdsComputer then SideName:='计算机配置' else SideName:='用户配置';
     if fDrafts[Side].Dirty then State:='有未导出修改' else State:='无未导出修改';
-    if fPaths[Side]='' then Source:='新建空草稿' else Source:='本地文件 '+fPaths[Side];
+    if fDomain then begin if fDomainExists[Side] then Source:='域文件快照' else Source:='域文件缺失'; end
+    else if fPaths[Side]='' then Source:='新建空草稿' else Source:='本地文件 '+fPaths[Side];
     Result:=Result+SideName+'：'+State+'；基线：'+Source+LineEnding;
   end;
-  Result:=Result+'域版本：未知；本地草稿没有域基线，不能生成域变更计划。';
+  if fDomain then Result:=Result+'域目标：'+fDomainTarget+'；只能只读复核，不授权写入。'
+  else Result:=Result+'域版本：未知；本地草稿没有域基线，不能生成域变更计划。';
 end;
 
 procedure TFrmGpoOfflineDraft.Closing(Sender:TObject; var CanClose:Boolean);
@@ -654,10 +762,15 @@ begin
   if not ChooseLocalFile(True,Path) then Exit;
   if Current.Export(Data)<>grsOk then begin ShowError('无法导出草稿。'); Exit; end;
   if not GpoSaveNewLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
-  if Current.Load(Data)<>grsOk then begin ShowError('文件已创建，但无法更新草稿状态。'); Exit; end;
-  fPaths[fSide]:=Path; RefreshView;
+  if not fDomain then
+  begin
+    if Current.Load(Data)<>grsOk then begin ShowError('文件已创建，但无法更新草稿状态。'); Exit; end;
+    fPaths[fSide]:=Path;
+  end;
+  RefreshView;
   if fSide=gdsComputer then SideName:=SComputer else SideName:=SUser;
-  fStatus.Caption:=Format(SExported,[SideName,Path]);
+  if fDomain then fStatus.Caption:='已导出 '+SideName+'：'+Path+'；域基线和草稿绑定未改变。'
+  else fStatus.Caption:=Format(SExported,[SideName,Path]);
   Result:=True;
 end;
 procedure TFrmGpoOfflineDraft.SaveClick(Sender:TObject);
