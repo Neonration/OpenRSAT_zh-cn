@@ -43,6 +43,8 @@ Registry.pol、GPT.INI 与 LDAP 不是天然跨资源原子事务。本模型未
 
 `GpoCaptureLdapEvidence` 在调用方串行持有的已绑定 LDAP 会话上，只读查询 RootDSE 与 GPC：核对实际域控和目标对象，提取 `objectGUID`、`uSNChanged`、版本、flags 及安全描述符。查询前后检查同一令牌、连接、绑定用户和目标，缺失或读取失败时不返回部分证据；仅请求描述符的 owner/group/DACL，不采集 SACL，也不修改权限。临时查询控制在退出时恢复。`BindEvidence` 深拷贝这些 LDAP 证据，`CompareEvidence` 另比较变更序号、flags 和描述符；这些底层接口均不是原子采集，调用方不能以伪造结果代替真实采集，结果仍为 `gprEvidenceIncomplete`。它们尚未连接产品入口，尚未在真实域验证；文件安全描述符、文件身份及扩展属性仍未纳入。
 
+采集时要求 RootDSE 的 `supportedControl` 包含 SD flags OID；缺少或不支持时阻断。现有 LDAP 库发送该控制项时使用非关键标记，因此即使服务器宣告支持且返回可解析描述符，也不能证明控制项被执行或 owner/group/DACL 响应完整；安全描述符状态固定为 `gseUnverified`，不得视为完整证据。可注入传输测试覆盖查询顺序、控制项设置/恢复、读取失败、会话撤销及目标变化；这是模拟传输，不是实际 LDAP 或隔离域验证。
+
 ## 运行回归测试
 
 按 [tests/README.md](tests/README.md) 注册构建依赖后，在仓库根目录运行：

@@ -1,7 +1,7 @@
 unit unittest.ugporeadonly;
 {$mode ObjFPC}{$H+}
 interface
-uses Classes, SysUtils, mormot.core.test, mormot.core.os.security, mormot.net.ldap, ugpoformats, ugposysvol;
+uses Classes, SysUtils, mormot.core.base, mormot.core.test, mormot.core.os.security, mormot.net.ldap, ugpoformats, ugposysvol;
 type
   TUnitTestGpoReadOnly = class(TSynTestCase)
   published
@@ -18,6 +18,7 @@ type
     procedure OfflinePlanIntegrity;
     procedure BoundPlanComparison;
     procedure LdapEvidenceParsing;
+    procedure LdapCaptureTransport;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -32,8 +33,100 @@ type
     function IsValid:Boolean;
     procedure Invalidate;
   end;
+  TFakeEvidenceTransport=class(TInterfacedObject,IGpoLdapEvidenceTransport)
+    Current:TGpoLdapSessionState;
+    Flags,RootFlags,GpcFlags:TLdapSearchSDFlags;
+    Root,RootWithoutControl,Gpc:TLdapResult;
+    Token:ILdapSessionToken;
+    Mode,Calls:Integer;
+    AskedSupport,AskedSD:Boolean;
+    constructor Create;
+    destructor Destroy; override;
+    function State(out Value:TGpoLdapSessionState):Boolean;
+    function GetSDFlags:TLdapSearchSDFlags;
+    procedure SetSDFlags(Value:TLdapSearchSDFlags);
+    function Search(const DN,Filter:RawUtf8; const Attributes:array of RawUtf8):TLdapResult;
+  end;
 function TPreflightToken.IsValid:Boolean; begin Result:=Valid; end;
 procedure TPreflightToken.Invalidate; begin Valid:=False; end;
+const TestEvidenceGuid='{12345678-1234-1234-1234-123456789ABC}';
+  TestEvidenceDN='CN='+TestEvidenceGuid+',CN=Policies,CN=System,DC=example,DC=test';
+constructor TFakeEvidenceTransport.Create;
+var T:TPreflightToken; SD:mormot.core.os.security.TSecurityDescriptor;
+begin
+  inherited Create; T:=TPreflightToken.Create; T.Valid:=True; Token:=T;
+  Current.Session:=Token; Current.Connected:=True; Current.Bound:=True; Current.Socket:=Pointer(1);
+  Current.Host:='dc.example.test'; Current.Port:='389'; Current.UserName:='test';
+  Current.Server:='dc.example.test'; Current.DefaultDN:='DC=example,DC=test';
+  Flags:=[lsfSaclSecurityInformation];
+  Root:=TLdapResult.Create; Root.Attributes.Add('dnsHostName',Current.Host);
+  Root.Attributes.Add('defaultNamingContext',Current.DefaultDN); Root.Attributes.Add('supportedControl',LDAP_SERVER_SD_FLAGS_OID);
+  RootWithoutControl:=TLdapResult.Create; RootWithoutControl.Attributes.Add('dnsHostName',Current.Host);
+  RootWithoutControl.Attributes.Add('defaultNamingContext',Current.DefaultDN);
+  Gpc:=TLdapResult.Create; Gpc.ObjectName:=TestEvidenceDN;
+  Gpc.Attributes.Add('name',TestEvidenceGuid); Gpc.Attributes.Add('objectGUID',#1+StringOfChar(#0,15));
+  Gpc.Attributes.Add('gPCFileSysPath','\\example.test\SYSVOL\example.test\Policies\'+TestEvidenceGuid);
+  Gpc.Attributes.Add('versionNumber','1'); Gpc.Attributes.Add('flags','0'); Gpc.Attributes.Add('uSNChanged','17');
+  SD.FromText('O:SYG:SYD:(A;;GA;;;SY)'); Gpc.Attributes.Add('nTSecurityDescriptor',SD.ToBinary);
+end;
+destructor TFakeEvidenceTransport.Destroy;
+begin Root.Free; RootWithoutControl.Free; Gpc.Free; inherited Destroy; end;
+function TFakeEvidenceTransport.State(out Value:TGpoLdapSessionState):Boolean;
+begin Value:=Current; Result:=True; end;
+function TFakeEvidenceTransport.GetSDFlags:TLdapSearchSDFlags; begin Result:=Flags; end;
+procedure TFakeEvidenceTransport.SetSDFlags(Value:TLdapSearchSDFlags);
+begin
+  if (Mode=10) and (Value=[lsfSaclSecurityInformation]) then raise Exception.Create('synthetic restore failure');
+  Flags:=Value;
+end;
+function TFakeEvidenceTransport.Search(const DN,Filter:RawUtf8; const Attributes:array of RawUtf8):TLdapResult;
+var T:TPreflightToken; I:Integer;
+begin
+  Inc(Calls);
+  for I:=0 to High(Attributes) do begin
+    if Attributes[I]='supportedControl' then AskedSupport:=True;
+    if Attributes[I]='nTSecurityDescriptor' then AskedSD:=True;
+  end;
+  if DN='' then
+  begin
+    RootFlags:=Flags;
+    if Mode=1 then Token.Invalidate;
+    if Mode=2 then begin T:=TPreflightToken.Create; T.Valid:=True; Current.Session:=T; end;
+    if Mode=8 then Current.Host:='dc2.example.test';
+    if Mode=5 then Exit(RootWithoutControl);
+    Exit(Root);
+  end;
+  GpcFlags:=Flags;
+  if Mode=3 then raise Exception.Create('synthetic read failure');
+  if Mode=4 then Exit(nil);
+  if Mode=6 then Token.Invalidate;
+  if Mode=7 then Gpc.Find('nTSecurityDescriptor').Clear;
+  if Mode=9 then Current.DefaultDN:='DC=other,DC=test';
+  Result:=Gpc;
+end;
+procedure TUnitTestGpoReadOnly.LdapCaptureTransport;
+var F:TFakeEvidenceTransport; Transport:IGpoLdapEvidenceTransport; E:TGpoLdapEvidence; Mode:Integer; R:TGpoPreflightResult;
+begin
+  for Mode:=0 to 10 do
+  begin
+    F:=TFakeEvidenceTransport.Create; Transport:=F; F.Mode:=Mode;
+    R:=GpoCaptureLdapFromTransport(Transport,TestEvidenceDN,TestEvidenceGuid,E);
+    if Mode=10 then Check(F.Flags=lsfMain) else
+      Check(F.Flags=[lsfSaclSecurityInformation],'Original SD control must be restored');
+    Check(F.RootFlags=[]); Check(F.AskedSupport);
+    if Mode=0 then
+    begin
+      Check(R=gprEvidenceIncomplete); Check(F.Calls=2); Check(F.GpcFlags=lsfMain); Check(F.AskedSD);
+      Check(E.SecurityStatus=gseUnverified); Check(Assigned(E.Target.Session)); Check(E.USNChanged=17);
+    end else
+    begin
+      if Mode in [1,2,6,8,9] then Check(R=gprSessionInvalid) else Check(R=gprReadUnavailable);
+      Check((Length(E.SecurityDescriptor)=0) and (E.SecurityStatus=gseUnavailable));
+      if Mode in [1,2,5,8] then Check(F.Calls=1) else begin Check(F.Calls=2); Check(F.GpcFlags=lsfMain); end;
+    end;
+    Transport:=nil;
+  end;
+end;
 
 procedure TUnitTestGpoReadOnly.VersionPlanning;
 var P:TGpoVersionPlan; V:Cardinal;
@@ -128,7 +221,7 @@ begin
   Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,UOld,UNew,MOld,MNew,P)=gopOk);
   Check((P.UserAction=gpaCreate) and (P.MachineAction=gpaDelete));
   SD.FromText('O:SYG:SYD:(A;;GA;;;SY)'); RawSD:=SD.ToBinary;
-  E:=Default(TGpoLdapEvidence); E.Target:=T; E.Version:=1; E.USNChanged:=17; E.SecurityDescriptor:=Bytes(RawSD);
+  E:=Default(TGpoLdapEvidence); E.Target:=T; E.Version:=1; E.USNChanged:=17; E.SecurityDescriptor:=Bytes(RawSD); E.SecurityStatus:=gseUnverified;
   Check(TGpoBoundPlan.BindEvidence(E,P,B2)=gprEvidenceIncomplete);
   if Assigned(B2) then
   try
@@ -136,6 +229,8 @@ begin
     Changed:=E; Inc(Changed.USNChanged);
     Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
     Changed:=E; Changed.SecurityDescriptor:=nil;
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprReadUnavailable);
+    Changed:=E; Changed.SecurityStatus:=gseUnavailable;
     Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprReadUnavailable);
     Changed:=E; Changed.Flags:=1;
     Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
