@@ -423,7 +423,7 @@ begin
 end;
 procedure TFrmGpoOfflineDraft.PlanClick(Sender:TObject);
 var Input,Path,Err,Report,UserPath,MachinePath:string; Gpc,Gpt:Cardinal;
-  Ini,OldUser,NewUser,OldMachine,NewMachine:TBytes; P:TGpoOfflinePlan; Status:TGpoOfflinePlanStatus;
+  Ini,OldUser,NewUser,OldMachine,NewMachine,Disk:TBytes; P:TGpoOfflinePlan; Status:TGpoOfflinePlanStatus;
   function SameBytes(const A,B:TBytes):Boolean;
   begin
     Result:=Length(A)=Length(B);
@@ -455,6 +455,14 @@ begin
   if not SameDraft(gdsUser,OldUser,NewUser,UserPath) or
      not SameDraft(gdsComputer,OldMachine,NewMachine,MachinePath) then
   begin ShowError('输入期间本地草稿或基线已变化，请重新开始预演。'); Exit; end;
+  if not GpoLoadLocalFile(MachinePath,Disk,Err) then
+  begin ShowError('无法重新读取计算机基线：'+Err); Exit; end;
+  if not SameBytes(Disk,OldMachine) then
+  begin ShowError('计算机基线文件已变化，请重新加载后再预演。'); Exit; end;
+  if not GpoLoadLocalFile(UserPath,Disk,Err) then
+  begin ShowError('无法重新读取用户基线：'+Err); Exit; end;
+  if not SameBytes(Disk,OldUser) then
+  begin ShowError('用户基线文件已变化，请重新加载后再预演。'); Exit; end;
   if not GpoLoadLocalFile(Path,Ini,Err) then begin ShowError(Err); Exit; end;
   if ParseGptIni(Ini,Gpt)<>grsOk then begin ShowError('无法解析本地 GPT.INI 版本。'); Exit; end;
   Status:=GpoBuildOfflinePlan(Gpc,Gpt,Ini,OldUser,NewUser,OldMachine,NewMachine,P);
@@ -470,7 +478,7 @@ begin
     '计算机策略：'+ActionText(P.MachineAction)+LineEnding+'用户策略：'+ActionText(P.UserAction)+LineEnding+
     'GPT 版本：'+UIntToStr(Gpt)+' → '+P.Version.GptValue+LineEnding+
     'LDAP versionNumber：'+Input+' → '+P.Version.LdapValue+LineEnding+
-    '两侧使用输入前的内存快照，未重新读取基线文件。'+LineEnding+
+    '两侧基线文件已重新读取并与内存快照逐字节比较；之后仍可能变化。'+LineEnding+
     '未验证文件身份、域控、权限、并发或复制；不执行写入。';
   ShowPlanReport(Report);
 end;

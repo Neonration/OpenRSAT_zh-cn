@@ -177,7 +177,7 @@ end;
 procedure TUnitTestGpoOfflineDraftUI.LocalPlanRehearsal;
 {$ifdef windows}
 var F:TTestOfflineForm; Dir,UserPath,MachinePath,GptPath,E:string;
-  Empty,Ini,ReadBack,Base:TBytes; S:RawByteString;
+  Empty,Ini,ReadBack,Base:TBytes; S:RawByteString; FileStream:TFileStream;
 begin
   Dir:=GetTempDir(False)+'openrsat-plan-ui-'+IntToStr(GetCurrentProcessId);
   if not CreateDir(Dir) then begin Check(False,'Cannot create fresh plan test directory'); Exit; end;
@@ -205,7 +205,7 @@ begin
     Check(F.PlanReports=2); Check(Pos('计算机策略：无变化',F.PlanReport)>0);
     Check(Pos('用户策略：替换',F.PlanReport)>0); Check(Pos('GPT 版本：1 → 65537',F.PlanReport)>0);
     Check(Pos('LDAP versionNumber：1 → 65537',F.PlanReport)>0);
-    Check(Pos('未重新读取基线文件',F.PlanReport)>0);
+    Check(Pos('已重新读取',F.PlanReport)>0);
     Check(F.Draft(gdsUser).Dirty and not F.Draft(gdsComputer).Dirty);
     Check(F.Draft(gdsUser).Baseline(Base)=grsOk); Check(EqualBytes(Base,Empty));
     Base[0]:=0; Check(F.Draft(gdsUser).Baseline(Base)=grsOk); Check(EqualBytes(Base,Empty));
@@ -213,24 +213,33 @@ begin
     F.PlanButton.Click; Check(F.PlanReports=3);
     Check(Pos('计算机策略：替换',F.PlanReport)>0); Check(Pos('用户策略：替换',F.PlanReport)>0);
     Check(Pos('GPT 版本：1 → 65538',F.PlanReport)>0);
-    F.GptPath:=UserPath; F.PlanButton.Click; Check(F.PlanReports=3); Check(Pos('无法解析',F.LastError)>0);
+    FileStream:=TFileStream.Create(UserPath,fmOpenReadWrite or fmShareExclusive);
+    try FileStream.WriteBuffer(Ini[0],Length(Ini)); finally FileStream.Free; end;
+    F.PlanButton.Click; Check(F.PlanReports=3); Check(Pos('用户基线文件已变化',F.LastError)>0);
+    Check(F.Draft(gdsUser).Dirty and F.Draft(gdsComputer).Dirty);
+    Check(SysUtils.DeleteFile(UserPath)); Check(GpoSaveNewLocalFile(UserPath,Empty,E));
+    Check(SysUtils.DeleteFile(MachinePath)); F.PlanButton.Click;
+    Check(F.PlanReports=3); Check(Pos('无法重新读取计算机基线',F.LastError)>0);
+    Check(GpoSaveNewLocalFile(MachinePath,Empty,E));
+    F.PlanButton.Click; Check(F.PlanReports=4);
+    F.GptPath:=UserPath; F.PlanButton.Click; Check(F.PlanReports=4); Check(Pos('无法解析',F.LastError)>0);
     F.GptPath:=GptPath; F.VersionInput:='2'; F.PlanButton.Click;
-    Check(F.PlanReports=3); Check(Pos('不一致',F.LastError)>0);
+    Check(F.PlanReports=4); Check(Pos('不一致',F.LastError)>0);
     Check(F.Draft(gdsUser).Dirty);
     Check(GpoLoadLocalFile(UserPath,ReadBack,E)); Check(EqualBytes(ReadBack,Empty));
     Check(GpoLoadLocalFile(MachinePath,ReadBack,E)); Check(EqualBytes(ReadBack,Empty));
     Check(GpoLoadLocalFile(GptPath,ReadBack,E)); Check(EqualBytes(ReadBack,Ini));
-    F.VersionInput:='1'; F.VersionChoice:=False; F.PlanButton.Click; Check(F.PlanReports=3);
-    F.VersionChoice:=True; F.GptChoice:=False; F.PlanButton.Click; Check(F.PlanReports=3);
+    F.VersionInput:='1'; F.VersionChoice:=False; F.PlanButton.Click; Check(F.PlanReports=4);
+    F.VersionChoice:=True; F.GptChoice:=False; F.PlanButton.Click; Check(F.PlanReports=4);
     F.GptChoice:=True; F.NextRecord:=Item('QA\DuringVersion','V',3,[3]);
     F.InjectedEditOk:=False; F.MutateOnVersion:=True; F.PlanButton.Click;
-    Check(F.InjectedEditOk); Check(F.PlanReports=3); Check(Pos('输入期间',F.LastError)>0);
+    Check(F.InjectedEditOk); Check(F.PlanReports=4); Check(Pos('输入期间',F.LastError)>0);
     Check(F.Draft(gdsUser).Dirty);
     F.NextRecord:=Item('QA\DuringGpt','V',3,[4]); F.InjectedEditOk:=False; F.MutateOnGpt:=True; F.PlanButton.Click;
-    Check(F.InjectedEditOk); Check(F.PlanReports=3); Check(Pos('输入期间',F.LastError)>0);
+    Check(F.InjectedEditOk); Check(F.PlanReports=4); Check(Pos('输入期间',F.LastError)>0);
     Check(F.Draft(gdsUser).Dirty);
     F.Choice:=True; F.RebaseOnGpt:=True; F.PlanButton.Click;
-    Check(F.PlanReports=3); Check(Pos('输入期间',F.LastError)>0);
+    Check(F.PlanReports=4); Check(Pos('输入期间',F.LastError)>0);
   finally
     F.Free;
     Check(SysUtils.DeleteFile(UserPath)); Check(SysUtils.DeleteFile(MachinePath));
