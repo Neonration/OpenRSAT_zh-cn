@@ -3,7 +3,7 @@ unit unittest.ugpojournalfile;
 interface
 uses mormot.core.test;
 type TUnitTestGpoJournalFile=class(TSynTestCase)
-published procedure LocalCheckpoints; procedure CrossProcessDenial;
+published procedure LocalCheckpoints; procedure CrossProcessDenial; procedure ShortPathAndReparse;
 end;
 function RunJournalProbe:Integer;
 implementation
@@ -32,6 +32,54 @@ function MakeSymbolicLink(LinkName,TargetName:PWideChar; Flags:DWORD):LongBool;
   stdcall; external 'kernel32.dll' name 'CreateSymbolicLinkW';
 function MakeHardLink(FileName,ExistingFileName:PWideChar; SecurityAttributes:Pointer):LongBool;
   stdcall; external 'kernel32.dll' name 'CreateHardLinkW';
+function GetShortPathNameW(LongPath,ShortPath:PWideChar; Size:DWORD):DWORD;
+  stdcall; external 'kernel32.dll';
+
+procedure TUnitTestGpoJournalFile.ShortPathAndReparse;
+var Dir,Child,Link,ShortDir,Err,JournalPath:string; Id:TGUID; Buffer:UnicodeString;
+  N:DWORD; LongHandle,ShortHandle:THandle; A,B:TByHandleFileInformation;
+  Header:TReplayHeader; Entries:TReplayEntries; State:TReplayResult;
+begin
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'OpenRSAT Short Path '+GUIDToString(Id);
+  if not CreateDir(Dir) then begin Check(False,'cannot create short-path test directory'); Exit; end;
+  Child:=Dir+'\child'; Link:=Dir+'-link';
+  try
+    if not CreateDir(Child) then begin Check(False,'cannot create child directory'); Exit; end;
+    SetLength(Buffer,32768); N:=GetShortPathNameW(PWideChar(UTF8Decode(Dir)),PWideChar(Buffer),Length(Buffer));
+    if (N>0) and (N<DWORD(Length(Buffer))) then begin
+      SetLength(Buffer,N); ShortDir:=UTF8Encode(Buffer);
+      if not SameText(ShortDir,Dir) then begin
+        WriteLn('SHORT_PATH real alias exercised');
+        if not OpenDirectory(Dir,False,LongHandle) then begin Check(False,'long path opens'); Exit; end;
+        try
+          if not OpenDirectory(ShortDir,False,ShortHandle) then begin Check(False,'short path opens'); Exit; end;
+          try
+            if not GetFileInformationByHandle(LongHandle,A) or not GetFileInformationByHandle(ShortHandle,B) then
+            begin Check(False,'cannot read directory identity'); Exit; end;
+            Check((A.dwVolumeSerialNumber=B.dwVolumeSerialNumber) and (A.nFileIndexHigh=B.nFileIndexHigh) and
+              (A.nFileIndexLow=B.nFileIndexLow),'short and long names must open the same directory');
+          finally CloseHandle(ShortHandle); end;
+        finally CloseHandle(LongHandle); end;
+        Check(ProbeFixture(Header,Entries));
+        Check(SaveJournal(ShortDir,1,Header,Entries,Err),'journal create through short path');
+        Check(LoadJournal(Dir,1,State,Err) and (State=rrInterrupted),'long path reopens same journal');
+        JournalPath:=Dir+'\gpo-00000001.journal';
+        Check(DeleteFileW(PWideChar(UTF8Decode(JournalPath))),'remove short path journal');
+      end else WriteLn('SHORT_PATH alias unavailable on this volume');
+    end else WriteLn('SHORT_PATH lookup unavailable');
+    if MakeSymbolicLink(PWideChar(UTF8Decode(Link)),PWideChar(UTF8Decode(Dir)),1 or 2) then begin
+      WriteLn('SHORT_PATH reparse ancestor exercised');
+      if OpenDirectory(Link,False,LongHandle) then begin CloseHandle(LongHandle); Check(False,'final directory link rejected'); end
+      else Check(True,'final directory link rejected');
+      if OpenDirectory(Link+'\child',False,LongHandle) then begin CloseHandle(LongHandle); Check(False,'intermediate directory link rejected'); end
+      else Check(True,'intermediate directory link rejected');
+      Check(RemoveDir(Link),'remove test link');
+    end else WriteLn('SHORT_PATH reparse ancestor skipped');
+  finally
+    Check(RemoveDir(Child),'remove child directory');
+    Check(RemoveDir(Dir),'remove short path directory');
+  end;
+end;
 
 procedure TUnitTestGpoJournalFile.LocalCheckpoints;
 var Dir,LinkDir,Path,Err:string; Id:TGUID; H:TReplayHeader; E:TReplayEntries; S:TReplayResult;
@@ -58,7 +106,7 @@ var Dir,LinkDir,Path,Err:string; Id:TGUID; H:TReplayHeader; E:TReplayEntries; S:
   end;
 begin
   Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-journal-'+GUIDToString(Id);
-  Check(CreateDir(Dir)); LinkDir:=Dir+'-link';
+  if not CreateDir(Dir) then begin Check(False,'cannot create journal directory'); Exit; end; LinkDir:=Dir+'-link';
   try
     Missing:=Default(TGpoPolicyImage); Empty:=Default(TGpoPolicyImage); Empty.Exists:=True;
     Check(SerializeRegistryPol(nil,Empty.Data)=grsOk);
@@ -66,12 +114,13 @@ begin
     H.TransactionId:='isolated-test'; H.Domain:='example.test'; H.DC:='dc.example.test';
     H.DN:='CN=test,DC=example,DC=test'; H.ObjectId:='test-object'; H.SessionId:='test-session';
     Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,Empty,Missing,Missing,H.Plan)=gopOk);
-    E:=nil; if not SaveJournal(Dir,1,H,E,Err) then raise Exception.Create('Save 1: '+Err);
+    E:=nil; if not SaveJournal(Dir,1,H,E,Err) then begin Check(False,'Save 1: '+Err); Exit; end;
     Check(LoadJournal(Dir,1,S,Err)); Check(S=rrNotStarted);
     Check(not SaveJournal(Dir,1,H,E,Err),'existing checkpoint never overwritten');
     SetLength(E,1); E[0].Sequence:=1; E[0].Step:=rsUser; E[0].Kind:=rkIntent;
     E[0].Evidence:=[reTarget,reSession,reExpectedState,reDurableBackup,reConditionalUpdate];
-    Check(SaveJournal(Dir,2,H,E,Err)); Check(LoadJournal(Dir,2,S,Err)); Check(S=rrInterrupted);
+    if not SaveJournal(Dir,2,H,E,Err) then begin Check(False,'Save 2: '+Err); Exit; end;
+    Check(LoadJournal(Dir,2,S,Err)); Check(S=rrInterrupted);
     SetLength(E,2); E[1].Sequence:=2; E[1].Step:=rsUser; E[1].Kind:=rkUnknown; E[1].Evidence:=[];
     Check(SaveJournal(Dir,3,H,E,Err)); Check(LoadJournal(Dir,3,S,Err)); Check(S=rrUnknown);
     E[1].Kind:=rkConflict; Check(SaveJournal(Dir,4,H,E,Err)); Check(LoadJournal(Dir,4,S,Err)); Check(S=rrConflict);
@@ -134,9 +183,11 @@ var Dir,Path,Err:string; Id:TGUID; H,Other:TReplayHeader; E,Old:TReplayEntries; 
     finally P.Free; end;
   end;
 begin
-  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-probe-'+GUIDToString(Id); Check(CreateDir(Dir));
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-probe-'+GUIDToString(Id);
+  if not CreateDir(Dir) then begin Check(False,'cannot create probe directory'); Exit; end;
   try
-    Check(ProbeFixture(H,E)); Check(SaveJournal(Dir,1,H,E,Err));
+    if not ProbeFixture(H,E) then begin Check(False,'cannot create probe fixture'); Exit; end;
+    if not SaveJournal(Dir,1,H,E,Err) then begin Check(False,'cannot create probe checkpoint: '+Err); Exit; end;
     Check(Child(1)=20+Ord(jaMatchedUntrusted),'matching checkpoint remains denied');
     Other:=H; Other.TransactionId:='different-transaction'; Check(SaveJournal(Dir,2,Other,E,Err));
     Check(Child(2)=20+Ord(jaMismatch),'foreign transaction rejected');
@@ -146,7 +197,8 @@ begin
     Check(Child(4)=20+Ord(jaMismatch),'old checkpoint rejected against independent expected contents');
     Check(not SaveJournalInjected(Dir,5,H,E,jfFlushFailure,Err));
     Check(Child(5)=20+Ord(jaMatchedUntrusted),'flush failure cannot become permission');
-    Check(SaveJournal(Dir,6,H,E,Err)); Path:=Dir+'\'+Format('gpo-%.8x.journal',[6]);
+    if not SaveJournal(Dir,6,H,E,Err) then begin Check(False,'cannot create corrupt fixture: '+Err); Exit; end;
+    Path:=Dir+'\'+Format('gpo-%.8x.journal',[6]);
     F:=TFileStream.Create(Path,fmOpenReadWrite); try F.Position:=F.Size-1; F.ReadBuffer(Corrupt,1);
       Corrupt:=Corrupt xor 1; F.Position:=F.Size-1; F.WriteBuffer(Corrupt,1); finally F.Free; end;
     Check(Child(6)=20+Ord(jaInvalid),'corruption rejected');
@@ -178,6 +230,8 @@ end;
 procedure TUnitTestGpoJournalFile.LocalCheckpoints;
 begin Check(True,'unsupported platform'); end;
 procedure TUnitTestGpoJournalFile.CrossProcessDenial;
+begin Check(True,'unsupported platform'); end;
+procedure TUnitTestGpoJournalFile.ShortPathAndReparse;
 begin Check(True,'unsupported platform'); end;
 {$endif}
 end.

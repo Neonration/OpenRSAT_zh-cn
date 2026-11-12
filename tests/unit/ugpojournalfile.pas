@@ -121,15 +121,20 @@ function NtCreateFile(out H:THandle; Access:ACCESS_MASK; var A:TNAttrs; out Io:T
   stdcall; external 'ntdll.dll';
 function GetFinalPathNameByHandleW(H:THandle; Buffer:PWideChar; Size,Flags:DWORD):DWORD;
   stdcall; external 'kernel32.dll';
+function GetLongPathNameW(ShortPath:PWideChar; LongPath:PWideChar; Size:DWORD):DWORD;
+  stdcall; external 'kernel32.dll';
 function CompareStringOrdinal(A:PWideChar; ALen:Integer; B:PWideChar; BLen:Integer; IgnoreCase:LongBool):Integer;
   stdcall; external 'kernel32.dll';
 function OpenDirectory(const Directory:string; WriteAccess:Boolean; out H:THandle):Boolean;
-var W,FinalPath,Expected,Root:UnicodeString; Info:TByHandleFileInformation; N,Access:DWORD;
+var W,LongPath,FinalPath,Expected,Root:UnicodeString; Info:TByHandleFileInformation; N,Access:DWORD;
 begin
   Result:=False; H:=INVALID_HANDLE_VALUE;
   if (Length(Directory)<3) or not (UpCase(Directory[1]) in ['A'..'Z']) or
     (Directory[2]<>':') or (Directory[3]<>'\') or (Pos(#0,Directory)>0) then Exit;
-  W:=UTF8Decode(ExpandFileName(Directory)); Expected:='\\?\'+W;
+  W:=UTF8Decode(ExpandFileName(Directory));
+  SetLength(LongPath,32768); N:=GetLongPathNameW(PWideChar(W),PWideChar(LongPath),Length(LongPath));
+  if (N=0) or (N>=DWORD(Length(LongPath))) then Exit;
+  SetLength(LongPath,N); Expected:='\\?\'+LongPath;
   Access:=$00100080; if WriteAccess then Access:=Access or 2;
   H:=CreateFileW(PWideChar(W),Access,FILE_SHARE_READ or FILE_SHARE_WRITE,nil,
     OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS or $00200000,0);
