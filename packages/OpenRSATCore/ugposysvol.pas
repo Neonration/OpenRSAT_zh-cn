@@ -8,6 +8,7 @@ uses Classes, SysUtils, ugpoformats, mormot.net.ldap;
 
 type
   TGpoFile = (gfGptIni, gfMachineRegistry, gfUserRegistry);
+  TGpoFileObservation = (gfoUnavailable, gfoPresent, gfoLeafAbsent);
   // Cooperative only: synchronous OS SMB calls may outlive this deadline.
   // The caller keeps this object alive until the read has returned.
   TGpoReadControl = class
@@ -33,6 +34,10 @@ function GpoBuildSafePath(const FileSysPath, ExpectedDomain, ConnectedDC,
 function GpoReadFile(const FileSysPath, ExpectedDomain, ConnectedDC,
   Guid: string; Artifact: TGpoFile; out Data: TBytes;
   Control: TGpoReadControl = nil): TGpoReadStatus;
+// An absent leaf is distinguished from a missing ancestor; no metadata is returned.
+function GpoReadFileObserved(const FileSysPath, ExpectedDomain, ConnectedDC,
+  Guid: string; Artifact: TGpoFile; out Data: TBytes; out Observation:TGpoFileObservation;
+  Control: TGpoReadControl = nil): TGpoReadStatus;
 
 // Uses the same canonical validation, then bypasses the Win32 UNC alias only.
 function GpoBuildNativePath(const FileSysPath, ExpectedDomain, ConnectedDC,
@@ -42,6 +47,8 @@ function GpoNtStatusToReadStatus(Status: Cardinal): TGpoReadStatus;
 // Test-only seam: identical guarded traversal, unavailable in production builds.
 function GpoTestReadGuardedFile(const NativeRoot, RelativePath: UnicodeString;
   out Data: TBytes): TGpoReadStatus;
+function GpoTestReadGuardedObservation(const NativeRoot, RelativePath: UnicodeString;
+  out Data:TBytes; out Observation:TGpoFileObservation):TGpoReadStatus;
 {$endif}
 
 implementation
@@ -185,12 +192,13 @@ end;
 // not a namespace-integrity guarantee against a malicious SMB server.
 function OpenNativeReadOnly(const NativePath: UnicodeString;
   Directory, AllowRootMount, ResolveRoot: Boolean;
-  out H: THandle; out IsMount: Boolean): TGpoReadStatus;
+  out H: THandle; out IsMount: Boolean; NativeStatus:PCardinal = nil): TGpoReadStatus;
 var U: TGpoNativeString; A: TGpoNativeAttributes; IO: TGpoNativeIoStatus;
   Status: LongInt; Info: TByHandleFileInformation;
   Tag: TGpoAttributeTagInfo; Options: ULONG;
 begin
   H := INVALID_HANDLE_VALUE; IsMount := False;
+  if Assigned(NativeStatus) then NativeStatus^:=$ffffffff;
   if (Length(NativePath) = 0) or (Length(NativePath) > 32766) then Exit(grsInvalidPath);
   FillChar(U,SizeOf(U),0);
   U.Length := Length(NativePath)*2; U.MaximumLength := U.Length+2;
@@ -204,6 +212,7 @@ begin
   if Directory then Options := Options or $1 else Options := Options or $40;
   // FILE_READ_DATA (LIST_DIRECTORY) | FILE_READ_ATTRIBUTES | SYNCHRONIZE.
   Status := NtOpenFile(H,$00100081,A,IO,FILE_SHARE_READ,Options);
+  if Assigned(NativeStatus) then NativeStatus^:=Cardinal(Status);
   Result := GpoNtStatusToReadStatus(Cardinal(Status));
   if Result <> grsOk then begin H := INVALID_HANDLE_VALUE; Exit; end;
   if not GetFileInformationByHandle(H,Info) then Result := FileError(GetLastError)
@@ -225,17 +234,17 @@ begin
 end;
 
 function ReadGuardedFile(const NativeRoot, RelativePath: UnicodeString;
-  out Data: TBytes; Control: TGpoReadControl): TGpoReadStatus;
+  out Data: TBytes; Control: TGpoReadControl; out Observation:TGpoFileObservation): TGpoReadStatus;
 var Parts: array of UnicodeString; Guards: array of THandle;
   I, J, Start: SizeInt; Path: UnicodeString; H: THandle; IsMount: Boolean;
-  Info: TByHandleFileInformation; Count, Got: DWORD; Extra: Byte;
+  Info: TByHandleFileInformation; Count, Got, NativeStatus: DWORD; Extra: Byte; Stop:TGpoReadStatus;
   procedure KeepGuard;
   begin
     SetLength(Guards,Length(Guards)+1); Guards[High(Guards)] := H;
     H := INVALID_HANDLE_VALUE;
   end;
 begin
-  Data := nil; Parts := nil; Guards := nil; H := INVALID_HANDLE_VALUE;
+  Data := nil; Parts := nil; Guards := nil; H := INVALID_HANDLE_VALUE; Observation:=gfoUnavailable;
   Result := grsInvalidPath;
   // Validate all segments before any open, including the test-only seam.
   if (NativeRoot = '') or (RelativePath = '') then Exit;
@@ -276,8 +285,14 @@ begin
     end;
     Result := ReadControlStatus(Control); if Result <> grsOk then Exit;
     Path := Path + '\' + Parts[High(Parts)];
-    Result := OpenNativeReadOnly(Path,False,False,False,H,IsMount);
-    if Result <> grsOk then Exit;
+    Result := OpenNativeReadOnly(Path,False,False,False,H,IsMount,@NativeStatus);
+    if Result <> grsOk then
+    begin
+      Stop:=ReadControlStatus(Control); if Stop<>grsOk then begin Result:=Stop; Exit; end;
+      if (Result=grsMissing) and (NativeStatus=$c0000034) then
+        Observation:=gfoLeafAbsent;
+      Exit;
+    end;
     Result := ReadControlStatus(Control); if Result <> grsOk then Exit;
     if not GetFileInformationByHandle(H,Info) then Exit(FileError(GetLastError));
     if (Info.dwFileAttributes and (FILE_ATTRIBUTE_DIRECTORY or FILE_ATTRIBUTE_REPARSE_POINT)) <> 0 then Exit(grsReparseBlocked);
@@ -293,6 +308,7 @@ begin
     if not ReadFile(H,Extra,1,Got,nil) then Exit(FileError(GetLastError));
     if Got <> 0 then Exit(grsIoError);
     Result := ReadControlStatus(Control);
+    if Result=grsOk then Observation:=gfoPresent;
   finally
     if H <> INVALID_HANDLE_VALUE then CloseHandle(H);
     for I := High(Guards) downto 0 do CloseHandle(Guards[I]);
@@ -303,8 +319,14 @@ end;
 {$ifdef OPENRSATTESTS}
 function GpoTestReadGuardedFile(const NativeRoot, RelativePath: UnicodeString;
   out Data: TBytes): TGpoReadStatus;
+var Observation:TGpoFileObservation;
 begin
-  Result := ReadGuardedFile(NativeRoot,RelativePath,Data,nil);
+  Result := ReadGuardedFile(NativeRoot,RelativePath,Data,nil,Observation);
+end;
+function GpoTestReadGuardedObservation(const NativeRoot, RelativePath: UnicodeString;
+  out Data:TBytes; out Observation:TGpoFileObservation):TGpoReadStatus;
+begin
+  Result:=ReadGuardedFile(NativeRoot,RelativePath,Data,nil,Observation);
 end;
 {$endif}
 {$endif}
@@ -312,18 +334,26 @@ end;
 function GpoReadFile(const FileSysPath, ExpectedDomain, ConnectedDC,
   Guid: string; Artifact: TGpoFile; out Data: TBytes;
   Control: TGpoReadControl): TGpoReadStatus;
+var Observation:TGpoFileObservation;
+begin
+  Result:=GpoReadFileObserved(FileSysPath,ExpectedDomain,ConnectedDC,Guid,Artifact,Data,Observation,Control);
+end;
+
+function GpoReadFileObserved(const FileSysPath, ExpectedDomain, ConnectedDC,
+  Guid: string; Artifact: TGpoFile; out Data: TBytes; out Observation:TGpoFileObservation;
+  Control: TGpoReadControl): TGpoReadStatus;
 var Path: string;
 {$ifdef windows}
   Root: string;
 {$endif}
 begin
-  Data := nil;
+  Data := nil; Observation:=gfoUnavailable;
   Result := ReadControlStatus(Control); if Result <> grsOk then Exit;
   Result := GpoBuildNativePath(FileSysPath,ExpectedDomain,ConnectedDC,Guid,Artifact,Path);
   if Result <> grsOk then Exit;
 {$ifdef windows}
   Root := '\Device\Mup\' + ConnectedDC + '\SYSVOL\' + ExpectedDomain;
-  Result := ReadGuardedFile(UTF8Decode(Root),UTF8Decode(Copy(Path,Length(Root)+2,MaxInt)),Data,Control);
+  Result := ReadGuardedFile(UTF8Decode(Root),UTF8Decode(Copy(Path,Length(Root)+2,MaxInt)),Data,Control,Observation);
 {$else}
   Result := grsUnsupported;
 {$endif}

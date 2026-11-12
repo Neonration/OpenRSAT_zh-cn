@@ -1,7 +1,7 @@
 unit unittest.ugporeadonly;
 {$mode ObjFPC}{$H+}
 interface
-uses SysUtils, mormot.core.test, ugpoformats, ugposysvol;
+uses Classes, SysUtils, mormot.core.test, ugpoformats, ugposysvol;
 type
   TUnitTestGpoReadOnly = class(TSynTestCase)
   published
@@ -20,6 +20,7 @@ type
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
     procedure GuardedRelativePathValidation;
+    procedure GuardedFileObservation;
     {$endif}
   end;
 implementation
@@ -427,6 +428,29 @@ begin
   Check(V=0);
 end;
 {$if defined(windows) and defined(OPENRSATTESTS)}
+procedure TUnitTestGpoReadOnly.GuardedFileObservation;
+var G:TGuid; Dir,Root,FileName:UnicodeString; B:TBytes; O:TGpoFileObservation; S:TFileStream; V:Byte;
+begin
+  Check(CreateGUID(G)=0); Dir:=UnicodeString(GetTempDir(False)+'openrsat-observe-'+GUIDToString(G));
+  if not CreateDir(Dir) then begin Check(False,'Cannot create observation fixture'); Exit; end;
+  Root:='\??\'+Dir; FileName:=Dir+'\fixture.pol';
+  try
+    Check(GpoTestReadGuardedObservation(Root,'fixture.pol',B,O)=grsMissing);
+    Check(O=gfoLeafAbsent); Check(Length(B)=0);
+    Check(GpoTestReadGuardedObservation(Root,'missing\fixture.pol',B,O)=grsMissing);
+    Check(O=gfoUnavailable); Check(Length(B)=0);
+    S:=TFileStream.Create(FileName,fmCreate);
+    try V:=42; S.WriteBuffer(V,1); finally S.Free; end;
+    Check(GpoTestReadGuardedObservation(Root,'fixture.pol',B,O)=grsOk);
+    Check(O=gfoPresent); Check((Length(B)=1) and (B[0]=42));
+    Check(GpoTestReadGuardedObservation(Root,'..\fixture.pol',B,O)=grsInvalidPath);
+    Check(O=gfoUnavailable); Check(Length(B)=0);
+  finally
+    if FileExists(FileName) then Check(SysUtils.DeleteFile(FileName));
+    Check(RemoveDir(Dir));
+  end;
+end;
+
 procedure TUnitTestGpoReadOnly.GuardedRelativePathValidation;
 const Invalid: array[0..13] of UnicodeString = ('', '.', '..', '\file',
   'dir\\file', 'dir\..\file', 'dir\.\file', 'dir\file:stream', 'dir/file',
