@@ -27,9 +27,16 @@ type
     Data: TBytes; // Always retained, including unknown registry types.
   end;
   TGpoRegistryRecords = array of TGpoRegistryRecord;
+  TGpoVersionPlan = record
+    Version: Cardinal;
+    LdapValue, GptValue: string;
+  end;
 
 function GpoUserVersion(Version: Cardinal): Word;
 function GpoMachineVersion(Version: Cardinal): Word;
+// Offline only: reject mismatched baselines and preserve unchanged halves.
+function GpoPlanVersion(GpcVersion, GptVersion: Cardinal;
+  UserChanged, MachineChanged: Boolean; out Plan: TGpoVersionPlan): Boolean;
 function GpoValidGuid(const Value: string): Boolean;
 // LDAP versionNumber is signed Int32 decimal; expose its unchanged version bits.
 function GpoParseLdapVersion(const Value: string; out Number: Cardinal): Boolean;
@@ -53,6 +60,28 @@ function GpoUserVersion(Version: Cardinal): Word;
 begin Result := Version shr 16; end;
 function GpoMachineVersion(Version: Cardinal): Word;
 begin Result := Version and $ffff; end;
+
+function GpoPlanVersion(GpcVersion, GptVersion: Cardinal;
+  UserChanged, MachineChanged: Boolean; out Plan: TGpoVersionPlan): Boolean;
+var UserPart, MachinePart: Cardinal; SignedVersion: Int64;
+begin
+  Plan := Default(TGpoVersionPlan);
+  Result := GpcVersion = GptVersion;
+  if not Result then Exit;
+  UserPart := GpoUserVersion(GpcVersion);
+  MachinePart := GpoMachineVersion(GpcVersion);
+  if UserChanged then begin
+    if UserPart = $ffff then UserPart := 1 else Inc(UserPart);
+  end;
+  if MachineChanged then begin
+    if MachinePart = $ffff then MachinePart := 1 else Inc(MachinePart);
+  end;
+  Plan.Version := (UserPart shl 16) or MachinePart;
+  SignedVersion := Int64(Plan.Version);
+  if SignedVersion > High(LongInt) then SignedVersion := SignedVersion - 4294967296;
+  Plan.LdapValue := IntToStr(SignedVersion);
+  Plan.GptValue := UIntToStr(Plan.Version);
+end;
 
 function GpoValidGuid(const Value: string): Boolean;
 var I: Integer;

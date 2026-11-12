@@ -9,6 +9,7 @@ type
     procedure RegistryBounds;
     procedure IniAndVersions;
     procedure LdapVersionSigned;
+    procedure VersionPlanning;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -16,6 +17,25 @@ type
     {$endif}
   end;
 implementation
+procedure TUnitTestGpoReadOnly.VersionPlanning;
+var P:TGpoVersionPlan; V:Cardinal;
+begin
+  Check(GpoPlanVersion($12345678,$12345678,False,False,P));
+  Check(P.Version=$12345678); Check(P.LdapValue='305419896'); Check(P.GptValue='305419896');
+  Check(GpoPlanVersion($12345678,$12345678,True,False,P)); Check(P.Version=$12355678);
+  Check(GpoPlanVersion($12345678,$12345678,False,True,P)); Check(P.Version=$12345679);
+  Check(GpoPlanVersion($0000ffff,$0000ffff,False,True,P)); Check(P.Version=$00000001);
+  Check(GpoPlanVersion($ffff4321,$ffff4321,True,False,P)); Check(P.Version=$00014321);
+  Check(GpoPlanVersion($ffffffff,$ffffffff,True,True,P)); Check(P.Version=$00010001);
+  Check(GpoPlanVersion($7fff0000,$7fff0000,True,False,P));
+  Check(P.Version=$80000000); Check(P.LdapValue='-2147483648'); Check(P.GptValue='2147483648');
+  Check(GpoParseLdapVersion(P.LdapValue,V)); Check(V=P.Version);
+  Check(GpoParseUnsigned(P.GptValue,V)); Check(V=P.Version);
+  Check(GpoPlanVersion($ffffffff,$ffffffff,False,False,P));
+  Check(P.LdapValue='-1'); Check(P.GptValue='4294967295');
+  Check(not GpoPlanVersion(1,2,True,False,P));
+  Check(P.Version=0); Check(P.LdapValue=''); Check(P.GptValue='');
+end;
 procedure AddByte(var B:TBytes; V:Byte);
 var N:SizeInt;
 begin N:=Length(B); SetLength(B,N+1); B[N]:=V; end;
