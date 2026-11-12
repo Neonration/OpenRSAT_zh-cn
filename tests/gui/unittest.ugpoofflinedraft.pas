@@ -117,6 +117,7 @@ end;
 procedure TUnitTestGpoOfflineDraftUI.LocalDraftInteraction;
 var F:TTestOfflineForm; R:TGpoRegistryRecord; Rows:TGpoRegistryRecords;
   Data,Prior:TBytes; E,Dir,Path:string; CanClose:Boolean;
+  {$ifdef windows} LockedDraft:TBytes; LockHandle:THandle; ErrorsBefore:Integer; BeforePreview:string; {$endif}
 begin
   F:=TTestOfflineForm.Create(nil); Dir:='';
   try
@@ -188,6 +189,22 @@ begin
     F.NextRecord:=Item('K','Changed',3,[9]); F.AddButton.Click;
     Check(F.Draft(gdsComputer).Dirty); F.SaveButton.Click;
     Check(F.Draft(gdsComputer).Dirty); Check(Pos('已存在',F.LastError)>0);
+    Check(GpoLoadLocalFile(Path,Data,E)); Check(EqualBytes(Prior,Data));
+    Check(F.Draft(gdsComputer).Export(LockedDraft)=grsOk); BeforePreview:=F.PreviewText;
+    LockHandle:=CreateFileW(PWideChar(UTF8Decode(Path)),GENERIC_READ,0,nil,OPEN_EXISTING,0,0);
+    Check(LockHandle<>INVALID_HANDLE_VALUE, 'Cannot exclusively lock the test file');
+    if LockHandle<>INVALID_HANDLE_VALUE then
+    try
+      ErrorsBefore:=F.ErrorCalls; F.SaveButton.Click;
+      Check(F.ErrorCalls=ErrorsBefore+1, 'Export to a locked file must fail');
+      Check(F.Draft(gdsComputer).Dirty); Check(F.Draft(gdsUser).Dirty);
+      ErrorsBefore:=F.ErrorCalls; F.Choice:=True; F.OpenButton.Click;
+      Check(F.ErrorCalls=ErrorsBefore+1, 'Import from a locked file must fail');
+      Check(F.Draft(gdsComputer).Dirty); Check(F.Draft(gdsUser).Dirty);
+      Check(F.Draft(gdsComputer).CanUndo);
+      Check(F.Draft(gdsComputer).Export(Data)=grsOk); Check(EqualBytes(LockedDraft,Data));
+      Check(F.PreviewText=BeforePreview, 'Failed import must retain the baseline diff');
+    finally CloseHandle(LockHandle); end;
     Check(GpoLoadLocalFile(Path,Data,E)); Check(EqualBytes(Prior,Data));
     F.NextPath:=Dir+'\bad.pol'; SetLength(Data,1); Data[0]:=42;
     Check(GpoSaveNewLocalFile(F.NextPath,Data,E)); F.Choice:=True;
