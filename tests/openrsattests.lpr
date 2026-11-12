@@ -25,6 +25,7 @@ uses
   unittest.ugpowritemodel,
   unittest.ugporeplaymodel,
   unittest.ugpojournalfile,
+  unittest.ugpolocalbackend,
   unittest.advancedsearch;
 
 type
@@ -61,6 +62,7 @@ begin
     TUnitTestGpoWriteModel,
     TUnitTestGpoReplayModel,
     TUnitTestGpoJournalFile,
+    TUnitTestGpoLocalBackend,
     TUnitTestAdvancedSearch
   ]);
 end;

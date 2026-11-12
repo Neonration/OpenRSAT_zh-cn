@@ -79,20 +79,24 @@ begin
     Check(not LoadJournal(Dir,18,S,Err)); Check(not SaveJournal(Dir,18,H,E,Err));
     Check(not SaveJournalInjected(Dir,19,H,E,jfFlushFailure,Err));
     Check(FileExists(FileName(19))); Check(not SaveJournal(Dir,19,H,E,Err));
+    Check(LoadJournal(Dir,19,S,Err)); Check(S=rrVerified,'self-consistency does not prove flush succeeded');
     Check(not LoadJournal(Dir+'\..\missing',1,S,Err));
     if MakeSymbolicLink(PWideChar(UTF8Decode(LinkDir)),PWideChar(UTF8Decode(Dir)),1 or 2) then begin
+      WriteLn('LINK_TEST directory executed');
       Check(not LoadJournal(LinkDir,1,S,Err),'directory reparse point rejected');
       Check(not SaveJournal(LinkDir,12,H,E,Err),'directory reparse point cannot write');
       Check(RemoveDir(LinkDir));
-    end;
+    end else WriteLn('LINK_TEST directory skipped');
     Path:=FileName(12);
     if MakeSymbolicLink(PWideChar(UTF8Decode(Path)),PWideChar(UTF8Decode(FileName(1))),2) then begin
+      WriteLn('LINK_TEST file executed');
       Check(not LoadJournal(Dir,12,S,Err),'file reparse point rejected'); Check(SysUtils.DeleteFile(Path));
-    end;
+    end else WriteLn('LINK_TEST file skipped');
     Path:=FileName(13);
     if MakeHardLink(PWideChar(UTF8Decode(Path)),PWideChar(UTF8Decode(FileName(1))),nil) then begin
+      WriteLn('LINK_TEST hardlink executed');
       Check(not LoadJournal(Dir,13,S,Err),'hard links rejected'); Check(SysUtils.DeleteFile(Path));
-    end;
+    end else WriteLn('LINK_TEST hardlink skipped');
   finally
     for I:=1 to 19 do if FileExists(FileName(I)) then SysUtils.DeleteFile(FileName(I));
     Check(RemoveDir(Dir),'isolated test directory cleaned');

@@ -1,7 +1,7 @@
 unit ugpojournalfile;
 {$mode objfpc}{$H+}{$codepage UTF8}
 interface
-uses SysUtils,ugporeplaymodel;
+uses SysUtils,ugporeplaymodel{$ifdef windows},Windows{$endif};
 type TJournalTestFault=(jfNone,jfBeforeWrite,jfShortWrite,jfFlushFailure);
 // Isolated test checkpoints only; a checkpoint never authorizes execution.
 function SaveJournal(const Directory:string; Number:Cardinal; const Header:TReplayHeader;
@@ -10,9 +10,12 @@ function LoadJournal(const Directory:string; Number:Cardinal; out State:TReplayR
   out Error:string):Boolean;
 function SaveJournalInjected(const Directory:string; Number:Cardinal; const Header:TReplayHeader;
   const Entries:TReplayEntries; Fault:TJournalTestFault; out Error:string):Boolean;
+{$ifdef windows}
+function OpenDirectory(const Directory:string; WriteAccess:Boolean; out H:THandle):Boolean;
+{$endif}
 
 implementation
-uses ugpoformats{$ifdef windows},Windows{$endif};
+uses ugpoformats;
 const MaxJournal=8*1024*1024; MaxEntries=10; MaxIdentity=1024;
 type TBuffer=record Data:TBytes; Pos:SizeInt; end;
 
