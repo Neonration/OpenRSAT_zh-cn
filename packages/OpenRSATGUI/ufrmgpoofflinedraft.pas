@@ -989,12 +989,20 @@ begin
   fPaths[fSide]:=Path; RefreshView;
 end;
 function TFrmGpoOfflineDraft.ExportCurrent:Boolean;
-var Path,Err,SideName:string; Data:TBytes;
+var Path,Err,SideName,SourcePath:string; Data,Baseline,After,AfterBaseline:TBytes;
+  Side:TGpoDraftSide; Present:Boolean; Revision:QWord;
 begin
   Result:=False;
   if fDomain and not fCandidateExists[fSide] then begin ShowError('候选文件缺失，不能导出为本地文件。'); Exit; end;
+  Side:=fSide; Present:=fCandidateExists[Side]; Revision:=fRevision; SourcePath:=fPaths[Side];
+  if (fDrafts[Side].Export(Data)<>grsOk) or (fDrafts[Side].Baseline(Baseline)<>grsOk) then
+  begin ShowError('无法读取草稿快照。'); Exit; end;
   if not ChooseLocalFile(True,Path) then Exit;
-  if Current.Export(Data)<>grsOk then begin ShowError('无法导出草稿。'); Exit; end;
+  if (fSide<>Side) or (fCandidateExists[Side]<>Present) or (fRevision<>Revision) or
+     (fPaths[Side]<>SourcePath) or (fDrafts[Side].Export(After)<>grsOk) or
+     (fDrafts[Side].Baseline(AfterBaseline)<>grsOk) or not SameDraftBytes(Data,After) or
+     not SameDraftBytes(Baseline,AfterBaseline) then
+  begin ShowError('选择文件期间草稿或分支已变化；请重新导出。'); Exit; end;
   if not GpoSaveNewLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
   if not fDomain then
   begin

@@ -38,6 +38,7 @@ type
     GptPath, VersionInput, PlanReport:string;
     GptChoice, VersionChoice:Boolean; PlanReports:Integer;
     MutateOnVersion, MutateOnGpt, RebaseOnGpt, InjectedEditOk:Boolean;
+    SwitchOnExport,MutateOnExport:Boolean;
     SummaryChoice,MutateOnSummary,RebaseOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
     constructor Create(TheOwner:TComponent); override;
     procedure PollDomainNow;
@@ -152,6 +153,11 @@ begin
     if ExportCount>1 then begin Result:=False; Exit; end;
     Path:=ExportPaths[ExportCount]; Result:=ExportChoices[ExportCount]; Inc(ExportCount);
   end else begin Path:=NextPath; Result:=SelectChoice; end;
+  if SaveCopy and SwitchOnExport then begin SwitchOnExport:=False; SelectSide(gdsUser); end;
+  if SaveCopy and MutateOnExport then begin
+    MutateOnExport:=False;
+    InjectedEditOk:=Draft(gdsComputer).Insert(Length(Draft(gdsComputer).Records),NextRecord)=grsOk;
+  end;
 end;
 function TTestOfflineForm.ChooseSummaryFile(out Path:string):Boolean;
 var Records:TGpoRegistryRecords; Encoded:TBytes;
@@ -562,6 +568,13 @@ begin
     Check(Length(F.Draft(gdsComputer).Records)=1);
     Check(F.Draft(gdsComputer).Export(Data)=grsOk); Check(EqualBytes(Prior,Data));
     Check(not FileExists(F.NextPath)); Check(F.LastError<>'');
+    F.NextPath:=Dir+'\stale.pol'; F.SwitchOnExport:=True; F.SaveButton.Click;
+    Check(not FileExists(F.NextPath)); Check(F.Draft(gdsComputer).Dirty); Check(F.Draft(gdsUser).Dirty);
+    Check(Pos('分支已变化',F.LastError)>0);
+    F.SelectSide(gdsComputer); F.MutateOnExport:=True; F.SaveButton.Click;
+    Check(F.InjectedEditOk); Check(not FileExists(F.NextPath)); Check(F.Draft(gdsComputer).Dirty);
+    Check(Pos('草稿或分支已变化',F.LastError)>0); F.UndoButton.Click;
+    Check(F.Draft(gdsComputer).Export(Data)=grsOk); Check(EqualBytes(Prior,Data));
     F.NextPath:=Path;
     F.SaveButton.Click; Check(FileExists(Path)); Check(not F.Draft(gdsComputer).Dirty);
     Check(GpoLoadLocalFile(Path,Data,E)); Check(EqualBytes(Prior,Data));
