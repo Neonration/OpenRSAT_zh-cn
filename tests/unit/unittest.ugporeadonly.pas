@@ -14,6 +14,7 @@ type
     procedure OfflineChangePlan;
     procedure OfflinePlanPresence;
     procedure OfflineBaselineChecks;
+    procedure OfflinePlanIntegrity;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -190,6 +191,41 @@ begin
   Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,User,Machine)=gbcMatch);
   Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,ChangedUser,Missing)=gbcConflict);
   Check(P.UserChanged and P.MachineChanged and (P.Version.Version=$10002));
+end;
+procedure TUnitTestGpoReadOnly.OfflinePlanIntegrity;
+var User,Changed,Missing:TGpoPolicyImage; Ini:TBytes; P:TGpoOfflinePlan;
+  procedure Build;
+  begin Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,User,Changed,Missing,Missing,P)=gopOk); end;
+  procedure Reject;
+  begin Check(GpoCheckOfflinePlan(P,1,Ini,User,Missing)=gbcInvalid); end;
+begin
+  P:=Default(TGpoOfflinePlan);
+  User.Exists:=True; User.Data:=RecordBytes('User','V',3,[1]);
+  Changed.Exists:=True; Changed.Data:=RecordBytes('User','V',3,[2]);
+  Missing:=Default(TGpoPolicyImage); Ini:=Bytes('[General]'#10'Version=1');
+  Build; Check(GpoCheckOfflinePlan(P,1,Ini,User,Missing)=gbcMatch);
+  Check(GpoCheckOfflinePlan(P,2,Ini,User,Missing)=gbcConflict);
+  P.UserChanged:=False;
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,User,Missing)=gbcMatch); Reject;
+  Build; P.MachineChanged:=True; Reject;
+  Build; P.UserAction:=gpaDelete; Reject;
+  Build; P.MachineAction:=gpaCreate; Reject;
+  Build; P.UserExists:=False; Reject;
+  Build; P.MachineExists:=True; Reject;
+  Build; Inc(P.Version.Version); Reject;
+  Build; P.Version.LdapValue:='0'; Reject;
+  Build; P.Version.GptValue:='0'; Reject;
+  Build; P.GptIni:=Bytes('[General]'#10'Version=1'); Reject;
+  Build; P.UserPolicy:=Copy(P.UserPolicy); P.UserPolicy[0]:=0; Reject;
+  Build; P.MachinePolicy:=Header; Reject;
+  Build; P.Baseline.GpcVersion:=2; Reject;
+  Build; P.Baseline.GptIni:=Bytes('[General]'#10'Version=2'); Reject;
+  Build; P.UserPolicy:=RecordBytes('User','V',3,[9]);
+  Check(GpoCheckOfflinePlan(P,1,Ini,User,Missing)=gbcMatch,
+    'A coherent replacement cannot be authenticated by structural validation');
+  P:=Default(TGpoOfflinePlan); Reject;
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,Missing,Missing,Missing,P)=gopOk);
+  Check(GpoCheckOfflinePlan(P,1,Ini,Missing,Missing)=gbcMatch);
 end;
 procedure TUnitTestGpoReadOnly.GptIniCandidate;
 var Source, Candidate, Expected:TBytes; V:Cardinal; Plan:TGpoVersionPlan; I:Integer;

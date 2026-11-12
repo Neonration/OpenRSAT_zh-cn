@@ -76,6 +76,9 @@ function GpoBuildOfflinePlanWithPresence(GpcVersion, GptVersion: Cardinal; const
   out Plan: TGpoOfflinePlan): TGpoOfflinePlanStatus;
 function GpoCheckOfflineBaseline(const Baseline: TGpoOfflineBaseline; LatestGpcVersion: Cardinal;
   const LatestIni: TBytes; const LatestUser, LatestMachine: TGpoPolicyImage): TGpoBaselineCheck;
+// Recomputes internal consistency before comparing the baseline; not authentication.
+function GpoCheckOfflinePlan(const Plan: TGpoOfflinePlan; LatestGpcVersion: Cardinal;
+  const LatestIni: TBytes; const LatestUser, LatestMachine: TGpoPolicyImage): TGpoBaselineCheck;
 function ParseRegistryPol(const Data: TBytes; out Records: TGpoRegistryRecords): TGpoReadStatus;
 // Preserves ordered records and raw data, including unknown types and commands.
 function SerializeRegistryPol(const Records: TGpoRegistryRecords;
@@ -414,6 +417,25 @@ begin
      not EqualPolicyBytes(Baseline.UserPolicy.Data,LatestUser.Data) or
      not EqualPolicyBytes(Baseline.MachinePolicy.Data,LatestMachine.Data) then Exit;
   Result:=gbcMatch;
+end;
+
+function GpoCheckOfflinePlan(const Plan: TGpoOfflinePlan; LatestGpcVersion: Cardinal;
+  const LatestIni: TBytes; const LatestUser, LatestMachine: TGpoPolicyImage): TGpoBaselineCheck;
+var Expected:TGpoOfflinePlan; NewUser,NewMachine:TGpoPolicyImage;
+begin
+  Result:=gbcInvalid;
+  NewUser.Exists:=Plan.UserExists; NewUser.Data:=Plan.UserPolicy;
+  NewMachine.Exists:=Plan.MachineExists; NewMachine.Data:=Plan.MachinePolicy;
+  if GpoBuildOfflinePlanWithPresence(Plan.Baseline.GpcVersion,Plan.Baseline.GpcVersion,
+    Plan.Baseline.GptIni,Plan.Baseline.UserPolicy,NewUser,
+    Plan.Baseline.MachinePolicy,NewMachine,Expected)<>gopOk then Exit;
+  if (Plan.UserChanged<>Expected.UserChanged) or (Plan.MachineChanged<>Expected.MachineChanged) or
+     (Plan.UserAction<>Expected.UserAction) or (Plan.MachineAction<>Expected.MachineAction) or
+     (Plan.Version.Version<>Expected.Version.Version) or
+     (Plan.Version.LdapValue<>Expected.Version.LdapValue) or
+     (Plan.Version.GptValue<>Expected.Version.GptValue) or
+     not EqualPolicyBytes(Plan.GptIni,Expected.GptIni) then Exit;
+  Result:=GpoCheckOfflineBaseline(Plan.Baseline,LatestGpcVersion,LatestIni,LatestUser,LatestMachine);
 end;
 
 // MS-GPREG 2.2.1 and Microsoft Registry Policy File Format:
