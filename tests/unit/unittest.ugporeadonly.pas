@@ -644,7 +644,7 @@ begin
 end;
 {$if defined(windows) and defined(OPENRSATTESTS)}
 procedure TUnitTestGpoReadOnly.GuardedFileObservation;
-var G:TGuid; Dir,Root,FileName:UnicodeString; B:TBytes; O:TGpoFileObservation; S:TFileStream; V:Byte;
+var G:TGuid; Dir,Root,FileName:UnicodeString; B:TBytes; O:TGpoFileObservation; S:TFileStream; V:Byte; Meta,OtherMeta:TGpoFileEvidence;
 begin
   Check(CreateGUID(G)=0); Dir:=UnicodeString(GetTempDir(False)+'openrsat-observe-'+GUIDToString(G));
   if not CreateDir(Dir) then begin Check(False,'Cannot create observation fixture'); Exit; end;
@@ -658,6 +658,19 @@ begin
     try V:=42; S.WriteBuffer(V,1); finally S.Free; end;
     Check(GpoTestReadGuardedObservation(Root,'fixture.pol',B,O)=grsOk);
     Check(O=gfoPresent); Check((Length(B)=1) and (B[0]=42));
+    Check(GpoTestReadGuardedEvidence(Root,'fixture.pol',B,O,Meta)=grsOk);
+    Check(O=gfoPresent); Check(Meta.Available); Check(Length(Meta.SecurityDescriptor)>0);
+    Check((Meta.FileIndexHigh<>0) or (Meta.FileIndexLow<>0));
+    OtherMeta:=Meta; OtherMeta.SecurityDescriptor:=Copy(Meta.SecurityDescriptor);
+    Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprEvidenceIncomplete);
+    Inc(OtherMeta.FileIndexLow); Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprConflict);
+    OtherMeta:=Meta; OtherMeta.SecurityDescriptor:=Copy(Meta.SecurityDescriptor); OtherMeta.SecurityDescriptor[0]:=0;
+    Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprConflict);
+    OtherMeta.Available:=False; Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprReadUnavailable);
+    Check(GpoTestReadGuardedEvidence(Root,'absent.pol',B,O,Meta)=grsMissing);
+    Check(O=gfoLeafAbsent); Check(not Meta.Available); Check(Length(Meta.SecurityDescriptor)=0);
+    Check(GpoTestReadGuardedEvidence(Root,'..\fixture.pol',B,O,Meta)=grsInvalidPath);
+    Check((O=gfoUnavailable) and not Meta.Available and (Length(B)=0));
     Check(GpoTestReadGuardedObservation(Root,'..\fixture.pol',B,O)=grsInvalidPath);
     Check(O=gfoUnavailable); Check(Length(B)=0);
   finally
