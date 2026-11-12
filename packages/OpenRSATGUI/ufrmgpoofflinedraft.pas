@@ -36,7 +36,7 @@ type
     fFindText:TEdit;
     fFindButton:TButton;
     fFindStatus:TLabel;
-    fNew, fOpen, fSave, fAdd, fEdit, fDelete, fUndo, fReset, fPreview, fPlan,fSummary: TButton;
+    fNew, fOpen, fSave, fAdd, fEdit, fDelete, fUndo, fReset, fPreview, fPlan,fSummary,fVerify: TButton;
     procedure TreeChanged(Sender:TObject; Node:TTreeNode);
     procedure RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);
     function ExportCurrent:Boolean;
@@ -56,6 +56,7 @@ type
     function SideDirty(Side:TGpoDraftSide):Boolean;
     function DomainSummary(const User,Machine:TGpoPolicyImage; const BaseUser,BaseMachine:TBytes):string;
     procedure SummaryClick(Sender:TObject);
+    procedure VerifyClick(Sender:TObject);
     procedure PresenceClick(Sender:TObject);
     procedure FindClick(Sender:TObject);
     procedure FindChanged(Sender:TObject);
@@ -73,6 +74,7 @@ type
     function ConfirmRestore:Boolean; virtual;
     function ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean; virtual;
     function ChooseSummaryFile(out Path:string):Boolean; virtual;
+    function ChooseSummaryInput(out Path:string):Boolean; virtual;
     function ChooseGptFile(out Path:string):Boolean; virtual;
     function RequestGpcVersion(out Value:string):Boolean; virtual;
     function EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean; virtual;
@@ -102,6 +104,7 @@ type
     property PreviewButton:TButton read fPreview;
     property PlanButton:TButton read fPlan;
     property SummaryButton:TButton read fSummary;
+    property VerifyButton:TButton read fVerify;
     property FindText:TEdit read fFindText;
     property FindButton:TButton read fFindButton;
     property FindStatus:TLabel read fFindStatus;
@@ -110,6 +113,8 @@ type
 function GpoParseHex(const S:string; out Data:TBytes; out Error:string):Boolean;
 function GpoValidateDraftRecord(const Item:TGpoRegistryRecord; out Error:string):Boolean;
 function GpoEncodeFriendly(ValueType:Cardinal; const Text:string; out Data:TBytes; out Error:string):Boolean;
+function GpoSummaryCandidate(const Data:TBytes; Side:TGpoDraftSide; out Exists:Boolean; out Fingerprint,Error:string):Boolean;
+function GpoPolicyFingerprint(const Bytes:TBytes):string;
 
 implementation
 uses Dialogs, LazUTF8, LCLType, ugpolocalfiles, mormot.crypt.core, mormot.core.text;
@@ -403,6 +408,7 @@ begin
   fPreview:=MakeButton('预览记录变更',3,1,@PreviewClick);
   fPlan:=MakeButton('本地计划预演…',4,1,@PlanClick);
   fSummary:=MakeButton('导出审阅摘要…',0,3,@SummaryClick); fSummary.Visible:=False;
+  fVerify:=MakeButton('核对摘要文件…',1,3,@VerifyClick); fVerify.Visible:=False;
   with TLabel.Create(Self) do begin Parent:=ToolPanel; Caption:='查找记录：'; SetBounds(8,72,80,24); end;
   fFindText:=TEdit.Create(Self); fFindText.Parent:=ToolPanel; fFindText.SetBounds(88,68,240,26);
   fFindText.OnChange:=@FindChanged; fFindText.OnKeyDown:=@FindKeyDown;
@@ -531,7 +537,7 @@ begin
   fOpen.Caption:='删除整个文件'; fOpen.OnClick:=@PresenceClick;
   Caption:='域目标绑定草稿（只读，不会应用到域）';
   fPlan.Caption:='只读复核草稿…'; fTree.Items[0].Text:='域目标绑定草稿';
-  TPanel(fSummary.Parent).Height:=132; fSummary.Visible:=True;
+  TPanel(fSummary.Parent).Height:=132; fSummary.Visible:=True; fVerify.Visible:=True;
   OnClose:=@DomainClosed;
   fDomainTimer:=TTimer.Create(Self); fDomainTimer.Interval:=100; fDomainTimer.OnTimer:=@PollDomainPlan; fDomainTimer.Enabled:=True;
   RefreshView; Result:=True;
@@ -564,14 +570,69 @@ begin
   Result:=(Length(A)=Length(B)) and ((Length(A)=0) or CompareMem(@A[0],@B[0],Length(A)));
 end;
 
+function GpoPolicyFingerprint(const Bytes:TBytes):string;
+var Hash:TSha256Digest; Sha:TSha256;
+begin
+  Sha.Full(Pointer(Bytes),Length(Bytes),Hash);
+  Result:=IntToStr(Length(Bytes))+' 字节；SHA-256：'+string(BinToHex(PAnsiChar(@Hash),SizeOf(Hash)));
+end;
+
+function GpoSummaryCandidate(const Data:TBytes; Side:TGpoDraftSide; out Exists:Boolean; out Fingerprint,Error:string):Boolean;
+var Lines:TStringList; S,Name,State,Base,Action:string; I,N,P:Integer; BaseExists:Boolean;
+  function ValidFingerprint(const Value:string):Boolean;
+  var J,K:Integer; Size:Int64; Digits:string;
+  begin
+    Result:=False; K:=System.Pos(RawByteString(' 字节；SHA-256：'),RawByteString(Value)); if K<2 then Exit;
+    Digits:=Copy(Value,1,K-1);
+    for J:=1 to Length(Digits) do if not (Digits[J] in ['0'..'9']) then Exit;
+    if not TryStrToInt64(Digits,Size) or (Size<0) or (Size>16777216) then Exit;
+    S:=Copy(Value,K+Length(RawByteString(' 字节；SHA-256：')),MaxInt);
+    if Length(S)<>64 then Exit;
+    for J:=1 to Length(S) do if not (S[J] in ['0'..'9','A'..'F']) then Exit;
+    Result:=True;
+  end;
+begin
+  Result:=False; Exists:=False; Fingerprint:=''; Error:='摘要格式无效或内容不一致。';
+  if (Length(Data)<4) or (Data[0]<>$ef) or (Data[1]<>$bb) or (Data[2]<>$bf) then Exit;
+  SetString(S,PAnsiChar(@Data[3]),Length(Data)-3); Lines:=TStringList.Create;
+  try
+    Lines.Text:=S;
+    if (Lines.Count<4) or (Lines[0]<>'GPO 域草稿审阅摘要（仅本地文本）') then Exit;
+    if Side=gdsComputer then Name:='计算机 Registry.pol：' else Name:='用户 Registry.pol：';
+    N:=-1;
+    for I:=1 to Lines.Count-1 do if System.Pos(Name,Lines[I])=1 then
+    begin if N<>-1 then Exit; N:=I; end;
+    if (N<0) or (N+2>=Lines.Count) then Exit;
+    State:=Copy(Lines[N],Length(Name)+1,MaxInt);
+    P:=System.Pos(RawByteString('；候选：'),RawByteString(State)); if P=0 then Exit;
+    Base:=Copy(State,1,P-1); State:=Copy(State,P+Length(RawByteString('；候选：')),MaxInt);
+    if Base='基线：存在' then BaseExists:=True else if Base='基线：缺失' then BaseExists:=False else Exit;
+    P:=System.Pos(RawByteString('；意图：'),RawByteString(State)); if P=0 then Exit;
+    Action:=Copy(State,P+Length(RawByteString('；意图：')),MaxInt); State:=Copy(State,1,P-1);
+    if State='存在' then Exists:=True else if State='缺失' then Exists:=False else Exit;
+    if System.Pos(RawByteString('  基线文件：'),RawByteString(Lines[N+1]))<>1 then Exit;
+    Base:=Copy(Lines[N+1],Length(RawByteString('  基线文件：'))+1,MaxInt);
+    if System.Pos(RawByteString('  候选文件：'),RawByteString(Lines[N+2]))<>1 then Exit;
+    Fingerprint:=Copy(Lines[N+2],Length(RawByteString('  候选文件：'))+1,MaxInt);
+    if BaseExists then begin if not ValidFingerprint(Base) then Exit; end
+    else if Base<>'缺失，无文件指纹' then Exit;
+    if Exists then begin if not ValidFingerprint(Fingerprint) then Exit; end
+    else if Fingerprint<>'缺失，无文件指纹' then Exit;
+    if not BaseExists and Exists then State:='创建'
+    else if BaseExists and not Exists then State:='删除整个文件'
+    else if BaseExists and Exists and (Base<>Fingerprint) then State:='替换'
+    else State:='无变化';
+    if Action<>State then Exit;
+    Error:=''; Result:=True;
+  finally Lines.Free; end;
+end;
+
 function TFrmGpoOfflineDraft.DomainSummary(const User,Machine:TGpoPolicyImage; const BaseUser,BaseMachine:TBytes):string;
 var Review,Target:string; I:Integer;
   function Fingerprint(Exists:Boolean; const Bytes:TBytes):string;
-  var Hash:TSha256Digest; Sha:TSha256;
   begin
     if not Exists then Exit('缺失，无文件指纹');
-    Sha.Full(Pointer(Bytes),Length(Bytes),Hash);
-    Result:=IntToStr(Length(Bytes))+' 字节；SHA-256：'+string(BinToHex(PAnsiChar(@Hash),SizeOf(Hash)));
+    Result:=GpoPolicyFingerprint(Bytes);
   end;
   function Describe(Side:TGpoDraftSide; const Image:TGpoPolicyImage; const Baseline:TBytes):string;
   var OldText,NewText,Action:string;
@@ -631,6 +692,25 @@ begin
   if Length(Report)>0 then Move(Report[1],Data[3],Length(Report));
   if not GpoSaveNewLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
   fStatus.Caption:='已导出本地审阅摘要；域基线和草稿未改变。';
+end;
+
+procedure TFrmGpoOfflineDraft.VerifyClick(Sender:TObject);
+var Path,Err,Fingerprint,SideName,Report:string; Summary,Policy:TBytes; Exists:Boolean; Side:TGpoDraftSide;
+begin
+  if not fValidSide then Exit;
+  Side:=fSide; if Side=gdsComputer then SideName:='计算机' else SideName:='用户';
+  if not ChooseSummaryInput(Path) then Exit;
+  if not GpoLoadLocalFile(Path,Summary,Err) then begin ShowError(Err); Exit; end;
+  if not GpoSummaryCandidate(Summary,Side,Exists,Fingerprint,Err) then begin ShowError(Err); Exit; end;
+  if Exists then
+  begin
+    if not ChooseLocalFile(False,Path) then Exit;
+    if not GpoLoadLocalFile(Path,Policy,Err) then begin ShowError(Err); Exit; end;
+    if GpoPolicyFingerprint(Policy)=Fingerprint then Report:='所选文件的字节数与 SHA-256 与摘要候选一致。'
+    else Report:='不匹配：所选文件的字节数或 SHA-256 与摘要候选不同。';
+  end else Report:='摘要候选为缺失，没有可核对的文件指纹；未检查域中的文件是否存在。';
+  ShowPlanReport('本地摘要核对：'+SideName+'侧'+LineEnding+Report+LineEnding+
+    '只比较本次读取的本地内容，不验证摘要或文件来源、当前草稿、会话、域状态或复核有效性，也不授权写入。');
 end;
 
 procedure TFrmGpoOfflineDraft.PresenceClick(Sender:TObject);
@@ -829,6 +909,15 @@ begin
     D.Filter:='文本文件 (*.txt)|*.txt|所有文件 (*.*)|*.*';
     D.Options:=D.Options-[ofOverwritePrompt]; D.FileName:='GPO-review-summary.txt';
     Result:=D.Execute; if Result then Path:=D.FileName;
+  finally D.Free; end;
+end;
+function TFrmGpoOfflineDraft.ChooseSummaryInput(out Path:string):Boolean;
+var D:TOpenDialog;
+begin
+  Path:=''; D:=TOpenDialog.Create(Self);
+  try
+    D.Title:='选择本地审阅摘要'; D.Filter:='文本文件 (*.txt)|*.txt|所有文件 (*.*)|*.*';
+    D.Options:=D.Options+[ofFileMustExist]; Result:=D.Execute; if Result then Path:=D.FileName;
   finally D.Free; end;
 end;
 procedure TFrmGpoOfflineDraft.ShowError(const MessageText:string);

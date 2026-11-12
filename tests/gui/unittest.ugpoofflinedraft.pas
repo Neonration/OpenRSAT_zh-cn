@@ -47,6 +47,7 @@ type
     function ConfirmRestore:Boolean; override;
     function ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean; override;
     function ChooseSummaryFile(out Path:string):Boolean; override;
+    function ChooseSummaryInput(out Path:string):Boolean; override;
     function ChooseGptFile(out Path:string):Boolean; override;
     function RequestGpcVersion(out Value:string):Boolean; override;
     function EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean; override;
@@ -166,6 +167,8 @@ begin
   end;
   if Assigned(CancelOnSummary) then begin CancelOnSummary.Cancel; CancelOnSummary:=nil; end;
 end;
+function TTestOfflineForm.ChooseSummaryInput(out Path:string):Boolean;
+begin Path:=SummaryPath; Result:=SummaryChoice; end;
 function TTestOfflineForm.EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean;
 begin Result:=EditChoice; if Result then Item:=NextRecord; end;
 function TTestOfflineForm.ChooseGptFile(out Path:string):Boolean;
@@ -250,7 +253,12 @@ end;
 procedure TUnitTestGpoOfflineDraftUI.DomainSummaryExport;
 {$ifdef windows}
 var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; Machine:TGpoPolicyImage;
-  Dir,Err,Report,Path:string; Empty,Data,Original:TBytes; Id:TGUID; I:Integer;
+  Dir,Err,Report,Path,Fingerprint:string; Empty,Data,Original:TBytes; Id:TGUID; I:Integer; Exists:Boolean;
+  function ReportBytes(const S:string):TBytes;
+  begin
+    SetLength(Result,Length(S)+3); Result[0]:=$ef; Result[1]:=$bb; Result[2]:=$bf;
+    if Length(S)>0 then Move(S[1],Result[3],Length(S));
+  end;
   function Name(N:Integer):string;
   begin Result:=Dir+'\'+IntToStr(N)+'.txt'; end;
   function ReadReport(N:Integer):string;
@@ -285,8 +293,22 @@ begin
     Check(Pos('用户 Registry.pol：基线：缺失；候选：存在；意图：创建',Report)>0);
     Check(Pos('Secret',Report)=0); Check(Pos('Password',Report)=0);
     Check(Pos('候选文件：85 字节；SHA-256：822A9A46BF9E799B090A659FC08C4D3C56770B89C44D66B3563291E552FD2F7F',Report)>0);
+    Check(GpoSummaryCandidate(ReportBytes(Report),gdsUser,Exists,Fingerprint,Err)); Check(Exists);
+    Check(not GpoSummaryCandidate(ReportBytes(StringReplace(Report,'意图：创建','意图：删除整个文件',[])),gdsUser,Exists,Fingerprint,Err));
+    Check(not GpoSummaryCandidate(ReportBytes(StringReplace(Report,'822A9A46','Z22A9A46',[])),gdsUser,Exists,Fingerprint,Err));
+    Check(not GpoSummaryCandidate(ReportBytes(Report+Report),gdsUser,Exists,Fingerprint,Err));
     F.SelectChoice:=True; F.NextPath:=Name(11); F.SaveButton.Click;
     Check(GpoLoadLocalFile(Name(11),Original,Err)); Check(F.Draft(gdsUser).Export(Data)=grsOk); Check(EqualBytes(Data,Original));
+    F.SummaryPath:=Name(2); I:=F.PlanReports; F.VerifyButton.Click;
+    Check(F.PlanReports=I+1); Check(Pos('与摘要候选一致',F.PlanReport)>0);
+    F.NextPath:=Name(1); F.VerifyButton.Click; Check(Pos('不匹配',F.PlanReport)>0);
+    F.SelectChoice:=False; I:=F.PlanReports; F.VerifyButton.Click; Check(F.PlanReports=I);
+    F.SelectSide(gdsComputer); F.VerifyButton.Click;
+    Check(Pos('候选为缺失',F.PlanReport)>0); Check(Pos('未检查域中',F.PlanReport)>0);
+    F.SummaryPath:=Name(11); I:=F.ErrorCalls; F.VerifyButton.Click; Check(F.ErrorCalls=I+1);
+    F.SummaryPath:=Name(99); F.VerifyButton.Click; Check(F.ErrorCalls=I+2);
+    F.SummaryChoice:=False; I:=F.PlanReports; F.VerifyButton.Click; Check(F.PlanReports=I);
+    F.SummaryChoice:=True; F.SelectChoice:=True; F.SelectSide(gdsUser);
     F.PlanButton.Click; F.SummaryPath:=Name(3); F.SummaryButton.Click; Report:=ReadReport(3);
     Check(Pos('复核进行中',Report)>0);
     Job.Text:='候选计划与原域基线的只读复核一致；安全证据仍不完整，不能授权写入。';
