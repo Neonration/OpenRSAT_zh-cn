@@ -1,0 +1,145 @@
+--- a/src/net/mormot.net.ldap.pas
++++ b/src/net/mormot.net.ldap.pas
+@@ -2014,6 +2014,14 @@
+       read fKerberosSignSeal write fKerberosSignSeal;
+   end;
+ 
++  // A retained token has its own lifetime and can be observed by an async
++  // reader without accessing this client or its socket from another thread.
++  ILdapSessionToken = interface
++    ['{BFF53F12-EBEC-4A1D-A1C5-6FC81D47ACCE}']
++    function IsValid: boolean;
++    procedure Invalidate;
++  end;
++
+   TLdapClient = class;
+ 
+   /// callback signature used for TLdapClient.OnDisconnect/OnSearchPage
+@@ -2029,6 +2037,7 @@
+     fSock: TCrtSocket;
+     fVersion: integer;
+     fSeq: integer;
++    fSessionToken: ILdapSessionToken; // OpenRSAT: retained identity and revocation.
+     fResponseCode: integer;
+     fResultCode: integer;
+     fResultString: RawUtf8;
+@@ -2090,6 +2099,9 @@
+     procedure SearchMissingAttributes; overload;
+     procedure RetrieveRootDseInfo;
+     procedure RetrieveDefaultDNInfo;
++    procedure InvalidateSessionToken;
++    procedure NewSessionToken;
++    function GetSessionToken: IInterface;
+     procedure Reset(reconnect: boolean);
+     procedure SetUnknownError(const msg: RawUtf8); overload;
+     procedure SetUnknownError(const fmt: RawUtf8; const args: array of const); overload;
+@@ -2607,6 +2619,11 @@
+     /// raw TCP socket used by all LDAP operations
+     property Sock: TCrtSocket
+       read fSock;
++    /// opaque lifetime token changed on connect, reset and actual bind attempts
++    // - retaining the interface prevents pointer-reuse ABA; compare on the
++    // same serialized thread/lock as other TLdapClient access
++    property SessionToken: IInterface
++      read GetSessionToken;
+     /// can add some logs to the LDAP client process
+     property Log: TSynLogClass
+       read fLog write fLog;
+@@ -5996,9 +6013,29 @@
+ 
+ { TLdapClient }
+ 
++type
++  TLdapSessionToken = class(TInterfacedObject, ILdapSessionToken)
++  private
++    fInvalid: LongInt;
++  public
++    function IsValid: boolean;
++    procedure Invalidate;
++  end;
++
++function TLdapSessionToken.IsValid: boolean;
++begin
++  result := InterlockedCompareExchange(fInvalid, 0, 0) = 0;
++end;
++
++procedure TLdapSessionToken.Invalidate;
++begin
++  InterlockedExchange(fInvalid, 1);
++end;
++
+ constructor TLdapClient.Create;
+ begin
+   inherited Create;
++  NewSessionToken;
+   fSettings := TLdapClientSettings.Create;
+   fReferals := TRawUtf8List.Create;
+   fTlsContext.IgnoreCertificateErrors := true;
+@@ -6054,6 +6091,7 @@
+   result := fSock <> nil;
+   if result then
+     exit; // socket was already connected
++  NewSessionToken;
+   if fLog.HasLevel([sllEnter]) then
+     fLog.EnterLocal(log, self, 'Connect');
+   fResultError := leUnknown;
+@@ -6654,6 +6692,7 @@
+   if fBound or
+      not Connect then
+     exit;
++  NewSessionToken;
+   if (fSettings.Password <> '') and
+      not fSettings.Tls and
+      not fSettings.AllowUnsafePasswordBind then
+@@ -6707,6 +6746,7 @@
+   if fBound or
+      not Connect then
+     exit;
++  NewSessionToken;
+   fLog.EnterLocal(log, 'BindSalsDigest(%) as %',
+     [DIGEST_NAME[Algo], fSettings.UserName], self);
+   if DIGEST_ALGONAME[Algo] = '' then
+@@ -6799,6 +6839,7 @@
+   if fBound or
+      not Connect then
+     exit;
++  NewSessionToken;
+   // initialize the needed SSPI/GSSAPI library
+   if not InitializeDomainAuth then
+   begin
+@@ -7031,6 +7072,7 @@
+ 
+ function TLdapClient.Close: boolean;
+ begin
++  InvalidateSessionToken; // Revoke before a potentially blocking unbind/close.
+   result := true;
+   fLog.Add.Log(sllTrace, 'Close', self);
+   if fSock.SockConnected then
+@@ -7044,8 +7086,27 @@
+   fFlags := [];
+ end;
+ 
++function TLdapClient.GetSessionToken: IInterface;
++begin
++  result := fSessionToken;
++end;
++
++procedure TLdapClient.InvalidateSessionToken;
++begin
++  if fSessionToken <> nil then
++    fSessionToken.Invalidate;
++  fSessionToken := nil; // No allocation; retained readers keep a revoked object.
++end;
++
++procedure TLdapClient.NewSessionToken;
++begin
++  InvalidateSessionToken;
++  fSessionToken := TLdapSessionToken.Create;
++end;
++
+ procedure TLdapClient.Reset(reconnect: boolean);
+ begin
++  InvalidateSessionToken;
+   fLog.Add.Log(sllTrace, 'Reset', self);
+   if fSecContextEncrypt in fFlags then
+     FreeSecContext(fSecContext);

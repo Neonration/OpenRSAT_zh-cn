@@ -73,6 +73,23 @@ git submodule update --init
 
 For this example, I assume you clone the repository in **/OpenRSAT**
 
+## Prepare pinned dependency patches
+
+Python 3 and Git are required. After initializing submodules, and before registering Lazarus packages, run from the repository root:
+
+```bash
+python tools/prepare_dependencies.py
+python tools/prepare_dependencies.py --check
+```
+
+This applies the reviewed LDAP session-token patch to the pinned mORMot2 source. The source and patch hashes are checked; repeated runs are safe, and unrecognized local changes are rejected rather than overwritten. Keep the patch with this repository instead of pointing the submodule at an unpublished commit. Re-run preparation after resetting or updating submodules. If the pinned dependency changes, review and update the patch and its tests before building.
+
+Dependency preparation tests:
+
+```bash
+python -B -m unittest discover -s tests/dependencies -v
+```
+
 ## Install mORMot2 statics
 
 The mORMot2 library requires some external statics files. You must download them and install them properly to compile this project.

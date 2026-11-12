@@ -1,0 +1,7 @@
+{
+  "upstream_commit": "700177da8097717936ca0e948619723da0995452",
+  "source": "src/net/mormot.net.ldap.pas",
+  "base_sha256_lf": "7efa96e748ebdf45bf304f374b4013139ce5adc1735c8a567b4e5f143c3370ba",
+  "patched_sha256_lf": "f5db79b375ebafe8c837241309b53cff7191498609e3d97afd04aa5f9ae668c5",
+  "patch_sha256_lf": "8cf103b9745de8fe670927e77c21eab67a9299034047f9ea3e7d73a7c2dbd67d"
+}

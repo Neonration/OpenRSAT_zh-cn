@@ -40,6 +40,17 @@ jobs:
           fetch-depth: 1
           submodules: true
 
+      - name: Set up Python for pinned dependency preparation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Test dependency preparation
+        run: python -B -m unittest discover -s tests/dependencies -v
+
+      - name: Prepare pinned dependency patches
+        run: python tools/prepare_dependencies.py
+
       - name: Setup 7-zip
         uses: milliewalky/setup-7-zip@v2
 

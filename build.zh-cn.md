@@ -34,6 +34,23 @@ git submodule update --init
 
 这里只初始化一级子模块，与 CI 的 `submodules: true` 一致。不要添加 `--recursive`：`pltis_djoin` 的嵌套子模块包含私有依赖，本项目构建不需要递归获取它们。如果从上游仓库构建，可替换为上游地址。
 
+## 准备固定版本依赖补丁
+
+需要 Python 3 和 Git。初始化子模块后、注册 Lazarus 包前，在仓库根目录运行：
+
+```bash
+python tools/prepare_dependencies.py
+python tools/prepare_dependencies.py --check
+```
+
+脚本为固定版本的 mORMot2 应用 LDAP 会话令牌补丁，并核对源文件及补丁哈希。重复运行不会重复修改；遇到不认识的本地改动会停止，不会覆盖。补丁随本仓库发布，不依赖未推送的子模块提交。重置或更新子模块后需要重新执行；升级固定依赖时须重新审查补丁和测试。
+
+依赖准备测试：
+
+```bash
+python -B -m unittest discover -s tests/dependencies -v
+```
+
 ## 安装 mORMot2 statics
 
 mORMot2 需要额外 static 文件。
