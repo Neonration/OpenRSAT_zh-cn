@@ -650,6 +650,7 @@ begin
 end;
 procedure TUnitTestGpoReadOnly.GptIniCandidate;
 var Source, Candidate, Expected:TBytes; V:Cardinal; Plan:TGpoVersionPlan; I:Integer;
+  Missing:TGpoPolicyImage; Offline:TGpoOfflinePlan;
   Original, Updated:RawByteString;
   procedure Reject(const Input:RawByteString; Status:TGptIniCandidateStatus);
   begin
@@ -681,6 +682,18 @@ begin
   Reject(#254#255#0#65,gicUnsupported);
   Reject(#255#254#0#0#65#0#0#0,gicUnsupported);
   Reject('[General]'#10'Version=1'#10'Other='#255,gicUnsupported);
+  Original:='[General]'#13#10'Version=0'#13#10'displayName='#$d0#$c2#$bd#$a8#$d7#$e9#$b2#$df#$c2#$d4#$b6#$d4#$cf#$f3#13#10;
+  Updated:='[General]'#13#10'Version=1'#13#10'displayName='#$d0#$c2#$bd#$a8#$d7#$e9#$b2#$df#$c2#$d4#$b6#$d4#$cf#$f3#13#10;
+  Source:=Bytes(Original); Expected:=Bytes(Updated);
+  Check(GpoBuildGptIniCandidate(Source,0,1,Candidate)=gicOk);
+  Check((Length(Candidate)=Length(Expected)) and CompareMem(@Candidate[0],@Expected[0],Length(Expected)),'CP936 bytes must be preserved');
+  Check(ParseGptIni(Candidate,V)=grsOk); Check(V=1);
+  Missing:=Default(TGpoPolicyImage);
+  Check(GpoBuildOfflinePlanWithPresence(0,0,Source,Missing,Missing,Missing,Missing,Offline)=gopOk);
+  Check((Length(Offline.GptIni)=Length(Source)) and CompareMem(@Offline.GptIni[0],@Source[0],Length(Source)));
+  Check(GpoCheckOfflinePlan(Offline,0,Source,Missing,Missing)=gbcMatch);
+  Reject('[General]'#10'Version=1'#10'X='#$81#$7f,gicUnsupported);
+  Reject('[General]'#10'Version=1'#10'X='#$81,gicUnsupported);
   Source:=nil; AddWord(Source,$feff); Original:='[General]'#13#10'Version=4294967295'#13#10'Other=x';
   for I:=1 to Length(Original) do AddWord(Source,Ord(Original[I]));
   Check(GpoBuildGptIniCandidate(Source,High(Cardinal),0,Candidate)=gicOk);
@@ -733,7 +746,7 @@ begin
   Check(GpoCheckOfflinePlan(Plan,1,Source,Missing,Missing)=gbcMatch);
   for I:=Low(InvalidUtf8) to High(InvalidUtf8) do
   begin
-    Source:=Bytes('[General]'#10'Version=1'#10'X='+InvalidUtf8[I]); Before:=Copy(Source);
+    Source:=Bytes(#$ef#$bb#$bf'[General]'#10'Version=1'#10'X='+InvalidUtf8[I]); Before:=Copy(Source);
     Candidate:=Bytes('stale');
     Check(GpoBuildGptIniCandidate(Source,1,2,Candidate)=gicUnsupported);
     Check(Length(Candidate)=0); Check(CompareMem(@Source[0],@Before[0],Length(Source)));

@@ -259,7 +259,7 @@ function GpoBuildGptIniCandidate(const Data: TBytes; ExpectedVersion, NewVersion
 var S, Line, Name, Section, Value, Digits: string;
   Sections, Keys: TStringList; Width, Start, N, I, J, LineStart, LineEnd,
   P, FirstDigit, LastDigit, PrefixBytes, SuffixBytes, NewSize: SizeInt;
-  Current: Cardinal; InGeneral, Found: Boolean;
+  Current: Cardinal; InGeneral, Found, Utf8Bom: Boolean;
   function ValidUtf8:Boolean;
   var K,Count,T:SizeInt; B,B2:Byte;
   begin
@@ -283,18 +283,34 @@ var S, Line, Name, Section, Value, Digits: string;
     end;
     Result:=True;
   end;
+  function ValidCp936Bytes:Boolean;
+  var K:SizeInt; Lead,Trail:Byte;
+  begin
+    Result:=False; K:=0;
+    while K<Length(Data) do
+    begin
+      Lead:=Data[K];
+      if Lead<$80 then begin Inc(K); Continue; end;
+      if (Lead<$81) or (Lead>$fe) or (K+1>=Length(Data)) then Exit;
+      Trail:=Data[K+1];
+      if (Trail<$40) or (Trail>$fe) or (Trail=$7f) then Exit;
+      Inc(K,2);
+    end;
+    Result:=True;
+  end;
 begin
   Candidate := nil; Result := gicInvalid;
   if Length(Data)>GpoMaxFileBytes then Exit(gicTooLarge);
   if Length(Data)=0 then Exit;
   if (Length(Data)>=4) and (((Data[0]=$ff) and (Data[1]=$fe) and (Data[2]=0) and (Data[3]=0)) or
      ((Data[0]=0) and (Data[1]=0) and (Data[2]=$fe) and (Data[3]=$ff))) then Exit(gicUnsupported);
-  Width:=1; Start:=0;
+  Width:=1; Start:=0; Utf8Bom:=False;
   if (Length(Data)>=2) and (Data[0]=$ff) and (Data[1]=$fe) then
   begin Width:=2; Start:=2; if Odd(Length(Data)) then Exit; end
   else if (Length(Data)>=2) and (Data[0]=$fe) and (Data[1]=$ff) then Exit(gicUnsupported)
-  else if (Length(Data)>=3) and (Data[0]=$ef) and (Data[1]=$bb) and (Data[2]=$bf) then Start:=3;
-  if (Width=1) and not ValidUtf8 then Exit(gicUnsupported);
+  else if (Length(Data)>=3) and (Data[0]=$ef) and (Data[1]=$bb) and (Data[2]=$bf) then
+  begin Start:=3; Utf8Bom:=True; end;
+  if (Width=1) and not ValidUtf8 and (Utf8Bom or not ValidCp936Bytes) then Exit(gicUnsupported);
   N:=(Length(Data)-Start) div Width; SetLength(S,N);
   for I:=0 to N-1 do
   begin
