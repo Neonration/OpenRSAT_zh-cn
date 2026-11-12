@@ -149,6 +149,24 @@ jobs:
           lazbuild --add-package-link packages/OpenRSATCore/OpenRSATCore.lpk
           lazbuild --add-package-link packages/OpenRSATGUI/OpenRSATGUI.lpk
 
+      - name: Build offline console regression suite (Windows x64)
+        if: matrix.target.name == 'win64'
+        run: lazbuild --build-mode=test tests/openrsattests.lpi
+
+      - name: Run offline console regression suite (Windows x64)
+        if: matrix.target.name == 'win64'
+        timeout-minutes: 5
+        run: ./tests/openrsattests.exe --noenter
+
+      - name: Build offline GUI regression suite (Windows x64)
+        if: matrix.target.name == 'win64'
+        run: lazbuild tests/gui/openrsattestsgui.lpi
+
+      - name: Run offline GUI regression suite (Windows x64)
+        if: matrix.target.name == 'win64'
+        timeout-minutes: 5
+        run: ./tests/gui/openrsattestsgui.exe --noenter
+
       - name: Build OpenRSAT for ${{ matrix.target.name }}
         run: |
           lazbuild --build-mode=${{ matrix.target.name }} sources/OpenRSAT.lpi

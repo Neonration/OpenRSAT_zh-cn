@@ -36,7 +36,7 @@ After merging upstream 0.4.594, these tests passed on 2026-11-11 under Free Pasc
 
 These commands do not connect to Active Directory. They do not verify real LDAP deletion, replication, delegated permissions or TLS/Kerberos authentication. Integration tests require a dedicated AD test domain and are not included in this result. Run only the named classes above when an AD environment has not been configured.
 
-GUI checks and Windows compilation are separate from these unit assertions. No automated daily test run is configured by this change.
+GUI checks and Windows compilation are separate from these unit assertions.
 
 The merged win64 executable was also launched offline: the Chinese main window, Simplified Chinese language option, and multi-controller settings were displayed correctly. Enabling the multi-controller option enabled its host list. Restarting with a saved `zh` configuration loaded Chinese. Clicking through language selection and saving in the modal dialog was not verified end to end; persistence is covered by the tests above.
 
@@ -60,6 +60,12 @@ binary payloads, and mixed advanced-search operators and escaping. GUI tests
 cover unsaved options across page changes, profile port round trips, invalidating
 every search window on disconnect or reconnect, and retaining property edits
 after a failed save. The GUI suite needs a desktop environment.
+
+The manually dispatched cross-platform build workflow also builds and runs both
+offline suites on its Windows x64 runner, with a five-minute timeout for each
+suite. The GUI suite exercises forms and mocked interactions; it is not an
+end-to-end test of native dialogs or a real Active Directory domain. Other
+matrix targets remain build-only, and this workflow does not run on a schedule.
 
 Packaging tests use mock `dpkg-deb` and `rpmbuild` tools. They check that the local
 binary and language catalogs are copied without downloads, reject missing or
