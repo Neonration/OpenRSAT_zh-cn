@@ -20,6 +20,7 @@ uses
   unittest.umoduleaducoption,
   unittest.udns,
   unittest.uldapwritesafety,
+  unittest.ugpowritemodel,
   unittest.advancedsearch;
 
 type
@@ -51,6 +52,7 @@ begin
     TUnitTestModuleADUCOption,
     TUnitTestDNSRecord,
     TUnitTestLdapWriteSafety,
+    TUnitTestGpoWriteModel,
     TUnitTestAdvancedSearch
   ]);
 end;
