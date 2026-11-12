@@ -10,11 +10,12 @@ type
     procedure LocalFileBoundaries;
     procedure UnicodeAndConcurrentCreate;
     procedure PagedRecordEditing;
+    procedure FindRecords;
     procedure CloseAndDiffAfter64;
     procedure LocalPlanRehearsal;
   end;
 implementation
-uses SysUtils, Classes, SyncObjs, Forms, StdCtrls, ExtCtrls, ugpoformats, ugporegistrydraft, ugpolocalfiles,
+uses SysUtils, Classes, SyncObjs, Forms, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugpolocalfiles,
   ufrmgpoofflinedraft
   {$ifdef windows},Windows{$endif};
 {$ifdef windows}
@@ -460,6 +461,42 @@ begin
     finally P.Free; end;
   finally F.Free; end;
 end;
+procedure TUnitTestGpoOfflineDraftUI.FindRecords;
+var F:TTestOfflineForm; Rows:TGpoRegistryRecords; Data,Before,After:TBytes; I:Integer; Key:Word;
+begin
+  F:=TTestOfflineForm.Create(nil);
+  try
+    SetLength(Rows,401);
+    for I:=0 to High(Rows) do Rows[I]:=Item(UnicodeString('Key'+IntToStr(I)),'V',3,[1]);
+    Rows[10].ValueName:='测试名称'; Rows[250].Key:='Software\测试路径';
+    Rows[400].ValueName:='TESTVALUE';
+    Check(SerializeRegistryPol(Rows,Data)=grsOk);
+    Check(F.Draft(gdsComputer).Load(Data)=grsOk);
+    F.SelectSide(gdsUser); F.SelectSide(gdsComputer);
+    Check(F.Draft(gdsComputer).Export(Before)=grsOk);
+    F.FindText.Text:='测试'; Key:=VK_RETURN; F.FindText.OnKeyDown(F.FindText,Key,[]); Check(Key=0);
+    Check(F.Pane.PageSelector.ItemIndex=0); Check(F.Pane.Rows.Selected.Index=10);
+    F.FindButton.Click; Check(F.Pane.PageSelector.ItemIndex=1); Check(F.Pane.Rows.Selected.Index=50);
+    F.FindButton.Click; Check(F.Pane.PageSelector.ItemIndex=0); Check(F.Pane.Rows.Selected.Index=10);
+    F.FindText.Text:='testvalue'; F.FindButton.Click;
+    Check(F.Pane.PageSelector.ItemIndex=2); Check(F.Pane.Rows.Selected.Index=0);
+    F.FindText.Text:='not present'; F.FindButton.Click;
+    Check(Pos('没有匹配',F.FindStatus.Caption)>0); Check(F.Pane.PageSelector.ItemIndex=2);
+    Check(F.Pane.Rows.Selected.Index=0);
+    F.FindText.Text:=''; F.FindButton.Click; Check(Pos('请输入',F.FindStatus.Caption)>0);
+    Check(F.Draft(gdsComputer).Export(After)=grsOk);
+    Check((Length(Before)=Length(After)) and CompareMem(@Before[0],@After[0],Length(Before)));
+    Check(not F.Draft(gdsComputer).Dirty);
+    F.FindText.Text:='测试路径'; F.FindButton.Click;
+    F.NextRecord:=Item('Changed','V',3,[9]); F.EditChoice:=True; F.EditButton.Click;
+    Rows:=F.Draft(gdsComputer).Records; Check(Rows[250].Key='Changed'); Check(Rows[400].ValueName='TESTVALUE');
+    F.SelectSide(gdsUser); F.FindText.Text:='测试'; F.FindButton.Click;
+    Check(Pos('没有匹配',F.FindStatus.Caption)>0); Check(not F.Draft(gdsUser).Dirty);
+    F.Tree.Selected:=F.Tree.Items[0]; F.Tree.OnChange(F.Tree,F.Tree.Items[0]);
+    Check(not F.FindButton.Enabled);
+  finally F.Free; end;
+end;
+
 procedure TUnitTestGpoOfflineDraftUI.CloseAndDiffAfter64;
 var F:TTestOfflineForm; R:TGpoRegistryRecord; Original,After:TBytes; Dir,Path,UserPath,Err:string;
   CanClose:Boolean; I:Integer; Splitter:TSplitter;

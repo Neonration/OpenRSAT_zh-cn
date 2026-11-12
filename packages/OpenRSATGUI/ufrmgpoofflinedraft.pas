@@ -19,6 +19,9 @@ type
     fComputerNode, fUserNode: TTreeNode;
     fPane: TGpoRegistryPane;
     fStatus: TLabel;
+    fFindText:TEdit;
+    fFindButton:TButton;
+    fFindStatus:TLabel;
     fNew, fOpen, fSave, fAdd, fEdit, fDelete, fUndo, fReset, fPreview, fPlan: TButton;
     procedure TreeChanged(Sender:TObject; Node:TTreeNode);
     procedure RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);
@@ -33,6 +36,9 @@ type
     procedure ResetClick(Sender:TObject);
     procedure PreviewClick(Sender:TObject);
     procedure PlanClick(Sender:TObject);
+    procedure FindClick(Sender:TObject);
+    procedure FindChanged(Sender:TObject);
+    procedure FindKeyDown(Sender:TObject; var Key:Word; Shift:TShiftState);
     procedure RowDblClick(Sender:TObject);
     procedure Closing(Sender:TObject; var CanClose:Boolean);
     procedure RefreshView(SelectedIndex:Integer=-1; PreserveCurrent:Boolean=True);
@@ -70,13 +76,16 @@ type
     property ResetButton:TButton read fReset;
     property PreviewButton:TButton read fPreview;
     property PlanButton:TButton read fPlan;
+    property FindText:TEdit read fFindText;
+    property FindButton:TButton read fFindButton;
+    property FindStatus:TLabel read fFindStatus;
   end;
 
 function GpoParseHex(const S:string; out Data:TBytes; out Error:string):Boolean;
 function GpoValidateDraftRecord(const Item:TGpoRegistryRecord; out Error:string):Boolean;
 
 implementation
-uses Dialogs, ugpolocalfiles;
+uses Dialogs, LazUTF8, LCLType, ugpolocalfiles;
 
 resourcestring
   SDirty = ' * 未导出';
@@ -301,7 +310,7 @@ begin
   fUserNode:=fTree.Items.AddChild(Root,SUser);
   Root.Expand(False); fTree.OnChange:=@TreeChanged;
   ToolPanel:=TPanel.Create(Self); ToolPanel.Parent:=Self; ToolPanel.Align:=alTop;
-  ToolPanel.Height:=68; ToolPanel.BevelOuter:=bvNone;
+  ToolPanel.Height:=100; ToolPanel.BevelOuter:=bvNone;
   fNew:=MakeButton('新建草稿',0,0,@NewClick);
   fOpen:=MakeButton('打开本地文件',1,0,@OpenClick);
   fSave:=MakeButton('导出本地新文件',2,0,@SaveClick);
@@ -312,6 +321,12 @@ begin
   fReset:=MakeButton(SRestoreBaseline,2,1,@ResetClick);
   fPreview:=MakeButton('预览记录变更',3,1,@PreviewClick);
   fPlan:=MakeButton('本地计划预演…',4,1,@PlanClick);
+  with TLabel.Create(Self) do begin Parent:=ToolPanel; Caption:='查找记录：'; SetBounds(8,72,80,24); end;
+  fFindText:=TEdit.Create(Self); fFindText.Parent:=ToolPanel; fFindText.SetBounds(88,68,240,26);
+  fFindText.OnChange:=@FindChanged; fFindText.OnKeyDown:=@FindKeyDown;
+  fFindButton:=TButton.Create(Self); fFindButton.Parent:=ToolPanel; fFindButton.Caption:='查找下一个';
+  fFindButton.SetBounds(335,67,110,27); fFindButton.OnClick:=@FindClick;
+  fFindStatus:=TLabel.Create(Self); fFindStatus.Parent:=ToolPanel; fFindStatus.SetBounds(452,72,300,24);
   fStatus:=TLabel.Create(Self); fStatus.Parent:=Self; fStatus.Align:=alBottom;
   fStatus.AutoSize:=False; fStatus.Height:=44; fStatus.Layout:=tlCenter;
   fStatus.WordWrap:=True;
@@ -425,6 +440,7 @@ end;
 procedure TFrmGpoOfflineDraft.TreeChanged(Sender:TObject; Node:TTreeNode);
 var NewSide:TGpoDraftSide;
 begin
+  fFindStatus.Caption:='';
   if fValidSide then begin fSavedPage[fSide]:=fPane.PageSelector.ItemIndex; fSavedIndex[fSide]:=SelectedIndex; end;
   if (Node<>fUserNode) and (Node<>fComputerNode) then begin fValidSide:=False; RefreshView; Exit; end;
   if Node=fUserNode then NewSide:=gdsUser else NewSide:=gdsComputer;
@@ -432,6 +448,7 @@ begin
 end;
 procedure TFrmGpoOfflineDraft.RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);
 begin
+  fFindStatus.Caption:='';
   fEdit.Enabled:=fValidSide and Selected;
   fDelete.Enabled:=fEdit.Enabled;
 end;
@@ -447,7 +464,7 @@ begin
   fComputerNode.Text:=SComputer; if fDrafts[gdsComputer].Dirty then fComputerNode.Text:=SComputer+SDirty;
   fUserNode.Text:=SUser; if fDrafts[gdsUser].Dirty then fUserNode.Text:=SUser+SDirty;
   fNew.Enabled:=fValidSide; fOpen.Enabled:=fValidSide; fSave.Enabled:=fValidSide;
-  fAdd.Enabled:=fValidSide; fPreview.Enabled:=fValidSide;
+  fAdd.Enabled:=fValidSide; fPreview.Enabled:=fValidSide; fFindButton.Enabled:=fValidSide;
   if not fValidSide then begin
     fPane.Bind(nil); fStatus.Caption:=SChooseSide; fEdit.Enabled:=False; fDelete.Enabled:=False;
     fUndo.Enabled:=False; fReset.Enabled:=False; Exit;
@@ -624,6 +641,38 @@ begin
 end;
 procedure TFrmGpoOfflineDraft.PreviewClick(Sender:TObject);
 begin ShowPreview; end;
+
+procedure TFrmGpoOfflineDraft.FindChanged(Sender:TObject);
+begin fFindStatus.Caption:=''; end;
+
+procedure TFrmGpoOfflineDraft.FindKeyDown(Sender:TObject; var Key:Word; Shift:TShiftState);
+begin
+  if (Key=VK_RETURN) and fFindButton.Enabled then begin FindClick(Sender); Key:=0; end;
+end;
+
+procedure TFrmGpoOfflineDraft.FindClick(Sender:TObject);
+var Rows:TGpoRegistryRecords; Needle:string; Start,I,Index:Integer;
+begin
+  if not fValidSide then Exit;
+  Needle:=UTF8LowerCase(fFindText.Text);
+  if Needle='' then begin fFindStatus.Caption:='请输入键路径或值名称。'; Exit; end;
+  Rows:=Current.Records;
+  Start:=SelectedIndex+1;
+  for I:=0 to Length(Rows)-1 do
+  begin
+    Index:=(Start+I) mod Length(Rows);
+    if (Pos(Needle,UTF8LowerCase(UTF8Encode(Rows[Index].Key)))>0) or
+       (Pos(Needle,UTF8LowerCase(UTF8Encode(Rows[Index].ValueName)))>0) then
+    begin
+      fPane.SelectPage(Index div GpoRegistryPageSize);
+      fPane.Rows.Items[Index mod GpoRegistryPageSize].Selected:=True;
+      fPane.Rows.Items[Index mod GpoRegistryPageSize].MakeVisible(False);
+      fFindStatus.Caption:=Format('已定位第 %d / %d 条（循环查找）。',[Index+1,Length(Rows)]);
+      Exit;
+    end;
+  end;
+  fFindStatus.Caption:='当前分支没有匹配的记录。';
+end;
 
 function TFrmGpoOfflineDraft.EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean;
 const TypeNames:array[0..11] of string = ('REG_NONE','REG_SZ','REG_EXPAND_SZ','REG_BINARY',
