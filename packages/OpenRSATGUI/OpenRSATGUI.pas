@@ -43,7 +43,8 @@ uses
   uvisviewkeytab, uopenrsatuicontextinterface, ufrmpropertygplinks,
   uvislistgpo, ufrmpropertygeneralgpo, uvisrename, uvisobjectsselector,
   ufrmpropertypso, uhintwindow, ufrmnewpasswordsettings,
-  uvisbitlockerrecoverysearch, LazarusPackageIntf;
+  uvisbitlockerrecoverysearch, ufrmpropertygposettings, ugpolocalfiles,
+  ufrmgpoofflinedraft, LazarusPackageIntf;
 
 implementation
 

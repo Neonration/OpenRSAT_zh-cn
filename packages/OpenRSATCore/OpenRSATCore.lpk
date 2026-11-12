@@ -169,6 +169,18 @@
         <Filename Value="services\udnsservice.pas"/>
         <UnitName Value="udnsservice"/>
       </Item>
+      <Item>
+        <Filename Value="ugpoformats.pas"/>
+        <UnitName Value="ugpoformats"/>
+      </Item>
+      <Item>
+        <Filename Value="ugposysvol.pas"/>
+        <UnitName Value="ugposysvol"/>
+      </Item>
+      <Item>
+        <Filename Value="ugporegistrydraft.pas"/>
+        <UnitName Value="ugporegistrydraft"/>
+      </Item>
     </Files>
     <i18n>
       <OutDir Value="languages"/>

@@ -1697,6 +1697,15 @@ var
   begin
     if not Assigned(TreeADUC.Selected) then
       Exit;
+    if (TreeADUC.Selected as TADUCTreeNode).IsGPOType then
+    begin
+      if Assigned((TreeADUC.Selected as TADUCTreeNode).GetNodeDataGPO) then
+      begin
+        SelectedText := TreeADUC.Selected.Text;
+        DistinguishedName := (TreeADUC.Selected as TADUCTreeNode).GetNodeDataGPO.DistinguishedName;
+      end;
+      Exit;
+    end;
     NodeData := (TreeADUC.Selected as TADUCTreeNode).GetNodeDataObject;
     if not Assigned(NodeData) then
       Exit;
@@ -2375,7 +2384,7 @@ begin
         VisibleItems := Concat(VisibleItems, [MenuItem_ChangeDomainController, MenuItem_OperationsMasters]);
     end;
     atntGPO: VisibleItems := Concat(VisibleItems, [MenuItem_EnableGPO,
-      MenuItem_DisableGPO, MenuItem_EnforceGPO]);
+      MenuItem_DisableGPO, MenuItem_EnforceGPO, MenuItem_Properties]);
   end;
 
   Handled := not Assigned(LdapClient) or not LdapClient.Connected;

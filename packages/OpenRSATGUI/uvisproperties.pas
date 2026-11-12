@@ -303,6 +303,7 @@ uses
   ufrmpropertygeneralintersitetransport,
   ufrmpropertygeneralserver,
   ufrmpropertygeneralgpo,
+  ufrmpropertygposettings,
   ufrmpropertylaps,
   ufrmpropertylocation,
   ufrmpropertymanagedby,
@@ -475,6 +476,7 @@ const
 
   PROPERTY_GPO: Array of TPropertyFrameClass = (
     TFrmPropertyGeneralGPO,
+    TFrmPropertyGpoSettings,
     TFrmPropertyObject,
     TFrmPropertySecurity,
     TFrmPropertyAttributes
@@ -648,7 +650,22 @@ end;
 procedure TVisProperties.FormShow(Sender: TObject);
 begin
   if LoadAttributes then
+  begin
+    if fProperty.objectType = 'groupPolicyContainer' then
+    begin
+      if fProperty.GetReadable('displayName') <> '' then
+        Caption := fProperty.GetReadable('displayName') + ' (' + fProperty.GetReadable('name') + ')';
+      IniPropStorage1.IniSection := Name;
+      try
+        if IniPropStorage1.ReadInteger(FormatUtf8('%_Width', [Name]), 0) = 0 then
+        begin
+          Width := MulDiv(900, PixelsPerInch, 96);
+          if Width > Screen.Width then Width := Screen.Width;
+        end;
+      finally IniPropStorage1.IniSection := ''; end;
+    end;
     LoadView;
+  end;
   MakeFullyVisible;
 end;
 

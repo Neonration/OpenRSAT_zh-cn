@@ -8025,3 +8025,153 @@ msgstr "Cette organisation"
 #: ucommon.rswellknownsidworld
 msgid "Everyone"
 msgstr "Tout le monde"
+
+#: ufrmpropertygposettings.sgpostateerror
+msgctxt "ufrmpropertygposettings.sgpostateerror"
+msgid "读取未完成或失败，请展开详情查看原因。"
+msgstr "Lecture incomplète ou échouée ; développez les détails pour en connaître la raison."
+
+#: ufrmpropertygposettings.sgposcope
+msgctxt "ufrmpropertygposettings.sgposcope"
+msgid "Registry.pol 原始记录（只读）；非最终生效策略。"
+msgstr "Enregistrements bruts Registry.pol (lecture seule) ; pas la stratégie effective finale."
+
+#: ufrmpropertygposettings.sgpostateinitial
+msgctxt "ufrmpropertygposettings.sgpostateinitial"
+msgid "尚未加载。点击“加载 / 刷新”读取只读快照。"
+msgstr "Non chargé. Cliquez sur Charger / Actualiser pour lire un instantané en lecture seule."
+
+#: ufrmpropertygposettings.sgpostateloading
+msgctxt "ufrmpropertygposettings.sgpostateloading"
+msgid "正在读取 Registry.pol 原始记录…"
+msgstr "Lecture des enregistrements bruts Registry.pol…"
+
+#: ufrmpropertygposettings.sgpostatewaitingcancel
+msgctxt "ufrmpropertygposettings.sgpostatewaitingcancel"
+msgid "已请求取消，正在等待系统读取返回。"
+msgstr "Annulation demandée ; attente du retour de la lecture système."
+
+#: ufrmpropertygposettings.sgpostatewaitingtimeout
+msgctxt "ufrmpropertygposettings.sgpostatewaitingtimeout"
+msgid "读取已超时，正在等待系统调用返回。"
+msgstr "Délai de lecture dépassé ; attente du retour de l’appel système."
+
+#: ufrmpropertygposettings.sgpostatecancelled
+msgctxt "ufrmpropertygposettings.sgpostatecancelled"
+msgid "读取已取消，可以重新加载。"
+msgstr "Lecture annulée ; vous pouvez recharger."
+
+#: ufrmpropertygposettings.sgpostatetimeout
+msgctxt "ufrmpropertygposettings.sgpostatetimeout"
+msgid "读取已超时，可以重新加载。"
+msgstr "Délai de lecture dépassé ; vous pouvez recharger."
+
+#: ufrmpropertygposettings.sgpostatemismatch
+msgctxt "ufrmpropertygposettings.sgpostatemismatch"
+msgid "警告：GPC 与 GPT 版本不一致。"
+msgstr "Attention : les versions GPC et GPT diffèrent."
+
+#: ufrmpropertygposettings.sgposidecomputer
+msgctxt "ufrmpropertygposettings.sgposidecomputer"
+msgid "计算机："
+msgstr "Ordinateur : "
+
+#: ufrmpropertygposettings.sgposideuser
+msgctxt "ufrmpropertygposettings.sgposideuser"
+msgid "用户："
+msgstr "Utilisateur : "
+
+#: ufrmpropertygposettings.sgponofile
+msgctxt "ufrmpropertygposettings.sgponofile"
+msgid "文件未找到（其他扩展仍可能有策略）"
+msgstr "Fichier introuvable (d’autres extensions peuvent contenir des stratégies)"
+
+#: ufrmpropertygposettings.sgpopresent
+msgctxt "ufrmpropertygposettings.sgpopresent"
+msgid "文件存在，%d 条原始记录"
+msgstr "Fichier présent, %d enregistrements bruts"
+
+#: ufrmpropertygposettings.sgpoviewrecord
+msgctxt "ufrmpropertygposettings.sgpoviewrecord"
+msgid "查看记录…"
+msgstr "Voir l’enregistrement…"
+
+#: ufrmpropertygposettings.sgpononame
+msgctxt "ufrmpropertygposettings.sgpononame"
+msgid "（默认值 / 无名称）"
+msgstr "(valeur par défaut / sans nom)"
+
+#: ufrmpropertygposettings.sgpotypenumber
+msgctxt "ufrmpropertygposettings.sgpotypenumber"
+msgid "%s（%u）"
+msgstr "%s (%u)"
+
+#: ufrmgpoofflinedraft.sdirty
+msgctxt "ufrmgpoofflinedraft.sdirty"
+msgid " * 未导出"
+msgstr " * Non exporté"
+
+#: ufrmgpoofflinedraft.scomputer
+msgctxt "ufrmgpoofflinedraft.scomputer"
+msgid "计算机配置 — 注册表"
+msgstr "Configuration ordinateur — Registre"
+
+#: ufrmgpoofflinedraft.suser
+msgctxt "ufrmgpoofflinedraft.suser"
+msgid "用户配置 — 注册表"
+msgstr "Configuration utilisateur — Registre"
+
+#: ufrmgpoofflinedraft.schooseside
+msgctxt "ufrmgpoofflinedraft.schooseside"
+msgid "请选择计算机或用户分支；本地 Registry.pol 草稿不会应用到域。"
+msgstr "Sélectionnez la branche ordinateur ou utilisateur ; les brouillons Registry.pol locaux ne sont pas appliqués au domaine."
+
+#: ufrmgpoofflinedraft.srestorebaseline
+msgctxt "ufrmgpoofflinedraft.srestorebaseline"
+msgid "还原基线…"
+msgstr "Restaurer la référence…"
+
+#: ufrmgpoofflinedraft.srestorequestion
+msgctxt "ufrmgpoofflinedraft.srestorequestion"
+msgid "将放弃当前分支的全部修改并还原最近载入或导出的基线，确定吗？"
+msgstr "Abandonner les modifications de cette branche et restaurer la dernière référence chargée ou exportée ?"
+
+#: ufrmgpoofflinedraft.sclosetitle
+msgctxt "ufrmgpoofflinedraft.sclosetitle"
+msgid "本地草稿尚未导出"
+msgstr "Brouillon local non exporté"
+
+#: ufrmgpoofflinedraft.sclosequestion
+msgctxt "ufrmgpoofflinedraft.sclosequestion"
+msgid "以下分支尚未导出：%s。是：逐项导出并关闭；否：放弃并关闭；取消：返回编辑。"
+msgstr "Branches non exportées : %s. Oui : exporter chacune et fermer ; Non : abandonner et fermer ; Annuler : reprendre la modification."
+
+#: ufrmgpoofflinedraft.sdiffoffset
+msgctxt "ufrmgpoofflinedraft.sdiffoffset"
+msgid "  首个不同字节偏移（从 0 计）：%d；原：%s；新：%s"
+msgstr "  Décalage du premier octet différent (base zéro) : %d ; avant : %s ; après : %s"
+
+#: ufrmgpoofflinedraft.snobyte
+msgctxt "ufrmgpoofflinedraft.snobyte"
+msgid "（无字节）"
+msgstr "(aucun octet)"
+
+#: ufrmgpoofflinedraft.sexported
+msgctxt "ufrmgpoofflinedraft.sexported"
+msgid "已导出 %s，已设为基线：%s"
+msgstr "%s exporté ; défini comme référence : %s"
+
+#: ufrmgpoofflinedraft.scloseyes
+msgctxt "ufrmgpoofflinedraft.scloseyes"
+msgid "是，导出"
+msgstr "Oui, exporter"
+
+#: ufrmgpoofflinedraft.scloseno
+msgctxt "ufrmgpoofflinedraft.scloseno"
+msgid "否，放弃"
+msgstr "Non, abandonner"
+
+#: ufrmgpoofflinedraft.sclosecancel
+msgctxt "ufrmgpoofflinedraft.sclosecancel"
+msgid "取消"
+msgstr "Annuler"

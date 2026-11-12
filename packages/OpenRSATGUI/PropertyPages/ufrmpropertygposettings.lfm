@@ -1,0 +1,7 @@
+object FrmPropertyGpoSettings: TFrmPropertyGpoSettings
+  Left = 0
+  Height = 500
+  Top = 0
+  Width = 650
+  TabOrder = 0
+end

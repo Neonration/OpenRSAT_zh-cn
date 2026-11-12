@@ -8015,3 +8015,153 @@ msgstr "This Organisation"
 #: ucommon.rswellknownsidworld
 msgid "Everyone"
 msgstr "Everyone"
+
+#: ufrmpropertygposettings.sgpostateerror
+msgctxt "ufrmpropertygposettings.sgpostateerror"
+msgid "读取未完成或失败，请展开详情查看原因。"
+msgstr "Read incomplete or failed; expand details for the reason."
+
+#: ufrmpropertygposettings.sgposcope
+msgctxt "ufrmpropertygposettings.sgposcope"
+msgid "Registry.pol 原始记录（只读）；非最终生效策略。"
+msgstr "Registry.pol raw records (read-only); not the final effective policy."
+
+#: ufrmpropertygposettings.sgpostateinitial
+msgctxt "ufrmpropertygposettings.sgpostateinitial"
+msgid "尚未加载。点击“加载 / 刷新”读取只读快照。"
+msgstr "Not loaded. Select Load / Refresh to read a read-only snapshot."
+
+#: ufrmpropertygposettings.sgpostateloading
+msgctxt "ufrmpropertygposettings.sgpostateloading"
+msgid "正在读取 Registry.pol 原始记录…"
+msgstr "Reading Registry.pol raw records…"
+
+#: ufrmpropertygposettings.sgpostatewaitingcancel
+msgctxt "ufrmpropertygposettings.sgpostatewaitingcancel"
+msgid "已请求取消，正在等待系统读取返回。"
+msgstr "Cancellation requested; waiting for the system read to return."
+
+#: ufrmpropertygposettings.sgpostatewaitingtimeout
+msgctxt "ufrmpropertygposettings.sgpostatewaitingtimeout"
+msgid "读取已超时，正在等待系统调用返回。"
+msgstr "Read timed out; waiting for the system call to return."
+
+#: ufrmpropertygposettings.sgpostatecancelled
+msgctxt "ufrmpropertygposettings.sgpostatecancelled"
+msgid "读取已取消，可以重新加载。"
+msgstr "Read cancelled; you can reload."
+
+#: ufrmpropertygposettings.sgpostatetimeout
+msgctxt "ufrmpropertygposettings.sgpostatetimeout"
+msgid "读取已超时，可以重新加载。"
+msgstr "Read timed out; you can reload."
+
+#: ufrmpropertygposettings.sgpostatemismatch
+msgctxt "ufrmpropertygposettings.sgpostatemismatch"
+msgid "警告：GPC 与 GPT 版本不一致。"
+msgstr "Warning: GPC and GPT versions differ."
+
+#: ufrmpropertygposettings.sgposidecomputer
+msgctxt "ufrmpropertygposettings.sgposidecomputer"
+msgid "计算机："
+msgstr "Computer: "
+
+#: ufrmpropertygposettings.sgposideuser
+msgctxt "ufrmpropertygposettings.sgposideuser"
+msgid "用户："
+msgstr "User: "
+
+#: ufrmpropertygposettings.sgponofile
+msgctxt "ufrmpropertygposettings.sgponofile"
+msgid "文件未找到（其他扩展仍可能有策略）"
+msgstr "File not found (other extensions may still contain policies)"
+
+#: ufrmpropertygposettings.sgpopresent
+msgctxt "ufrmpropertygposettings.sgpopresent"
+msgid "文件存在，%d 条原始记录"
+msgstr "File exists, %d raw records"
+
+#: ufrmpropertygposettings.sgpoviewrecord
+msgctxt "ufrmpropertygposettings.sgpoviewrecord"
+msgid "查看记录…"
+msgstr "View record…"
+
+#: ufrmpropertygposettings.sgpononame
+msgctxt "ufrmpropertygposettings.sgpononame"
+msgid "（默认值 / 无名称）"
+msgstr "(default value / unnamed)"
+
+#: ufrmpropertygposettings.sgpotypenumber
+msgctxt "ufrmpropertygposettings.sgpotypenumber"
+msgid "%s（%u）"
+msgstr "%s (%u)"
+
+#: ufrmgpoofflinedraft.sdirty
+msgctxt "ufrmgpoofflinedraft.sdirty"
+msgid " * 未导出"
+msgstr " * Not exported"
+
+#: ufrmgpoofflinedraft.scomputer
+msgctxt "ufrmgpoofflinedraft.scomputer"
+msgid "计算机配置 — 注册表"
+msgstr "Computer Configuration — Registry"
+
+#: ufrmgpoofflinedraft.suser
+msgctxt "ufrmgpoofflinedraft.suser"
+msgid "用户配置 — 注册表"
+msgstr "User Configuration — Registry"
+
+#: ufrmgpoofflinedraft.schooseside
+msgctxt "ufrmgpoofflinedraft.schooseside"
+msgid "请选择计算机或用户分支；本地 Registry.pol 草稿不会应用到域。"
+msgstr "Select the computer or user branch; local Registry.pol drafts are not applied to the domain."
+
+#: ufrmgpoofflinedraft.srestorebaseline
+msgctxt "ufrmgpoofflinedraft.srestorebaseline"
+msgid "还原基线…"
+msgstr "Restore baseline…"
+
+#: ufrmgpoofflinedraft.srestorequestion
+msgctxt "ufrmgpoofflinedraft.srestorequestion"
+msgid "将放弃当前分支的全部修改并还原最近载入或导出的基线，确定吗？"
+msgstr "Discard all changes in this branch and restore the last loaded or exported baseline?"
+
+#: ufrmgpoofflinedraft.sclosetitle
+msgctxt "ufrmgpoofflinedraft.sclosetitle"
+msgid "本地草稿尚未导出"
+msgstr "Local draft not exported"
+
+#: ufrmgpoofflinedraft.sclosequestion
+msgctxt "ufrmgpoofflinedraft.sclosequestion"
+msgid "以下分支尚未导出：%s。是：逐项导出并关闭；否：放弃并关闭；取消：返回编辑。"
+msgstr "The following branches are not exported: %s. Yes: export each and close; No: discard and close; Cancel: return to editing."
+
+#: ufrmgpoofflinedraft.sdiffoffset
+msgctxt "ufrmgpoofflinedraft.sdiffoffset"
+msgid "  首个不同字节偏移（从 0 计）：%d；原：%s；新：%s"
+msgstr "  First differing byte offset (zero-based): %d; before: %s; after: %s"
+
+#: ufrmgpoofflinedraft.snobyte
+msgctxt "ufrmgpoofflinedraft.snobyte"
+msgid "（无字节）"
+msgstr "(no byte)"
+
+#: ufrmgpoofflinedraft.sexported
+msgctxt "ufrmgpoofflinedraft.sexported"
+msgid "已导出 %s，已设为基线：%s"
+msgstr "Exported %s; set as baseline: %s"
+
+#: ufrmgpoofflinedraft.scloseyes
+msgctxt "ufrmgpoofflinedraft.scloseyes"
+msgid "是，导出"
+msgstr "Yes, export"
+
+#: ufrmgpoofflinedraft.scloseno
+msgctxt "ufrmgpoofflinedraft.scloseno"
+msgid "否，放弃"
+msgstr "No, discard"
+
+#: ufrmgpoofflinedraft.sclosecancel
+msgctxt "ufrmgpoofflinedraft.sclosecancel"
+msgid "取消"
+msgstr "Cancel"

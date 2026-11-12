@@ -12,7 +12,7 @@
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="111">
+    <Files Count="114">
       <Item1>
         <Filename Value="ufrmmoduleaduc.pas"/>
         <UnitName Value="ufrmmoduleaduc"/>
@@ -457,6 +457,18 @@
         <Filename Value="uvisbitlockerrecoverysearch.pas"/>
         <UnitName Value="uvisbitlockerrecoverysearch"/>
       </Item111>
+      <Item112>
+        <Filename Value="PropertyPages\ufrmpropertygposettings.pas"/>
+        <UnitName Value="ufrmpropertygposettings"/>
+      </Item112>
+      <Item113>
+        <Filename Value="ugpolocalfiles.pas"/>
+        <UnitName Value="ugpolocalfiles"/>
+      </Item113>
+      <Item114>
+        <Filename Value="ufrmgpoofflinedraft.pas"/>
+        <UnitName Value="ufrmgpoofflinedraft"/>
+      </Item114>
     </Files>
     <CompatibilityMode Value="True"/>
     <i18n>

@@ -20,6 +20,8 @@ uses
   unittest.umoduleaducoption,
   unittest.udns,
   unittest.uldapwritesafety,
+  unittest.ugporeadonly,
+  unittest.ugpooffline,
   unittest.ugpowritemodel,
   unittest.advancedsearch;
 
@@ -52,6 +54,8 @@ begin
     TUnitTestModuleADUCOption,
     TUnitTestDNSRecord,
     TUnitTestLdapWriteSafety,
+    TUnitTestGpoReadOnly,
+    TUnitTestGpoOffline,
     TUnitTestGpoWriteModel,
     TUnitTestAdvancedSearch
   ]);

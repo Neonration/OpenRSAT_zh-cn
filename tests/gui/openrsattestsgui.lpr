@@ -10,7 +10,9 @@ uses
   unittest.optionsswitch,
   unittest.uprofileconfiguration,
   unittest.searchsafety,
-  unittest.upropertiessafety;
+  unittest.upropertiessafety,
+  unittest.ugposettings,
+  unittest.ugpoofflinedraft;
 
 type
 
@@ -29,7 +31,9 @@ begin
     TUnitTestOptionsSwitch,
     TUnitTestProfileConfiguration,
     TUnitTestSearchSafety,
-    TUnitTestPropertiesSafety
+    TUnitTestPropertiesSafety,
+    TUnitTestGpoSettings,
+    TUnitTestGpoOfflineDraftUI
   ]);
 end;
 

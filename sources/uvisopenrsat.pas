@@ -1,6 +1,6 @@
 unit uvisopenrsat;
 
-{$mode ObjFPC}{$H+}
+{$mode ObjFPC}{$H+}{$codepage UTF8}
 
 interface
 
@@ -130,6 +130,7 @@ type
     function GetLdapConfigs: TLdapConfigs;
     procedure OnOptionChange(Option: TOption);
     procedure RestoreOldConfig;
+    procedure OpenGpoOfflineDraft(Sender: TObject);
     procedure UpdateViewThemeButtons;
 
     procedure UpdateLang;
@@ -177,11 +178,19 @@ uses
   ufrmmoduleaduc,
   ufrmmoduledns,
   ufrmmodulesitesandservices,
-  ufrmmoduleserviceinterfaces;
+  ufrmmoduleserviceinterfaces,
+  ufrmgpoofflinedraft;
 
 {$R *.lfm}
 
 { TVisRsatConsole }
+
+procedure TVisOpenRSAT.OpenGpoOfflineDraft(Sender: TObject);
+var Window:TFrmGpoOfflineDraft;
+begin
+  Window:=TFrmGpoOfflineDraft.Create(Self);
+  try Window.ShowModal; finally Window.Free; end;
+end;
 
 procedure TVisOpenRSAT.Action_QuitExecute(Sender: TObject);
 begin
@@ -591,8 +600,13 @@ begin
 end;
 
 constructor TVisOpenRSAT.Create(TheOwner: TComponent);
+var OfflineItem:TMenuItem;
 begin
   inherited Create(TheOwner);
+  OfflineItem:=TMenuItem.Create(MainMenu);
+  OfflineItem.Caption:='GPO 本地离线草稿…';
+  OfflineItem.OnClick:=@OpenGpoOfflineDraft;
+  MenuItem_File.Insert(MenuItem_FileOptions.MenuIndex,OfflineItem);
 
   fLog := TOpenRSATLog;
   if Assigned(fLog) then
