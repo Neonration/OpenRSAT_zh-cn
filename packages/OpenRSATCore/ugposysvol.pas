@@ -9,6 +9,34 @@ uses Classes, SysUtils, ugpoformats, mormot.net.ldap;
 type
   TGpoFile = (gfGptIni, gfMachineRegistry, gfUserRegistry);
   TGpoFileObservation = (gfoUnavailable, gfoPresent, gfoLeafAbsent);
+  TGpoPreflightTarget = record
+    Domain, DC, DN, Guid, FileSysPath:string;
+    ObjectGuid:TBytes;
+    Session:IInterface;
+  end;
+  TGpoPreflightResult = (gprInvalid, gprSessionInvalid, gprTargetMismatch,
+    gprReadUnavailable, gprConflict, gprEvidenceIncomplete);
+  TGpoCapturedFile = record
+    Status:TGpoReadStatus;
+    Observation:TGpoFileObservation;
+    Data:TBytes;
+  end;
+  TGpoCapturedFiles = array[TGpoFile] of TGpoCapturedFile;
+  // In-memory binding only. The caller must independently verify target provenance.
+  // Even matching bytes return EvidenceIncomplete: metadata is not captured here.
+  TGpoBoundPlan = class
+  private
+    fTarget:TGpoPreflightTarget;
+    fPlan:TGpoOfflinePlan;
+    fToken:ILdapSessionToken;
+  public
+    class function Bind(const Target:TGpoPreflightTarget; const Plan:TGpoOfflinePlan;
+      out Bound:TGpoBoundPlan):TGpoPreflightResult; static;
+    function Compare(const Target:TGpoPreflightTarget; GpcStatus:TGpoReadStatus; GpcVersion:Cardinal;
+      GptStatus:TGpoReadStatus; const Ini:TBytes;
+      UserStatus:TGpoReadStatus; UserObservation:TGpoFileObservation; const UserData:TBytes;
+      MachineStatus:TGpoReadStatus; MachineObservation:TGpoFileObservation; const MachineData:TBytes):TGpoPreflightResult;
+  end;
   // Cooperative only: synchronous OS SMB calls may outlive this deadline.
   // The caller keeps this object alive until the read has returned.
   TGpoReadControl = class
@@ -38,6 +66,9 @@ function GpoReadFile(const FileSysPath, ExpectedDomain, ConnectedDC,
 function GpoReadFileObserved(const FileSysPath, ExpectedDomain, ConnectedDC,
   Guid: string; Artifact: TGpoFile; out Data: TBytes; out Observation:TGpoFileObservation;
   Control: TGpoReadControl = nil): TGpoReadStatus;
+// Synchronous and read-only. Caller must first verify the target via LDAP;
+// a successful file capture still lacks metadata and never authorizes writing.
+function GpoCapturePreflightFiles(const Target:TGpoPreflightTarget; out Files:TGpoCapturedFiles):TGpoPreflightResult;
 
 // Uses the same canonical validation, then bypasses the Win32 UNC alias only.
 function GpoBuildNativePath(const FileSysPath, ExpectedDomain, ConnectedDC,
@@ -80,6 +111,57 @@ function GetFileInformationByHandleEx(H: THandle; InfoClass: LongInt;
   Info: Pointer; Size: DWORD): LongBool; stdcall; external 'kernel32.dll';
 {$endif}
 
+class function TGpoBoundPlan.Bind(const Target:TGpoPreflightTarget; const Plan:TGpoOfflinePlan;
+  out Bound:TGpoBoundPlan):TGpoPreflightResult;
+var Token:ILdapSessionToken; Path:string; U,M:TGpoPolicyImage; Frozen:TGpoOfflinePlan;
+begin
+  Bound:=nil; Result:=gprInvalid;
+  if not Assigned(Target.Session) or not Supports(Target.Session,ILdapSessionToken,Token) or
+     not Token.IsValid then Exit(gprSessionInvalid);
+  if (Target.DN='') or (Length(Target.ObjectGuid)<>16) or SameText(Target.Domain,Target.DC) or
+     (GpoBuildSafePath(Target.FileSysPath,Target.Domain,Target.DC,Target.Guid,gfGptIni,Path)<>grsOk) then Exit;
+  if GpoCheckOfflinePlan(Plan,Plan.Baseline.GpcVersion,Plan.Baseline.GptIni,
+    Plan.Baseline.UserPolicy,Plan.Baseline.MachinePolicy)<>gbcMatch then Exit;
+  U.Exists:=Plan.UserExists; U.Data:=Plan.UserPolicy;
+  M.Exists:=Plan.MachineExists; M.Data:=Plan.MachinePolicy;
+  if GpoBuildOfflinePlanWithPresence(Plan.Baseline.GpcVersion,Plan.Baseline.GpcVersion,
+    Plan.Baseline.GptIni,Plan.Baseline.UserPolicy,U,Plan.Baseline.MachinePolicy,M,Frozen)<>gopOk then Exit;
+  if not Token.IsValid then Exit(gprSessionInvalid);
+  Bound:=TGpoBoundPlan.Create; Bound.fTarget:=Target; Bound.fTarget.ObjectGuid:=Copy(Target.ObjectGuid);
+  Bound.fToken:=Token; Bound.fPlan:=Frozen; Result:=gprEvidenceIncomplete;
+end;
+
+function TGpoBoundPlan.Compare(const Target:TGpoPreflightTarget; GpcStatus:TGpoReadStatus; GpcVersion:Cardinal;
+  GptStatus:TGpoReadStatus; const Ini:TBytes;
+  UserStatus:TGpoReadStatus; UserObservation:TGpoFileObservation; const UserData:TBytes;
+  MachineStatus:TGpoReadStatus; MachineObservation:TGpoFileObservation; const MachineData:TBytes):TGpoPreflightResult;
+var U,M:TGpoPolicyImage; Check:TGpoBaselineCheck; Token:ILdapSessionToken;
+  function Image(Status:TGpoReadStatus; Observation:TGpoFileObservation; const Data:TBytes; out Value:TGpoPolicyImage):Boolean;
+  begin
+    Value:=Default(TGpoPolicyImage); Result:=False;
+    if (Status=grsOk) and (Observation=gfoPresent) then begin Value.Exists:=True; Value.Data:=Data; Exit(True); end;
+    if (Status=grsMissing) and (Observation=gfoLeafAbsent) and (Length(Data)=0) then Exit(True);
+  end;
+begin
+  if not Assigned(fToken) or not fToken.IsValid or not Assigned(Target.Session) or
+     not Supports(Target.Session,ILdapSessionToken,Token) or not Token.IsValid or
+     (Target.Session<>fTarget.Session) then Exit(gprSessionInvalid);
+  if not SameText(Target.Domain,fTarget.Domain) or not SameText(Target.DC,fTarget.DC) or
+     not SameText(Target.DN,fTarget.DN) or not SameText(Target.Guid,fTarget.Guid) or
+     not SameText(Target.FileSysPath,fTarget.FileSysPath) or (Length(Target.ObjectGuid)<>16) or
+     not CompareMem(@Target.ObjectGuid[0],@fTarget.ObjectGuid[0],16) then Exit(gprTargetMismatch);
+  if (GpcStatus<>grsOk) or (GptStatus<>grsOk) or
+     not Image(UserStatus,UserObservation,UserData,U) or
+     not Image(MachineStatus,MachineObservation,MachineData,M) then Exit(gprReadUnavailable);
+  Check:=GpoCheckOfflinePlan(fPlan,GpcVersion,Ini,U,M);
+  if not fToken.IsValid then Exit(gprSessionInvalid);
+  case Check of
+    gbcInvalid:Result:=gprInvalid;
+    gbcConflict:Result:=gprConflict;
+    else Result:=gprEvidenceIncomplete;
+  end;
+end;
+
 constructor TGpoReadControl.Create(BudgetMS: Cardinal; const SessionToken: IInterface);
 begin
   inherited Create;
@@ -104,6 +186,30 @@ begin
   if Cancelled or not SessionValid then Exit(grsCancelled);
   if GetTickCount64-fStarted >= fBudget then Exit(grsTimedOut);
   Result := grsOk;
+end;
+
+function GpoCapturePreflightFiles(const Target:TGpoPreflightTarget; out Files:TGpoCapturedFiles):TGpoPreflightResult;
+var Token:ILdapSessionToken; Control:TGpoReadControl; Artifact:TGpoFile; Path:string;
+begin
+  for Artifact:=Low(TGpoFile) to High(TGpoFile) do
+  begin Files[Artifact].Status:=grsIoError; Files[Artifact].Observation:=gfoUnavailable; Files[Artifact].Data:=nil; end;
+  if not Assigned(Target.Session) or not Supports(Target.Session,ILdapSessionToken,Token) or
+     not Token.IsValid then Exit(gprSessionInvalid);
+  if (Target.DN='') or (Length(Target.ObjectGuid)<>16) or SameText(Target.Domain,Target.DC) or
+     (GpoBuildSafePath(Target.FileSysPath,Target.Domain,Target.DC,Target.Guid,gfGptIni,Path)<>grsOk) then Exit(gprInvalid);
+  Control:=TGpoReadControl.Create(30000,Target.Session);
+  try
+    for Artifact:=Low(TGpoFile) to High(TGpoFile) do
+    begin
+      Files[Artifact].Status:=GpoReadFileObserved(Target.FileSysPath,Target.Domain,Target.DC,Target.Guid,
+        Artifact,Files[Artifact].Data,Files[Artifact].Observation,Control);
+      if not Token.IsValid then Exit(gprSessionInvalid);
+      if not ((Files[Artifact].Status=grsOk) and (Files[Artifact].Observation=gfoPresent)) and
+         not ((Artifact<>gfGptIni) and (Files[Artifact].Status=grsMissing) and
+           (Files[Artifact].Observation=gfoLeafAbsent)) then Exit(gprReadUnavailable);
+    end;
+    Result:=gprEvidenceIncomplete;
+  finally Control.Free; end;
 end;
 
 function ReadControlStatus(Control: TGpoReadControl): TGpoReadStatus;

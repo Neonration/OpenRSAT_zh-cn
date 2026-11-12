@@ -1,7 +1,7 @@
 unit unittest.ugporeadonly;
 {$mode ObjFPC}{$H+}
 interface
-uses Classes, SysUtils, mormot.core.test, ugpoformats, ugposysvol;
+uses Classes, SysUtils, mormot.core.test, mormot.net.ldap, ugpoformats, ugposysvol;
 type
   TUnitTestGpoReadOnly = class(TSynTestCase)
   published
@@ -16,6 +16,7 @@ type
     procedure OfflinePlanPresence;
     procedure OfflineBaselineChecks;
     procedure OfflinePlanIntegrity;
+    procedure BoundPlanComparison;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -24,6 +25,15 @@ type
     {$endif}
   end;
 implementation
+type
+  TPreflightToken=class(TInterfacedObject,ILdapSessionToken)
+    Valid:Boolean;
+    function IsValid:Boolean;
+    procedure Invalidate;
+  end;
+function TPreflightToken.IsValid:Boolean; begin Result:=Valid; end;
+procedure TPreflightToken.Invalidate; begin Valid:=False; end;
+
 procedure TUnitTestGpoReadOnly.VersionPlanning;
 var P:TGpoVersionPlan; V:Cardinal;
 begin
@@ -66,6 +76,62 @@ begin
 end;
 function Bytes(const S:RawByteString):TBytes;
 begin Result:=nil; SetLength(Result,Length(S)); if Length(S)>0 then Move(S[1],Result[0],Length(S)); end;
+procedure TUnitTestGpoReadOnly.BoundPlanComparison;
+const Guid='{12345678-1234-1234-1234-123456789ABC}';
+var T,Other:TGpoPreflightTarget; Token,OtherToken:ILdapSessionToken; TokenObj:TPreflightToken; UOld,UNew,MOld,MNew:TGpoPolicyImage;
+  P:TGpoOfflinePlan; Bound:TGpoBoundPlan; Ini:TBytes; R:TGpoPreflightResult; Files:TGpoCapturedFiles;
+  function CompareCurrent:TGpoPreflightResult;
+  begin Result:=Bound.Compare(T,grsOk,1,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data); end;
+begin
+  TokenObj:=TPreflightToken.Create; TokenObj.Valid:=True; Token:=TokenObj;
+  T:=Default(TGpoPreflightTarget); T.Domain:='example.test'; T.DC:='dc.example.test'; T.DN:='CN=policy,DC=example,DC=test';
+  T.Guid:=Guid; T.FileSysPath:='\\example.test\SYSVOL\example.test\Policies\'+Guid;
+  SetLength(T.ObjectGuid,16); T.ObjectGuid[0]:=7; T.Session:=Token;
+  Ini:=Bytes('[General]'#13#10'Version=1'#13#10);
+  UOld:=Default(TGpoPolicyImage); UNew.Exists:=True; UNew.Data:=Header;
+  MOld.Exists:=True; MOld.Data:=Header; MNew:=Default(TGpoPolicyImage);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,UOld,UNew,MOld,MNew,P)=gopOk);
+  Check((P.UserAction=gpaCreate) and (P.MachineAction=gpaDelete));
+  R:=TGpoBoundPlan.Bind(T,P,Bound); Check((R=gprEvidenceIncomplete) and Assigned(Bound));
+  if not Assigned(Bound) then Exit;
+  try
+    Check(CompareCurrent=gprEvidenceIncomplete);
+    P.Baseline.GptIni[0]:=0; P.UserPolicy[0]:=0;
+    Check(CompareCurrent=gprEvidenceIncomplete,'Binding must own independent plan bytes');
+    Other:=T; Other.DC:='dc2.example.test';
+    Check(Bound.Compare(Other,grsOk,1,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprTargetMismatch);
+    Other:=T; Other.FileSysPath:='\\untrusted\share';
+    Check(GpoCapturePreflightFiles(Other,Files)=gprInvalid);
+    Check(Files[gfGptIni].Observation=gfoUnavailable);
+    Other:=T; Other.ObjectGuid:=Copy(T.ObjectGuid); Other.ObjectGuid[0]:=8;
+    Check(Bound.Compare(Other,grsOk,1,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprTargetMismatch);
+    Check(Bound.Compare(T,grsOk,1,grsOk,Ini,grsMissing,gfoUnavailable,nil,grsOk,gfoPresent,MOld.Data)=gprReadUnavailable);
+    Check(Bound.Compare(T,grsAccessDenied,1,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprReadUnavailable);
+    Check(Bound.Compare(T,grsOk,2,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
+    TokenObj:=TPreflightToken.Create; TokenObj.Valid:=True; OtherToken:=TokenObj; Other:=T; Other.Session:=OtherToken;
+    Check(Bound.Compare(Other,grsOk,1,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprSessionInvalid);
+    Token.Invalidate; Check(CompareCurrent=gprSessionInvalid);
+    Check(GpoCapturePreflightFiles(T,Files)=gprSessionInvalid);
+    Check(Files[gfMachineRegistry].Observation=gfoUnavailable);
+  finally Bound.Free; end;
+  TokenObj:=TPreflightToken.Create; TokenObj.Valid:=True; Token:=TokenObj; T.Session:=Token;
+  UNew:=UOld; MNew:=MOld;
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,UOld,UNew,MOld,MNew,P)=gopOk);
+  Check((P.UserAction=gpaNone) and (P.MachineAction=gpaNone));
+  R:=TGpoBoundPlan.Bind(T,P,Bound); Check((R=gprEvidenceIncomplete) and Assigned(Bound));
+  if Assigned(Bound) then begin Check(CompareCurrent=gprEvidenceIncomplete); Bound.Free; end;
+  UOld.Exists:=True; UOld.Data:=Header; UNew:=Default(TGpoPolicyImage);
+  MOld:=Default(TGpoPolicyImage); MNew.Exists:=True; MNew.Data:=Header;
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,UOld,UNew,MOld,MNew,P)=gopOk);
+  Check((P.UserAction=gpaDelete) and (P.MachineAction=gpaCreate));
+  Check(TGpoBoundPlan.Bind(T,P,Bound)=gprEvidenceIncomplete);
+  if Assigned(Bound) then
+  begin
+    Check(Bound.Compare(T,grsOk,1,grsOk,Ini,grsOk,gfoPresent,UOld.Data,grsMissing,gfoLeafAbsent,nil)=gprEvidenceIncomplete);
+    Bound.Free;
+  end;
+  P.Version.Version:=99; Check(TGpoBoundPlan.Bind(T,P,Bound)=gprInvalid); Check(not Assigned(Bound));
+end;
 procedure TUnitTestGpoReadOnly.OfflineChangePlan;
 var Empty, ChangedUser, ChangedMachine, Bad, Ini, OriginalIni:TBytes;
   P:TGpoOfflinePlan; V:Cardinal;
