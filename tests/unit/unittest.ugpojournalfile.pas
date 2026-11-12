@@ -3,10 +3,30 @@ unit unittest.ugpojournalfile;
 interface
 uses mormot.core.test;
 type TUnitTestGpoJournalFile=class(TSynTestCase)
-published procedure LocalCheckpoints;
+published procedure LocalCheckpoints; procedure CrossProcessDenial;
 end;
+function RunJournalProbe:Integer;
 implementation
-uses SysUtils,Classes,ugpoformats,ugporeplaymodel,ugpojournalfile{$ifdef windows},Windows{$endif};
+uses SysUtils,Classes,Process,ugpoformats,ugporeplaymodel,ugpojournalfile{$ifdef windows},Windows{$endif};
+function ProbeFixture(out H:TReplayHeader; out E:TReplayEntries):Boolean;
+var Missing,Empty:TGpoPolicyImage; Ini:TBytes;
+begin
+  H:=Default(TReplayHeader); E:=nil; Missing:=Default(TGpoPolicyImage); Empty:=Default(TGpoPolicyImage); Empty.Exists:=True;
+  Result:=SerializeRegistryPol(nil,Empty.Data)=grsOk; if not Result then Exit;
+  Ini:=TBytes.Create(91,71,101,110,101,114,97,108,93,10,86,101,114,115,105,111,110,61,49);
+  H.TransactionId:='external-expected-transaction'; H.Domain:='example.test'; H.DC:='dc.example.test';
+  H.DN:='CN=test,DC=example,DC=test'; H.ObjectId:='test-object'; H.SessionId:='test-session';
+  Result:=GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,Empty,Missing,Missing,H.Plan)=gopOk;
+  SetLength(E,1); E[0].Sequence:=1; E[0].Step:=rsUser; E[0].Kind:=rkIntent;
+  E[0].Evidence:=[reTarget,reSession,reExpectedState,reDurableBackup,reConditionalUpdate];
+end;
+function RunJournalProbe:Integer;
+var H:TReplayHeader; E:TReplayEntries; N,Code:Integer;
+begin
+  Result:=99; if ParamCount<>3 then Exit;
+  Val(ParamStr(3),N,Code); if (Code<>0) or (N<0) or not ProbeFixture(H,E) then Exit;
+  Result:=20+Ord(AssessJournal(ParamStr(2),N,H,E));
+end;
 {$ifdef windows}
 function MakeSymbolicLink(LinkName,TargetName:PWideChar; Flags:DWORD):LongBool;
   stdcall; external 'kernel32.dll' name 'CreateSymbolicLinkW';
@@ -102,8 +122,62 @@ begin
     Check(RemoveDir(Dir),'isolated test directory cleaned');
   end;
 end;
+procedure TUnitTestGpoJournalFile.CrossProcessDenial;
+var Dir,Path,Err:string; Id:TGUID; H,Other:TReplayHeader; E,Old:TReplayEntries; P:TProcess;
+  F:TFileStream; I:Integer; Corrupt:Byte; Missing,Full:TGpoPolicyImage; Rows:TGpoRegistryRecords;
+  function Child(N:Integer):Integer;
+  begin
+    P:=TProcess.Create(nil);
+    try
+      P.Executable:=ParamStr(0); P.Parameters.Add('--gpo-journal-probe'); P.Parameters.Add(Dir);
+      P.Parameters.Add(IntToStr(N)); P.Options:=[poWaitOnExit,poNoConsole]; P.Execute; Result:=P.ExitStatus;
+    finally P.Free; end;
+  end;
+begin
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-probe-'+GUIDToString(Id); Check(CreateDir(Dir));
+  try
+    Check(ProbeFixture(H,E)); Check(SaveJournal(Dir,1,H,E,Err));
+    Check(Child(1)=20+Ord(jaMatchedUntrusted),'matching checkpoint remains denied');
+    Other:=H; Other.TransactionId:='different-transaction'; Check(SaveJournal(Dir,2,Other,E,Err));
+    Check(Child(2)=20+Ord(jaMismatch),'foreign transaction rejected');
+    Other:=H; Other.DC:='other-dc.example.test'; Check(SaveJournal(Dir,3,Other,E,Err));
+    Check(Child(3)=20+Ord(jaMismatch),'foreign target rejected');
+    Old:=nil; Check(SaveJournal(Dir,4,H,Old,Err));
+    Check(Child(4)=20+Ord(jaMismatch),'old checkpoint rejected against independent expected contents');
+    Check(not SaveJournalInjected(Dir,5,H,E,jfFlushFailure,Err));
+    Check(Child(5)=20+Ord(jaMatchedUntrusted),'flush failure cannot become permission');
+    Check(SaveJournal(Dir,6,H,E,Err)); Path:=Dir+'\'+Format('gpo-%.8x.journal',[6]);
+    F:=TFileStream.Create(Path,fmOpenReadWrite); try F.Position:=F.Size-1; F.ReadBuffer(Corrupt,1);
+      Corrupt:=Corrupt xor 1; F.Position:=F.Size-1; F.WriteBuffer(Corrupt,1); finally F.Free; end;
+    Check(Child(6)=20+Ord(jaInvalid),'corruption rejected');
+    Check(not SaveJournalInjected(Dir,7,H,E,jfShortWrite,Err));
+    Check(Child(7)<>20+Ord(jaMatchedUntrusted),'partial checkpoint rejected');
+    Check(Child(8)=20+Ord(jaUnavailable),'missing checkpoint rejected');
+    Other:=H; Other.ObjectId:='other-object'; Check(SaveJournal(Dir,9,Other,E,Err));
+    Check(Child(9)=20+Ord(jaMismatch),'other object rejected');
+    Missing:=Default(TGpoPolicyImage); Full:=Default(TGpoPolicyImage); Full.Exists:=True;
+    SetLength(Rows,1); Rows[0].Key:='Software\Test'; Rows[0].ValueType:=3; Rows[0].Data:=TBytes.Create(9);
+    Check(SerializeRegistryPol(Rows,Full.Data)=grsOk); Other:=H;
+    Check(GpoBuildOfflinePlanWithPresence(1,1,H.Plan.Baseline.GptIni,Missing,Full,Missing,Missing,Other.Plan)=gopOk);
+    Check(SaveJournal(Dir,10,Other,E,Err)); Check(Child(10)=20+Ord(jaMismatch),'other candidate rejected');
+    Path:=Dir+'\machine.pol'; F:=TFileStream.Create(Path,fmCreate);
+    try Corrupt:=77; F.WriteBuffer(Corrupt,1); finally F.Free; end;
+    Check(Child(1)=20+Ord(jaMatchedUntrusted));
+    F:=TFileStream.Create(Path,fmOpenRead); try Corrupt:=0; F.ReadBuffer(Corrupt,1);
+      Check((F.Size=1) and (Corrupt=77),'diagnostic does not modify target'); finally F.Free; end;
+  finally
+    Path:=Dir+'\machine.pol'; if GetFileAttributesW(PWideChar(UTF8Decode(Path)))<>INVALID_FILE_ATTRIBUTES then
+      Check(DeleteFileW(PWideChar(UTF8Decode(Path))),'remove probe target');
+    for I:=1 to 10 do begin Path:=Dir+'\'+Format('gpo-%.8x.journal',[I]);
+      if GetFileAttributesW(PWideChar(UTF8Decode(Path)))<>INVALID_FILE_ATTRIBUTES then
+        Check(DeleteFileW(PWideChar(UTF8Decode(Path))),'remove probe checkpoint'); end;
+    Check(RemoveDir(Dir),'probe test directory cleaned');
+  end;
+end;
 {$else}
 procedure TUnitTestGpoJournalFile.LocalCheckpoints;
+begin Check(True,'unsupported platform'); end;
+procedure TUnitTestGpoJournalFile.CrossProcessDenial;
 begin Check(True,'unsupported platform'); end;
 {$endif}
 end.

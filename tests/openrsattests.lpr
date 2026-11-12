@@ -90,6 +90,7 @@ begin
 end;
 
 begin
+  if (ParamCount>0) and (ParamStr(1)='--gpo-journal-probe') then Halt(RunJournalProbe);
   TOpenRSATTests.RunAsConsole('OpenRSAT Regression Tests');
 end.
 

@@ -3,6 +3,7 @@ unit ugpojournalfile;
 interface
 uses SysUtils,ugporeplaymodel{$ifdef windows},Windows{$endif};
 type TJournalTestFault=(jfNone,jfBeforeWrite,jfShortWrite,jfFlushFailure);
+  TJournalAssessment=(jaUnavailable,jaInvalid,jaMismatch,jaMatchedUntrusted);
 // Isolated test checkpoints only; a checkpoint never authorizes execution.
 function SaveJournal(const Directory:string; Number:Cardinal; const Header:TReplayHeader;
   const Entries:TReplayEntries; out Error:string):Boolean;
@@ -10,6 +11,9 @@ function LoadJournal(const Directory:string; Number:Cardinal; out State:TReplayR
   out Error:string):Boolean;
 function SaveJournalInjected(const Directory:string; Number:Cardinal; const Header:TReplayHeader;
   const Entries:TReplayEntries; Fault:TJournalTestFault; out Error:string):Boolean;
+// Diagnostic only. Even a matching result never authorizes cross-process recovery.
+function AssessJournal(const Directory:string; Number:Cardinal; const Expected:TReplayHeader;
+  const ExpectedEntries:TReplayEntries):TJournalAssessment;
 {$ifdef windows}
 function OpenDirectory(const Directory:string; WriteAccess:Boolean; out H:THandle):Boolean;
 {$endif}
@@ -180,10 +184,10 @@ end;
 function SaveJournal(const Directory:string; Number:Cardinal; const Header:TReplayHeader;
   const Entries:TReplayEntries; out Error:string):Boolean;
 begin Result:=SaveJournalInjected(Directory,Number,Header,Entries,jfNone,Error); end;
-function LoadJournal(const Directory:string; Number:Cardinal; out State:TReplayResult; out Error:string):Boolean;
-var Data:TBytes; Dir,H:THandle; N,Extra:DWORD; Tail:Byte; Info:TByHandleFileInformation;
+function ReadJournal(const Directory:string; Number:Cardinal; out Data:TBytes):Boolean;
+var Dir,H:THandle; N,Extra:DWORD; Tail:Byte; Info:TByHandleFileInformation;
 begin
-  Result:=False; State:=rrInvalid; Error:='invalid or unavailable checkpoint';
+  Result:=False; Data:=nil;
   if not OpenDirectory(Directory,False,Dir) then Exit;
   try
     if not OpenJournal(Dir,Number,False,H) then Exit;
@@ -192,9 +196,26 @@ begin
       SetLength(Data,Info.nFileSizeLow);
       if not ReadFile(H,Data[0],Length(Data),N,nil) or (N<>DWORD(Length(Data))) or
         not ReadFile(H,Tail,1,Extra,nil) or (Extra<>0) then Exit;
-      Result:=Decode(Data,State); if Result then Error:='';
+      Result:=True;
     finally CloseHandle(H); end;
   finally CloseHandle(Dir); end;
+end;
+function LoadJournal(const Directory:string; Number:Cardinal; out State:TReplayResult; out Error:string):Boolean;
+var Data:TBytes;
+begin
+  State:=rrInvalid; Error:='invalid or unavailable checkpoint';
+  Result:=ReadJournal(Directory,Number,Data) and Decode(Data,State);
+  if Result then Error:='';
+end;
+function AssessJournal(const Directory:string; Number:Cardinal; const Expected:TReplayHeader;
+  const ExpectedEntries:TReplayEntries):TJournalAssessment;
+var Data,Anchor:TBytes; State:TReplayResult;
+begin
+  if not Encode(Expected,ExpectedEntries,Anchor) then Exit(jaInvalid);
+  if not ReadJournal(Directory,Number,Data) then Exit(jaUnavailable);
+  if not Decode(Data,State) then Exit(jaInvalid);
+  if (Length(Data)<>Length(Anchor)) or ((Length(Data)>0) and not CompareMem(@Data[0],@Anchor[0],Length(Data))) then Exit(jaMismatch);
+  Result:=jaMatchedUntrusted;
 end;
 {$else}
 function SaveJournalInjected(const Directory:string; Number:Cardinal; const Header:TReplayHeader;
@@ -204,5 +225,8 @@ function SaveJournal(const Directory:string; Number:Cardinal; const Header:TRepl
 begin Error:='unsupported platform'; Result:=False; end;
 function LoadJournal(const Directory:string; Number:Cardinal; out State:TReplayResult; out Error:string):Boolean;
 begin Error:='unsupported platform'; State:=rrInvalid; Result:=False; end;
+function AssessJournal(const Directory:string; Number:Cardinal; const Expected:TReplayHeader;
+  const ExpectedEntries:TReplayEntries):TJournalAssessment;
+begin Result:=jaUnavailable; end;
 {$endif}
 end.
