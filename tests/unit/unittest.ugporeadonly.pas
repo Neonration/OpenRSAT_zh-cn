@@ -18,6 +18,7 @@ type
     procedure OfflinePlanIntegrity;
     procedure BoundPlanComparison;
     procedure BoundPlanWithFiles;
+    procedure FileEvidenceSecurityValidation;
     procedure LdapEvidenceParsing;
     procedure LdapCaptureTransport;
     procedure SafePaths;
@@ -171,6 +172,48 @@ begin
 end;
 function Bytes(const S:RawByteString):TBytes;
 begin Result:=nil; SetLength(Result,Length(S)); if Length(S)>0 then Move(S[1],Result[0],Length(S)); end;
+procedure TUnitTestGpoReadOnly.FileEvidenceSecurityValidation;
+var E,Other:TGpoFileEvidence; SD:mormot.core.os.security.TSecurityDescriptor; RawSD:RawByteString;
+  K:TGpoEvidenceKind; N:Integer; NullEvidence:TGpoFileEvidence;
+begin
+  for K:=gekFile to gekParent do
+  begin
+    E:=Default(TGpoFileEvidence); E.Available:=True; E.Kind:=K; E.FileIndexLow:=1;
+    if K=gekParent then E.Attributes:=$10;
+    Check(SD.FromText('O:SYG:SYD:(A;;GA;;;SY)')=atpSuccess); RawSD:=SD.ToBinary;
+    E.SecurityDescriptor:=Bytes(RawSD);
+    Check(GpoCompareFileEvidence(E,E)=gprEvidenceIncomplete);
+    Other:=E; Other.SecurityDescriptor:=Bytes(#0);
+    Check(GpoCompareFileEvidence(Other,Other)=gprReadUnavailable,'Malformed SD must not validate against itself');
+    Check(GpoCompareFileEvidence(E,Other)=gprReadUnavailable);
+    Check(GpoCompareFileEvidence(Other,E)=gprReadUnavailable);
+    Other.SecurityDescriptor:=Copy(E.SecurityDescriptor,0,Length(E.SecurityDescriptor)-1);
+    Check(GpoCompareFileEvidence(Other,Other)=gprReadUnavailable,'Truncated SD must be rejected');
+    Check(SD.FromText('G:SYD:(A;;GA;;;SY)')=atpSuccess); Other.SecurityDescriptor:=Bytes(SD.ToBinary);
+    Check(GpoCompareFileEvidence(Other,Other)=gprReadUnavailable,'Missing owner');
+    Check(SD.FromText('O:SYD:(A;;GA;;;SY)')=atpSuccess); Other.SecurityDescriptor:=Bytes(SD.ToBinary);
+    Check(GpoCompareFileEvidence(Other,Other)=gprReadUnavailable,'Missing group');
+    Check(SD.FromText('O:SYG:SY')=atpSuccess); Other.SecurityDescriptor:=Bytes(SD.ToBinary);
+    Check(GpoCompareFileEvidence(Other,Other)=gprReadUnavailable,'DACL information absent');
+    Include(SD.Flags,scDaclPresent); Other.SecurityDescriptor:=Bytes(SD.ToBinary);
+    Check(GpoCompareFileEvidence(Other,Other)=gprEvidenceIncomplete,'Present NULL DACL is valid evidence');
+    Check(GpoCompareFileEvidence(E,Other)=gprConflict,'Valid but changed DACL');
+    NullEvidence:=Other; Other.SecurityDescriptor:=Copy(Other.SecurityDescriptor);
+    N:=Length(Other.SecurityDescriptor); SetLength(Other.SecurityDescriptor,N+8);
+    Other.SecurityDescriptor[16]:=N and $ff; Other.SecurityDescriptor[17]:=(N shr 8) and $ff;
+    Other.SecurityDescriptor[18]:=(N shr 16) and $ff; Other.SecurityDescriptor[19]:=(N shr 24) and $ff;
+    Other.SecurityDescriptor[N]:=2; Other.SecurityDescriptor[N+2]:=8;
+    Check(GpoCompareFileEvidence(Other,Other)=gprEvidenceIncomplete,'Present empty DACL is valid evidence');
+    Check(GpoCompareFileEvidence(NullEvidence,Other)=gprConflict,'NULL and empty DACL differ');
+    Other.SecurityDescriptor[N+4]:=1;
+    Check(GpoCompareFileEvidence(Other,Other)=gprReadUnavailable,'Missing ACE is invalid');
+    Other:=E; Other.SecurityDescriptor:=Copy(E.SecurityDescriptor);
+    Other.SecurityDescriptor[4]:=$ff; Other.SecurityDescriptor[5]:=$ff;
+    Other.SecurityDescriptor[6]:=$ff; Other.SecurityDescriptor[7]:=$ff;
+    Check(GpoCompareFileEvidence(Other,Other)=gprReadUnavailable,'Invalid owner offset');
+  end;
+end;
+
 procedure TUnitTestGpoReadOnly.BoundPlanWithFiles;
 const Guid='{12345678-1234-1234-1234-123456789ABC}';
 var T:TGpoPreflightTarget; Token:ILdapSessionToken; TokenObj:TPreflightToken;
@@ -206,7 +249,7 @@ begin
     Check(B.CompareWithFiles(E,Changed)=gprConflict);
     Changed:=F; Changed.Items[gfMachineRegistry].Metadata.SecurityDescriptor:=Copy(F.Items[gfMachineRegistry].Metadata.SecurityDescriptor);
     Changed.Items[gfMachineRegistry].Metadata.SecurityDescriptor[0]:=0;
-    Check(B.CompareWithFiles(E,Changed)=gprConflict);
+    Check(B.CompareWithFiles(E,Changed)=gprReadUnavailable);
     Changed:=F; Changed.Items[gfUserRegistry].Metadata.SecurityDescriptor:=Copy(F.Items[gfUserRegistry].Metadata.SecurityDescriptor);
     F.Items[gfUserRegistry].Metadata.SecurityDescriptor[0]:=0;
     Check(B.CompareWithFiles(E,Changed)=gprEvidenceIncomplete,'Bound metadata must be independently owned');
@@ -228,6 +271,9 @@ begin
   TokenObj:=TPreflightToken.Create; TokenObj.Valid:=True; Token:=TokenObj; T.Session:=Token; E.Target:=T; F.Target:=T;
   Changed:=F; Changed.Items[gfUserRegistry].Metadata.Available:=False;
   Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprReadUnavailable); Check(not Assigned(B));
+  Changed:=F; Changed.Items[gfUserRegistry].Metadata.SecurityDescriptor:=Bytes(#0);
+  Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprReadUnavailable,'Reject malformed file SD at binding');
+  Check(not Assigned(B)); if Assigned(B) then B.Free;
   OldUser:=Default(TGpoPolicyImage); NewUser.Exists:=True; NewUser.Data:=Header;
   OldMachine.Exists:=True; OldMachine.Data:=Header; NewMachine:=Default(TGpoPolicyImage);
   Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,OldUser,NewUser,OldMachine,NewMachine,P)=gopOk);
@@ -763,7 +809,7 @@ begin
     Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprEvidenceIncomplete);
     Inc(OtherMeta.FileIndexLow); Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprConflict);
     OtherMeta:=Meta; OtherMeta.SecurityDescriptor:=Copy(Meta.SecurityDescriptor); OtherMeta.SecurityDescriptor[0]:=0;
-    Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprConflict);
+    Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprReadUnavailable);
     OtherMeta.Available:=False; Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprReadUnavailable);
     S:=TFileStream.Create(FileName,fmOpenReadWrite or fmShareExclusive);
     try

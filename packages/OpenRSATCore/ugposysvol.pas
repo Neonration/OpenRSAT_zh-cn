@@ -166,6 +166,67 @@ function GpoTestReadGuardedEvidence(const NativeRoot, RelativePath:UnicodeString
 implementation
 
 uses mormot.core.os.security{$ifdef windows}, Windows{$endif};
+
+function ValidFileSecurityEvidence(const Data:TBytes):Boolean;
+var Control,Owner,Group,Sacl,Dacl:Cardinal;
+  function U16(P:SizeInt):Cardinal;
+  begin Result:=Cardinal(Data[P]) or (Cardinal(Data[P+1]) shl 8); end;
+  function U32(P:SizeInt):Cardinal;
+  begin Result:=U16(P) or (U16(P+2) shl 16); end;
+  function ValidSid(P,Limit:SizeInt):Boolean;
+  begin
+    Result:=(P>=0) and (P<=Limit-8);
+    if not Result then Exit;
+    Result:=(Data[P]=1) and (Data[P+1]<=15) and
+      (SizeInt(Data[P+1])*4<=Limit-P-8);
+  end;
+  function ValidAcl(Offset:Cardinal):Boolean;
+  var P,Last,Count,Size,SidPos:SizeInt; Flags:Cardinal; AceType:Byte;
+  begin
+    Result:=False;
+    if Offset=0 then Exit(True);
+    if (Offset<20) or ((Offset and 3)<>0) or (Offset>Cardinal(Length(Data)-8)) then Exit;
+    P:=Offset;
+    if not (Data[P] in [2,3,4]) then Exit;
+    Size:=U16(P+2); Count:=U16(P+4);
+    if (Size<8) or ((Size and 3)<>0) or (Size>Length(Data)-P) then Exit;
+    Last:=P+Size; Inc(P,8);
+    while Count>0 do
+    begin
+      if P>Last-4 then Exit;
+      AceType:=Data[P]; Size:=U16(P+2);
+      if (Size<4) or ((Size and 3)<>0) or (Size>Last-P) then Exit;
+      case AceType of
+        0,1,2,3,9,10,13,14,17,18,19,20,21: SidPos:=8;
+        4: SidPos:=12;
+        5,6,7,8,11,12,15,16:
+          begin
+            if Size<12 then Exit;
+            Flags:=U32(P+8); if (Flags and not Cardinal(3))<>0 then Exit;
+            SidPos:=12;
+            if (Flags and 1)<>0 then Inc(SidPos,16);
+            if (Flags and 2)<>0 then Inc(SidPos,16);
+          end;
+        // shortcut: reject unknown ACE types until their layout can be validated.
+        else Exit;
+      end;
+      if not ValidSid(P+SidPos,P+Size) then Exit;
+      Inc(P,Size); Dec(Count);
+    end;
+    Result:=True;
+  end;
+begin
+  Result:=False;
+  if (Length(Data)<20) or (Length(Data)>1024*1024) or (Data[0]<>1) then Exit;
+  Control:=U16(2);
+  if ((Control and $8000)=0) or ((Control and 4)=0) then Exit;
+  Owner:=U32(4); Group:=U32(8); Sacl:=U32(12); Dacl:=U32(16);
+  if (Owner<20) or (Group<20) or ((Owner and 3)<>0) or ((Group and 3)<>0) or
+    (Owner>Cardinal(Length(Data)-8)) or (Group>Cardinal(Length(Data)-8)) then Exit;
+  if not ValidSid(Owner,Length(Data)) or not ValidSid(Group,Length(Data)) then Exit;
+  if ((Control and $10)=0) and (Sacl<>0) then Exit;
+  Result:=ValidAcl(Sacl) and ValidAcl(Dacl);
+end;
 type
   TGpoClientEvidenceTransport=class(TInterfacedObject,IGpoLdapEvidenceTransport)
   private
@@ -708,7 +769,6 @@ var Parts: array of UnicodeString; Guards: array of THandle;
   SD,AfterSD:TBytes; Temp:TGpoFileEvidence;
   function ReadSecurity(Handle:THandle; out Bytes:TBytes):TGpoReadStatus;
   var Needed,Code:DWORD; Owner,Group:PSID; Dacl:PACL; Present,Defaulted:LongBool;
-    Parsed:mormot.core.os.security.TSecurityDescriptor;
   begin
     Bytes:=nil; Needed:=0;
     if GetKernelObjectSecurity(Handle,OWNER_SECURITY_INFORMATION or GROUP_SECURITY_INFORMATION or DACL_SECURITY_INFORMATION,nil,0,@Needed) then Exit(grsUnsupported);
@@ -717,7 +777,7 @@ var Parts: array of UnicodeString; Guards: array of THandle;
     SetLength(Bytes,Needed);
     if not GetKernelObjectSecurity(Handle,OWNER_SECURITY_INFORMATION or GROUP_SECURITY_INFORMATION or DACL_SECURITY_INFORMATION,
       PSECURITY_DESCRIPTOR(@Bytes[0]),Needed,@Needed) then begin Bytes:=nil; Exit(FileError(GetLastError)); end;
-    if not Parsed.FromBinary(mormot.core.base.PByteArray(@Bytes[0]),Length(Bytes)) then begin Bytes:=nil; Exit(grsCorrupt); end;
+    if not ValidFileSecurityEvidence(Bytes) then begin Bytes:=nil; Exit(grsCorrupt); end;
     Owner:=nil; Group:=nil; Dacl:=nil; Present:=False; Defaulted:=False;
     if not GetSecurityDescriptorOwner(PSECURITY_DESCRIPTOR(@Bytes[0]),Owner,@Defaulted) or (Owner=nil) or
        not GetSecurityDescriptorGroup(PSECURITY_DESCRIPTOR(@Bytes[0]),Group,@Defaulted) or (Group=nil) or
@@ -921,7 +981,7 @@ function GpoCompareFileEvidence(const Before,After:TGpoFileEvidence):TGpoPreflig
 begin
   if not Before.Available or not After.Available or
      not (Before.Kind in [gekFile,gekParent]) or not (After.Kind in [gekFile,gekParent]) or
-     (Length(Before.SecurityDescriptor)=0) or (Length(After.SecurityDescriptor)=0) or
+     not ValidFileSecurityEvidence(Before.SecurityDescriptor) or not ValidFileSecurityEvidence(After.SecurityDescriptor) or
      ((Before.FileIndexHigh=0) and (Before.FileIndexLow=0)) or
      ((After.FileIndexHigh=0) and (After.FileIndexLow=0)) then Exit(gprReadUnavailable);
   if (Before.Kind<>After.Kind) or (Before.VolumeSerial<>After.VolumeSerial) or (Before.FileIndexHigh<>After.FileIndexHigh) or
