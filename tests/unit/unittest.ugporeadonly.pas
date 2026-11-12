@@ -702,6 +702,15 @@ begin
   Check(GpoBuildOfflinePlanWithPresence(0,0,Source,Missing,Missing,Missing,Missing,Offline)=gopOk);
   Check((Length(Offline.GptIni)=Length(Source)) and CompareMem(@Offline.GptIni[0],@Source[0],Length(Source)));
   Check(GpoCheckOfflinePlan(Offline,0,Source,Missing,Missing)=gbcMatch);
+  Original:='[General]'#13#10'Version=1'#13#10'; price='#$80#13#10'Label='#$80#13#10;
+  Updated:='[General]'#13#10'Version=2'#13#10'; price='#$80#13#10'Label='#$80#13#10;
+  Source:=Bytes(Original); Expected:=Bytes(Updated);
+  Check(GpoBuildGptIniCandidate(Source,1,2,Candidate)=gicOk);
+  Check((Length(Candidate)=Length(Expected)) and CompareMem(@Candidate[0],@Expected[0],Length(Expected)),'CP936 euro bytes must be preserved');
+  Check(CompareMem(@Source[0],@Original[1],Length(Source)));
+  Reject('[General]'#10'Version=1'#10'key'#$80'=x',gicInvalid);
+  Reject(#$ef#$bb#$bf'[General]'#10'Version=1'#10'X='#$80,gicUnsupported);
+  Reject('[General]'#10'Version=1'#10'X='#$80#$81,gicUnsupported);
   Reject('[General]'#10'Version=1'#10'X='#$81#$7f,gicUnsupported);
   Reject('[General]'#10'Version=1'#10'X='#$81,gicUnsupported);
   Source:=nil; AddWord(Source,$feff); Original:='[General]'#13#10'Version=4294967295'#13#10'Other=x';

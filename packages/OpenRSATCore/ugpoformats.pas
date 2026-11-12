@@ -290,7 +290,7 @@ var S, Line, Name, Section, Value, Digits: string;
     while K<Length(Data) do
     begin
       Lead:=Data[K];
-      if Lead<$80 then begin Inc(K); Continue; end;
+      if Lead<=$80 then begin Inc(K); Continue; end;
       if (Lead<$81) or (Lead>$fe) or (K+1>=Length(Data)) then Exit;
       Trail:=Data[K+1];
       if (Trail<$40) or (Trail>$fe) or (Trail=$7f) then Exit;
