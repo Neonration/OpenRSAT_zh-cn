@@ -161,6 +161,8 @@ begin
       if UnitAt(Units-1)<>0 then begin Error:='字符串缺少 UTF-16 终止符。'; Exit; end;
       if (Item.ValueType=7) and ((Units<2) or (UnitAt(Units-2)<>0)) then
       begin Error:='MULTI_SZ 必须以两个 UTF-16 NUL 终止。'; Exit; end;
+      if (Item.ValueType=7) and (UnitAt(0)=0) and (Units<>2) then
+      begin Error:='MULTI_SZ 不能包含前导空字符串。'; Exit; end;
       I:=0; PreviousZero:=False;
       while I<Units do
       begin

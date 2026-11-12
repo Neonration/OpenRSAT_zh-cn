@@ -212,6 +212,10 @@ begin
   R:=Item('K','',1,[65,0,0,0,66,0,0,0]); Check(not GpoValidateDraftRecord(R,E));
   R:=Item('K','',1,[$00,$d8,0,0]); Check(not GpoValidateDraftRecord(R,E));
   R:=Item('K','',1,[$3d,$d8,$00,$de,0,0]); Check(GpoValidateDraftRecord(R,E));
+  R:=Item('K','',7,[0,0,65,0,0,0,0,0]); Check(not GpoValidateDraftRecord(R,E));
+  R:=Item('K','',7,[0,0,0,0]); Check(GpoValidateDraftRecord(R,E));
+  R:=Item('K','',7,[0,0,0,0,0,0]); Check(not GpoValidateDraftRecord(R,E));
+  R:=Item('K','',7,[65,0,0,0,0,0]); Check(GpoValidateDraftRecord(R,E));
   R:=Item('K','',7,[65,0,0,0,66,0,0,0,0,0]); Check(GpoValidateDraftRecord(R,E));
   R:=Item('K','',7,[65,0,0,0]); Check(not GpoValidateDraftRecord(R,E));
   R:=Item('K','',7,[65,0,0,0,0,0,66,0,0,0,0,0]); Check(not GpoValidateDraftRecord(R,E));
