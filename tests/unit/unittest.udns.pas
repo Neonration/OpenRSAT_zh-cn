@@ -15,6 +15,7 @@ type
   published
     procedure BinaryPayloadRoundTrip;
     procedure PayloadLengthBoundaries;
+    procedure PayloadBoundsDoNotTouchAdjacentBytes;
   end;
 
 implementation
@@ -78,4 +79,32 @@ begin
   Check(CompareMem(@Decoded.RData[0], @Source.RData[0], Source.DataLength));
 end;
 
+procedure TUnitTestDNSRecord.PayloadBoundsDoNotTouchAdjacentBytes;
+const
+  Lengths: array[0..3] of Word = (0, 1, High(Word) - 1, High(Word));
+var
+  Source, Decoded: TDNSRecord;
+  Buffer: array[0..24 + High(Word) + 1] of Byte;
+  Pass, N, Len: Integer;
+begin
+  // Sentinels make an unsigned zero-length underflow fail deterministically,
+  // even when an out-of-bounds read happens to land on mapped memory.
+  for Pass := 1 to 10 do
+    for N := Low(Lengths) to High(Lengths) do
+    begin
+      FillChar(Source, SizeOf(Source), $3c);
+      Source.DataLength := Lengths[N];
+      FillChar(Buffer, SizeOf(Buffer), $a5);
+      Len := DNSRecordRecordToBytes(PByteArray(@Buffer[0])^, Source);
+      Check(Len = 24 + Lengths[N]);
+      Check(Buffer[Len] = 0, 'Preserve the encoder trailing-zero contract.');
+      Check(Buffer[Len + 1] = $a5, 'Encoder must not write beyond its terminator.');
+      FillChar(Decoded, SizeOf(Decoded), $a5);
+      Check(DNSRecordBytesToRecord(Decoded, PByteArray(@Buffer[0])^));
+      Check(Decoded.DataLength = Lengths[N]);
+      Check(CompareMem(@Decoded.RData[0], @Source.RData[0], Lengths[N]));
+      Check(Decoded.RData[Lengths[N]] = $a5,
+        'Decoder must not write beyond the declared payload.');
+    end;
+end;
 end.

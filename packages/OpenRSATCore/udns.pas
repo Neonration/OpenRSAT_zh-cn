@@ -1225,7 +1225,7 @@ begin
   DNSRecord.Reserved := (Buffer[19] shl 24) or (Buffer[18] shl 16) or (Buffer[17] shl 8) or Buffer[16];
   DNSRecord.Timestamp := (Buffer[23] shl 24) or (Buffer[22] shl 16) or (Buffer[21] shl 8) or Buffer[20];
 
-  for i := 0 to Pred(DNSRecord.DataLength) do
+  for i := 0 to Integer(DNSRecord.DataLength) - 1 do
     DNSRecord.RData[i] := Buffer[24 + i];
   result := True;
 end;
@@ -1348,7 +1348,7 @@ begin
   Buffer[22] := (DNSRecord.Timestamp shr 16) and $ff;
   Buffer[23] := (DNSRecord.Timestamp shr 24) and $ff;
 
-  for i := 0 to Pred(DNSRecord.DataLength) do
+  for i := 0 to Integer(DNSRecord.DataLength) - 1 do
     Buffer[24 + i] := DNSRecord.RData[i];
   result := 24 + DNSRecord.DataLength;
   Buffer[result] := 0;
