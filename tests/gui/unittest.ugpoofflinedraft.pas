@@ -38,7 +38,7 @@ type
     GptPath, VersionInput, PlanReport:string;
     GptChoice, VersionChoice:Boolean; PlanReports:Integer;
     MutateOnVersion, MutateOnGpt, RebaseOnGpt, InjectedEditOk:Boolean;
-    SummaryChoice,MutateOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
+    SummaryChoice,MutateOnSummary,RebaseOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
     constructor Create(TheOwner:TComponent); override;
     procedure PollDomainNow;
   protected
@@ -153,11 +153,16 @@ begin
   end else begin Path:=NextPath; Result:=SelectChoice; end;
 end;
 function TTestOfflineForm.ChooseSummaryFile(out Path:string):Boolean;
+var Records:TGpoRegistryRecords; Encoded:TBytes;
 begin
   Path:=SummaryPath; Result:=SummaryChoice;
   if MutateOnSummary then begin
     MutateOnSummary:=False;
     InjectedEditOk:=Draft(gdsUser).Insert(Length(Draft(gdsUser).Records),NextRecord)=grsOk;
+  end;
+  if RebaseOnSummary then begin
+    RebaseOnSummary:=False; SetLength(Records,1); Records[0]:=NextRecord;
+    InjectedEditOk:=(SerializeRegistryPol(Records,Encoded)=grsOk) and (Draft(gdsComputer).Load(Encoded)=grsOk);
   end;
   if Assigned(CancelOnSummary) then begin CancelOnSummary.Cancel; CancelOnSummary:=nil; end;
 end;
@@ -267,6 +272,9 @@ begin
     Check(Pos('尚未完成只读复核',Report)>0); Check(Pos('不是 GPMC 备份',Report)>0);
     Check(Pos('计算机 Registry.pol：基线：存在；候选：存在；意图：无变化',Report)>0);
     Check(Pos('用户 Registry.pol：基线：缺失；候选：缺失；意图：无变化',Report)>0);
+    Check(Pos('基线文件：8 字节；SHA-256：5BB1F21F806938A043563024B13B33D74A2B95B767C5F81BDE8456E9D0413A89',Report)>0);
+    Check(Pos('候选文件：8 字节；SHA-256：5BB1F21F806938A043563024B13B33D74A2B95B767C5F81BDE8456E9D0413A89',Report)>0);
+    Check(Pos('基线文件：缺失，无文件指纹',Report)>0); Check(Pos('候选文件：缺失，无文件指纹',Report)>0);
     F.SummaryChoice:=False; F.SummaryPath:=Name(2); F.SummaryButton.Click; Check(not FileExists(Name(2)));
     F.SummaryChoice:=True; F.MutateOnSummary:=True; F.NextRecord:=Item('Secret\NeverExport','Password',3,[7]);
     F.SummaryButton.Click; Check(F.InjectedEditOk); Check(not FileExists(Name(2))); Check(Pos('状态已变化',F.LastError)>0);
@@ -276,6 +284,9 @@ begin
     Check(Pos('计算机 Registry.pol：基线：存在；候选：缺失；意图：删除整个文件',Report)>0);
     Check(Pos('用户 Registry.pol：基线：缺失；候选：存在；意图：创建',Report)>0);
     Check(Pos('Secret',Report)=0); Check(Pos('Password',Report)=0);
+    Check(Pos('候选文件：85 字节；SHA-256：822A9A46BF9E799B090A659FC08C4D3C56770B89C44D66B3563291E552FD2F7F',Report)>0);
+    F.SelectChoice:=True; F.NextPath:=Name(11); F.SaveButton.Click;
+    Check(GpoLoadLocalFile(Name(11),Original,Err)); Check(F.Draft(gdsUser).Export(Data)=grsOk); Check(EqualBytes(Data,Original));
     F.PlanButton.Click; F.SummaryPath:=Name(3); F.SummaryButton.Click; Report:=ReadReport(3);
     Check(Pos('复核进行中',Report)>0);
     Job.Text:='候选计划与原域基线的只读复核一致；安全证据仍不完整，不能授权写入。';
@@ -299,10 +310,14 @@ begin
     F.SummaryPath:=Name(8); F.SummaryButton.Click; Report:=ReadReport(8);
     Check(Pos('计算机 Registry.pol：基线：存在；候选：存在；意图：替换',Report)>0);
     Check(Pos('Machine\Hidden',Report)=0);
+    F.SummaryPath:=Name(12); F.RebaseOnSummary:=True; F.SummaryButton.Click;
+    Check(F.InjectedEditOk); Check(not FileExists(Name(12))); Check(Pos('状态已变化',F.LastError)>0);
+    F.SummaryPath:=Name(13); F.SummaryButton.Click; Check(not FileExists(Name(13)));
+    Check(Pos('基线不一致',F.LastError)>0);
     Check(F.Draft(gdsUser).Dirty,'summary exports must retain the draft');
   finally
     F.Free; Ref:=nil;
-    for I:=1 to 10 do begin Path:=Name(I); if GetFileAttributesW(PWideChar(UTF8Decode(Path)))<>INVALID_FILE_ATTRIBUTES then
+    for I:=1 to 13 do begin Path:=Name(I); if GetFileAttributesW(PWideChar(UTF8Decode(Path)))<>INVALID_FILE_ATTRIBUTES then
       Check(DeleteFileW(PWideChar(UTF8Decode(Path))),'remove summary'); end;
     Check(RemoveDir(Dir),'summary test directory cleaned');
   end;

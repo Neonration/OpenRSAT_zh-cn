@@ -15,6 +15,7 @@ type
     fDomainJob:IGpoDomainDraftJob;
     fDomain:Boolean;
     fDomainExists:array[TGpoDraftSide] of Boolean;
+    fDomainBaseline:array[TGpoDraftSide] of TBytes;
     fCandidateExists,fUndoExists,fDomainUndoValid,fUndoPresenceOnly:array[TGpoDraftSide] of Boolean;
     fRevision,fPendingRevision:QWord;
     fDomainTarget:string;
@@ -53,7 +54,7 @@ type
     procedure DomainClosed(Sender:TObject; var CloseAction:TCloseAction);
     function DomainCandidates(out User,Machine:TGpoPolicyImage):Boolean;
     function SideDirty(Side:TGpoDraftSide):Boolean;
-    function DomainSummary(const User,Machine:TGpoPolicyImage):string;
+    function DomainSummary(const User,Machine:TGpoPolicyImage; const BaseUser,BaseMachine:TBytes):string;
     procedure SummaryClick(Sender:TObject);
     procedure PresenceClick(Sender:TObject);
     procedure FindClick(Sender:TObject);
@@ -111,7 +112,7 @@ function GpoValidateDraftRecord(const Item:TGpoRegistryRecord; out Error:string)
 function GpoEncodeFriendly(ValueType:Cardinal; const Text:string; out Data:TBytes; out Error:string):Boolean;
 
 implementation
-uses Dialogs, LazUTF8, LCLType, ugpolocalfiles;
+uses Dialogs, LazUTF8, LCLType, ugpolocalfiles, mormot.crypt.core, mormot.core.text;
 
 type
   TFriendlyInput = class(TComponent)
@@ -524,6 +525,7 @@ begin
   if Job.State<>gddsReady then Exit;
   fDomain:=True; fDomainJob:=Job; fDomainExists[gdsUser]:=User.Exists;
   fDomainExists[gdsComputer]:=Machine.Exists; fDomainTarget:=DC+' / '+DN;
+  fDomainBaseline[gdsUser]:=Copy(UserBytes); fDomainBaseline[gdsComputer]:=Copy(MachineBytes);
   fCandidateExists[gdsUser]:=User.Exists; fCandidateExists[gdsComputer]:=Machine.Exists;
   fNew.Caption:='创建空文件'; fNew.OnClick:=@PresenceClick;
   fOpen.Caption:='删除整个文件'; fOpen.OnClick:=@PresenceClick;
@@ -562,9 +564,16 @@ begin
   Result:=(Length(A)=Length(B)) and ((Length(A)=0) or CompareMem(@A[0],@B[0],Length(A)));
 end;
 
-function TFrmGpoOfflineDraft.DomainSummary(const User,Machine:TGpoPolicyImage):string;
+function TFrmGpoOfflineDraft.DomainSummary(const User,Machine:TGpoPolicyImage; const BaseUser,BaseMachine:TBytes):string;
 var Review,Target:string; I:Integer;
-  function Describe(Side:TGpoDraftSide; const Image:TGpoPolicyImage):string;
+  function Fingerprint(Exists:Boolean; const Bytes:TBytes):string;
+  var Hash:TSha256Digest; Sha:TSha256;
+  begin
+    if not Exists then Exit('缺失，无文件指纹');
+    Sha.Full(Pointer(Bytes),Length(Bytes),Hash);
+    Result:=IntToStr(Length(Bytes))+' 字节；SHA-256：'+string(BinToHex(PAnsiChar(@Hash),SizeOf(Hash)));
+  end;
+  function Describe(Side:TGpoDraftSide; const Image:TGpoPolicyImage; const Baseline:TBytes):string;
   var OldText,NewText,Action:string;
   begin
     if fDomainExists[Side] then OldText:='存在' else OldText:='缺失';
@@ -573,7 +582,9 @@ var Review,Target:string; I:Integer;
     else if fDomainExists[Side] and not Image.Exists then Action:='删除整个文件'
     else if fDomainExists[Side] and fDrafts[Side].Dirty then Action:='替换'
     else Action:='无变化';
-    Result:='基线：'+OldText+'；候选：'+NewText+'；意图：'+Action;
+    Result:='基线：'+OldText+'；候选：'+NewText+'；意图：'+Action+LineEnding+
+      '  基线文件：'+Fingerprint(fDomainExists[Side],Baseline)+LineEnding+
+      '  候选文件：'+Fingerprint(Image.Exists,Image.Data);
   end;
 begin
   if not Assigned(fDomainJob) or (fDomainJob.State=gddsStopped) then Review:='会话失效，不能继续复核；之前结果不可作为当前依据。'
@@ -586,30 +597,36 @@ begin
   for I:=1 to Length(Target) do if Ord(Target[I])<32 then Target[I]:='?';
   Result:='GPO 域草稿审阅摘要（仅本地文本）'+LineEnding+
     '目标域控 / GPC DN：'+Target+LineEnding+
-    '计算机 Registry.pol：'+Describe(gdsComputer,Machine)+LineEnding+
-    '用户 Registry.pol：'+Describe(gdsUser,User)+LineEnding+
+    '计算机 Registry.pol：'+Describe(gdsComputer,Machine,BaseMachine)+LineEnding+
+    '用户 Registry.pol：'+Describe(gdsUser,User,BaseUser)+LineEnding+
     '只读复核状态：'+Review+LineEnding+
-    '基线信息仅列出文件存在状态；本摘要不包含 AD objectGUID、版本、ACL 或原始策略内容。'+LineEnding+
+    '文件指纹仅用于字节比对，不能证明文件来源、复核有效或可安全写入；可能暴露文件相同性或被用于猜测内容，请妥善保管。'+LineEnding+
+    '本摘要不包含 AD objectGUID、版本、ACL 或原始策略内容。'+LineEnding+
     '结果仅代表生成时的草稿与已知状态，域中可能随时变化；证据不完整，不授权写入。'+LineEnding+
     '本文件不是 GPMC 备份、导入包或可自动应用的策略；不会执行域写入。'+LineEnding;
 end;
 
 procedure TFrmGpoOfflineDraft.SummaryClick(Sender:TObject);
-var U,M,U2,M2:TGpoPolicyImage; Path,Err,Report,Review:string; Data,RU,RM,RU2,RM2:TBytes;
+var U,M,U2,M2:TGpoPolicyImage; Path,Err,Report,Review:string; Data,RU,RM,RU2,RM2,BU,BM,BU2,BM2:TBytes;
   Version,ReviewVersion:QWord; State:TGpoDomainDraftState; Waiting:Boolean;
 begin
   if not fDomain or not Assigned(fDomainJob) or not DomainCandidates(U,M) or
-    (fDrafts[gdsUser].Export(RU)<>grsOk) or (fDrafts[gdsComputer].Export(RM)<>grsOk) then
+    (fDrafts[gdsUser].Export(RU)<>grsOk) or (fDrafts[gdsComputer].Export(RM)<>grsOk) or
+    (fDrafts[gdsUser].Baseline(BU)<>grsOk) or (fDrafts[gdsComputer].Baseline(BM)<>grsOk) then
   begin ShowError('无法读取域草稿。'); Exit; end;
+  if not SameDraftBytes(BU,fDomainBaseline[gdsUser]) or not SameDraftBytes(BM,fDomainBaseline[gdsComputer]) then
+  begin ShowError('域草稿基线不一致，不能导出审阅摘要。'); Exit; end;
   Version:=fRevision; State:=fDomainJob.State; Waiting:=fDomainWaiting;
   Review:=fReviewText; ReviewVersion:=fReviewRevision;
   if not ChooseSummaryFile(Path) then Exit;
   if (Version<>fRevision) or (State<>fDomainJob.State) or (Waiting<>fDomainWaiting) or
     (Review<>fReviewText) or (ReviewVersion<>fReviewRevision) or not DomainCandidates(U2,M2) or
     (fDrafts[gdsUser].Export(RU2)<>grsOk) or (fDrafts[gdsComputer].Export(RM2)<>grsOk) or
-    not SamePolicyImage(U,U2) or not SamePolicyImage(M,M2) or not SameDraftBytes(RU,RU2) or not SameDraftBytes(RM,RM2) then
+    (fDrafts[gdsUser].Baseline(BU2)<>grsOk) or (fDrafts[gdsComputer].Baseline(BM2)<>grsOk) or
+    not SamePolicyImage(U,U2) or not SamePolicyImage(M,M2) or not SameDraftBytes(RU,RU2) or not SameDraftBytes(RM,RM2) or
+    not SameDraftBytes(BU,BU2) or not SameDraftBytes(BM,BM2) then
   begin ShowError('选择文件期间草稿或会话状态已变化；请重新导出。'); Exit; end;
-  Report:=DomainSummary(U2,M2); SetLength(Data,Length(Report)+3);
+  Report:=DomainSummary(U2,M2,BU2,BM2); SetLength(Data,Length(Report)+3);
   Data[0]:=$ef; Data[1]:=$bb; Data[2]:=$bf;
   if Length(Report)>0 then Move(Report[1],Data[3],Length(Report));
   if not GpoSaveNewLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
