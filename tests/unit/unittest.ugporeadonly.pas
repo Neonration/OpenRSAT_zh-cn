@@ -253,6 +253,18 @@ begin
     NewUser.Data:=RecordBytes('K','V',3,[1]);
     Check(Draft.BuildPlan(E,F,NewUser,NewMachine,Replanned)=gprEvidenceIncomplete);
     Check((Replanned.UserAction=gpaReplace) and (Replanned.MachineAction=gpaNone));
+    Check(Draft.BindPlan(E,F,NewUser,NewMachine,B)=gprEvidenceIncomplete);
+    Check(Assigned(B));
+    if Assigned(B) then
+    begin
+      NewUser.Data[0]:=0;
+      Check(B.CompareWithFiles(E,F)=gprEvidenceIncomplete,'Bound candidate must own its data');
+      Other:=E; Other.Target.DN:='CN=other,DC=example,DC=test';
+      Changed:=F; Changed.Target:=Other.Target;
+      Check(B.CompareWithFiles(Other,Changed)=gprTargetMismatch,'Bound candidate cannot follow another target');
+      B.Free;
+    end;
+    NewUser.Data:=RecordBytes('K','V',3,[1]);
     Check(GpoBuildObservedDraftPlan(nil,T.DN,Guid,Draft,NewUser,NewMachine,Replanned)=gprSessionInvalid);
     Check(Length(Replanned.GptIni)=0);
     NewUser.Data:=Bytes('broken');
@@ -270,6 +282,7 @@ begin
     F.Items[gfUserRegistry].Data:=Copy(Changed.Items[gfUserRegistry].Data);
     Token.Invalidate;
     Check(Draft.BuildPlan(E,F,NewUser,NewMachine,Replanned)=gprSessionInvalid);
+    Check(Draft.BindPlan(E,F,NewUser,NewMachine,B)=gprSessionInvalid); Check(not Assigned(B));
     Check(not Draft.GetBaseline(SnapshotUser,SnapshotMachine)); Check(Length(SnapshotUser.Data)=0);
   finally Draft.Free; end;
   TokenObj:=TPreflightToken.Create; TokenObj.Valid:=True; Token:=TokenObj; T.Session:=Token; E.Target:=T; F.Target:=T;
@@ -355,6 +368,7 @@ begin
   Check(GpoCheckReadOnlyPreflight(nil,T.DN,Guid,nil)=gprInvalid);
   Check(GpoCaptureObservedDraft(nil,T.DN,Guid,Draft)=gprSessionInvalid); Check(not Assigned(Draft));
   Check(GpoBuildObservedDraftPlan(nil,T.DN,Guid,nil,NewUser,NewMachine,Replanned)=gprInvalid);
+  Check(GpoBindObservedDraftPlan(nil,T.DN,Guid,nil,NewUser,NewMachine,B)=gprInvalid); Check(not Assigned(B));
 end;
 procedure TUnitTestGpoReadOnly.LdapEvidenceParsing;
 const Guid='{12345678-1234-1234-1234-123456789ABC}'; DN='CN='+Guid+',CN=Policies,CN=System,DC=example,DC=test';

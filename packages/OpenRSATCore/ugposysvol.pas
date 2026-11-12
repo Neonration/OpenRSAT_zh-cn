@@ -108,6 +108,8 @@ type
     // Candidate data must not alias fields in the output plan.
     function BuildPlan(const Evidence:TGpoLdapEvidence; const Files:TGpoObservedFiles;
       const UserCandidate,MachineCandidate:TGpoPolicyImage; out Plan:TGpoOfflinePlan):TGpoPreflightResult;
+    function BindPlan(const Evidence:TGpoLdapEvidence; const Files:TGpoObservedFiles;
+      const UserCandidate,MachineCandidate:TGpoPolicyImage; out Bound:TGpoBoundPlan):TGpoPreflightResult;
   end;
   // Cooperative only: synchronous OS SMB calls may outlive this deadline.
   // The caller keeps this object alive until the read has returned.
@@ -164,6 +166,10 @@ function GpoCaptureObservedDraft(Client:TLdapClient; const ExpectedDN,ExpectedGu
 function GpoBuildObservedDraftPlan(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
   Draft:TGpoObservedDraft; const UserCandidate,MachineCandidate:TGpoPolicyImage;
   out Plan:TGpoOfflinePlan):TGpoPreflightResult;
+// The resulting candidate keeps the draft's verified target/session binding.
+function GpoBindObservedDraftPlan(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
+  Draft:TGpoObservedDraft; const UserCandidate,MachineCandidate:TGpoPolicyImage;
+  out Bound:TGpoBoundPlan):TGpoPreflightResult;
 // Shared capture flow; a supplied transport is not authenticated by this interface.
 function GpoCaptureLdapFromTransport(const Transport:IGpoLdapEvidenceTransport;
   const ExpectedDN,ExpectedGuid:string; out Evidence:TGpoLdapEvidence):TGpoPreflightResult;
@@ -486,6 +492,21 @@ begin
   if Result=gprEvidenceIncomplete then Plan:=Candidate;
 end;
 
+function TGpoObservedDraft.BindPlan(const Evidence:TGpoLdapEvidence; const Files:TGpoObservedFiles;
+  const UserCandidate,MachineCandidate:TGpoPolicyImage; out Bound:TGpoBoundPlan):TGpoPreflightResult;
+var Plan:TGpoOfflinePlan; Complete:Boolean;
+begin
+  Bound:=nil; Complete:=False;
+  try
+    Result:=BuildPlan(Evidence,Files,UserCandidate,MachineCandidate,Plan);
+    if Result<>gprEvidenceIncomplete then Exit;
+    Result:=TGpoBoundPlan.BindWithFiles(Evidence,Plan,Files,Bound);
+    if not Assigned(Bound) then Exit;
+    Result:=fBound.CompareWithFiles(Evidence,Files);
+    Complete:=Result=gprEvidenceIncomplete;
+  finally if not Complete then FreeAndNil(Bound); end;
+end;
+
 function GpoCaptureObservedDraft(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
   out Draft:TGpoObservedDraft):TGpoPreflightResult;
 var Before,After:TGpoLdapEvidence; Files:TGpoObservedFiles; Complete:Boolean;
@@ -519,6 +540,24 @@ begin
       if Complete then Plan:=Candidate;
     except Result:=gprReadUnavailable; end;
   finally if not Complete then Plan:=Default(TGpoOfflinePlan); end;
+end;
+
+function GpoBindObservedDraftPlan(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
+  Draft:TGpoObservedDraft; const UserCandidate,MachineCandidate:TGpoPolicyImage;
+  out Bound:TGpoBoundPlan):TGpoPreflightResult;
+var Before,After:TGpoLdapEvidence; Files:TGpoObservedFiles; Complete:Boolean;
+begin
+  Bound:=nil; Complete:=False;
+  if not Assigned(Draft) then Exit(gprInvalid);
+  try
+    try
+      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,Before); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=GpoCapturePreflightEvidence(Before.Target,Files); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=Draft.BindPlan(Before,Files,UserCandidate,MachineCandidate,Bound); if not Assigned(Bound) then Exit;
+      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,After); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=Bound.CompareWithFiles(After,Files); Complete:=Result=gprEvidenceIncomplete;
+    except Result:=gprReadUnavailable; end;
+  finally if not Complete then FreeAndNil(Bound); end;
 end;
 
 function TGpoBoundPlan.Compare(const Target:TGpoPreflightTarget; GpcStatus:TGpoReadStatus; GpcVersion:Cardinal;
