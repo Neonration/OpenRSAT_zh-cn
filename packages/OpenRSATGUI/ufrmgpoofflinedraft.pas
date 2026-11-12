@@ -22,6 +22,9 @@ type
     fDomainWaiting:Boolean;
     fDomainStarted:QWord;
     fPendingUser,fPendingMachine:TGpoPolicyImage;
+    fReviewUser,fReviewMachine:TGpoPolicyImage;
+    fReviewRevision:QWord;
+    fReviewText:string;
     fSide: TGpoDraftSide;
     fValidSide:Boolean;
     fSavedPage, fSavedIndex:array[TGpoDraftSide] of Integer;
@@ -32,7 +35,7 @@ type
     fFindText:TEdit;
     fFindButton:TButton;
     fFindStatus:TLabel;
-    fNew, fOpen, fSave, fAdd, fEdit, fDelete, fUndo, fReset, fPreview, fPlan: TButton;
+    fNew, fOpen, fSave, fAdd, fEdit, fDelete, fUndo, fReset, fPreview, fPlan,fSummary: TButton;
     procedure TreeChanged(Sender:TObject; Node:TTreeNode);
     procedure RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);
     function ExportCurrent:Boolean;
@@ -50,6 +53,8 @@ type
     procedure DomainClosed(Sender:TObject; var CloseAction:TCloseAction);
     function DomainCandidates(out User,Machine:TGpoPolicyImage):Boolean;
     function SideDirty(Side:TGpoDraftSide):Boolean;
+    function DomainSummary(const User,Machine:TGpoPolicyImage):string;
+    procedure SummaryClick(Sender:TObject);
     procedure PresenceClick(Sender:TObject);
     procedure FindClick(Sender:TObject);
     procedure FindChanged(Sender:TObject);
@@ -66,6 +71,7 @@ type
     function ConfirmClose(const Branches:string):TGpoCloseChoice; virtual;
     function ConfirmRestore:Boolean; virtual;
     function ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean; virtual;
+    function ChooseSummaryFile(out Path:string):Boolean; virtual;
     function ChooseGptFile(out Path:string):Boolean; virtual;
     function RequestGpcVersion(out Value:string):Boolean; virtual;
     function EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean; virtual;
@@ -94,6 +100,7 @@ type
     property ResetButton:TButton read fReset;
     property PreviewButton:TButton read fPreview;
     property PlanButton:TButton read fPlan;
+    property SummaryButton:TButton read fSummary;
     property FindText:TEdit read fFindText;
     property FindButton:TButton read fFindButton;
     property FindStatus:TLabel read fFindStatus;
@@ -394,6 +401,7 @@ begin
   fReset:=MakeButton(SRestoreBaseline,2,1,@ResetClick);
   fPreview:=MakeButton('预览记录变更',3,1,@PreviewClick);
   fPlan:=MakeButton('本地计划预演…',4,1,@PlanClick);
+  fSummary:=MakeButton('导出审阅摘要…',0,3,@SummaryClick); fSummary.Visible:=False;
   with TLabel.Create(Self) do begin Parent:=ToolPanel; Caption:='查找记录：'; SetBounds(8,72,80,24); end;
   fFindText:=TEdit.Create(Self); fFindText.Parent:=ToolPanel; fFindText.SetBounds(88,68,240,26);
   fFindText.OnChange:=@FindChanged; fFindText.OnKeyDown:=@FindKeyDown;
@@ -521,6 +529,7 @@ begin
   fOpen.Caption:='删除整个文件'; fOpen.OnClick:=@PresenceClick;
   Caption:='域目标绑定草稿（只读，不会应用到域）';
   fPlan.Caption:='只读复核草稿…'; fTree.Items[0].Text:='域目标绑定草稿';
+  TPanel(fSummary.Parent).Height:=132; fSummary.Visible:=True;
   OnClose:=@DomainClosed;
   fDomainTimer:=TTimer.Create(Self); fDomainTimer.Interval:=100; fDomainTimer.OnTimer:=@PollDomainPlan; fDomainTimer.Enabled:=True;
   RefreshView; Result:=True;
@@ -541,6 +550,70 @@ begin
   if fDomain then Result:=(fCandidateExists[Side]<>fDomainExists[Side]) or
     (fCandidateExists[Side] and fDrafts[Side].Dirty)
   else Result:=fDrafts[Side].Dirty;
+end;
+
+function SamePolicyImage(const A,B:TGpoPolicyImage):Boolean;
+begin
+  Result:=(A.Exists=B.Exists) and (Length(A.Data)=Length(B.Data));
+  if Result and (Length(A.Data)>0) then Result:=CompareMem(@A.Data[0],@B.Data[0],Length(A.Data));
+end;
+function SameDraftBytes(const A,B:TBytes):Boolean;
+begin
+  Result:=(Length(A)=Length(B)) and ((Length(A)=0) or CompareMem(@A[0],@B[0],Length(A)));
+end;
+
+function TFrmGpoOfflineDraft.DomainSummary(const User,Machine:TGpoPolicyImage):string;
+var Review,Target:string; I:Integer;
+  function Describe(Side:TGpoDraftSide; const Image:TGpoPolicyImage):string;
+  var OldText,NewText,Action:string;
+  begin
+    if fDomainExists[Side] then OldText:='存在' else OldText:='缺失';
+    if Image.Exists then NewText:='存在' else NewText:='缺失';
+    if not fDomainExists[Side] and Image.Exists then Action:='创建'
+    else if fDomainExists[Side] and not Image.Exists then Action:='删除整个文件'
+    else if fDomainExists[Side] and fDrafts[Side].Dirty then Action:='替换'
+    else Action:='无变化';
+    Result:='基线：'+OldText+'；候选：'+NewText+'；意图：'+Action;
+  end;
+begin
+  if not Assigned(fDomainJob) or (fDomainJob.State=gddsStopped) then Review:='会话失效，不能继续复核；之前结果不可作为当前依据。'
+  else if fDomainWaiting then Review:='复核进行中，尚无本次结果。'
+  else if fReviewText='' then Review:='尚未完成只读复核。'
+  else if (fReviewRevision<>fRevision) or not SamePolicyImage(User,fReviewUser) or
+    not SamePolicyImage(Machine,fReviewMachine) then Review:='草稿已变化，之前复核结果已过期。'
+  else Review:=fReviewText;
+  Target:=fDomainTarget;
+  for I:=1 to Length(Target) do if Ord(Target[I])<32 then Target[I]:='?';
+  Result:='GPO 域草稿审阅摘要（仅本地文本）'+LineEnding+
+    '目标域控 / GPC DN：'+Target+LineEnding+
+    '计算机 Registry.pol：'+Describe(gdsComputer,Machine)+LineEnding+
+    '用户 Registry.pol：'+Describe(gdsUser,User)+LineEnding+
+    '只读复核状态：'+Review+LineEnding+
+    '基线信息仅列出文件存在状态；本摘要不包含 AD objectGUID、版本、ACL 或原始策略内容。'+LineEnding+
+    '结果仅代表生成时的草稿与已知状态，域中可能随时变化；证据不完整，不授权写入。'+LineEnding+
+    '本文件不是 GPMC 备份、导入包或可自动应用的策略；不会执行域写入。'+LineEnding;
+end;
+
+procedure TFrmGpoOfflineDraft.SummaryClick(Sender:TObject);
+var U,M,U2,M2:TGpoPolicyImage; Path,Err,Report,Review:string; Data,RU,RM,RU2,RM2:TBytes;
+  Version,ReviewVersion:QWord; State:TGpoDomainDraftState; Waiting:Boolean;
+begin
+  if not fDomain or not Assigned(fDomainJob) or not DomainCandidates(U,M) or
+    (fDrafts[gdsUser].Export(RU)<>grsOk) or (fDrafts[gdsComputer].Export(RM)<>grsOk) then
+  begin ShowError('无法读取域草稿。'); Exit; end;
+  Version:=fRevision; State:=fDomainJob.State; Waiting:=fDomainWaiting;
+  Review:=fReviewText; ReviewVersion:=fReviewRevision;
+  if not ChooseSummaryFile(Path) then Exit;
+  if (Version<>fRevision) or (State<>fDomainJob.State) or (Waiting<>fDomainWaiting) or
+    (Review<>fReviewText) or (ReviewVersion<>fReviewRevision) or not DomainCandidates(U2,M2) or
+    (fDrafts[gdsUser].Export(RU2)<>grsOk) or (fDrafts[gdsComputer].Export(RM2)<>grsOk) or
+    not SamePolicyImage(U,U2) or not SamePolicyImage(M,M2) or not SameDraftBytes(RU,RU2) or not SameDraftBytes(RM,RM2) then
+  begin ShowError('选择文件期间草稿或会话状态已变化；请重新导出。'); Exit; end;
+  Report:=DomainSummary(U2,M2); SetLength(Data,Length(Report)+3);
+  Data[0]:=$ef; Data[1]:=$bb; Data[2]:=$bf;
+  if Length(Report)>0 then Move(Report[1],Data[3],Length(Report));
+  if not GpoSaveNewLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
+  fStatus.Caption:='已导出本地审阅摘要；域基线和草稿未改变。';
 end;
 
 procedure TFrmGpoOfflineDraft.PresenceClick(Sender:TObject);
@@ -568,11 +641,6 @@ end;
 
 procedure TFrmGpoOfflineDraft.PollDomainPlan(Sender:TObject);
 var User,Machine:TGpoPolicyImage; MessageText:string;
-  function SameImage(const A,B:TGpoPolicyImage):Boolean;
-  begin
-    Result:=(A.Exists=B.Exists) and (Length(A.Data)=Length(B.Data));
-    if Result and (Length(A.Data)>0) then Result:=CompareMem(@A.Data[0],@B.Data[0],Length(A.Data));
-  end;
   function ActionText(Side:TGpoDraftSide; const Candidate:TGpoPolicyImage):string;
   begin
     if not fDomainExists[Side] and Candidate.Exists then Exit('创建');
@@ -590,10 +658,17 @@ begin
   end;
   if not fDomainWaiting or (fDomainJob.State<>gddsResult) then Exit;
   fDomainWaiting:=False; fPlan.Enabled:=True;
-  if (fRevision<>fPendingRevision) or not DomainCandidates(User,Machine) or not SameImage(User,fPendingUser) or not SameImage(Machine,fPendingMachine) then
+  if (fRevision<>fPendingRevision) or not DomainCandidates(User,Machine) or not SamePolicyImage(User,fPendingUser) or not SamePolicyImage(Machine,fPendingMachine) then
   begin ShowError('复核期间草稿已变化，旧结果已丢弃；请重新复核。'); Exit; end;
   MessageText:=fDomainJob.ResultText;
   if MessageText='' then MessageText:='只读复核未完成；草稿保留。';
+  fReviewRevision:=fRevision; fReviewUser:=User; fReviewUser.Data:=Copy(User.Data);
+  fReviewMachine:=Machine; fReviewMachine.Data:=Copy(Machine.Data);
+  if (MessageText='候选计划与原域基线的只读复核一致；安全证据仍不完整，不能授权写入。') or
+     (MessageText='域基线已变化；本次检查阻断，草稿保留，可导出后重新采集。') or
+     (MessageText='域控或目标身份已变化；本次检查阻断，草稿保留。') or
+     (MessageText='只读复核未完成，证据不足或会话失效；草稿保留。') then fReviewText:=MessageText
+  else fReviewText:='复核未得到可识别的结果；不能确认基线。';
   ShowPlanReport(MessageText+LineEnding+'目标：'+fDomainTarget+LineEnding+
     '计算机文件：'+ActionText(gdsComputer,Machine)+'；用户文件：'+ActionText(gdsUser,User)+LineEnding+
     '结果仅反映本次采集，之后可能发生变化；不会执行域写入。');
@@ -725,6 +800,17 @@ begin
       D.Options:=D.Options-[ofOverwritePrompt];
       D.FileName:='Registry-copy.pol';
     end else begin D.Title:='打开本地 Registry.pol 文件'; D.Options:=D.Options+[ofFileMustExist]; end;
+    Result:=D.Execute; if Result then Path:=D.FileName;
+  finally D.Free; end;
+end;
+function TFrmGpoOfflineDraft.ChooseSummaryFile(out Path:string):Boolean;
+var D:TSaveDialog;
+begin
+  Path:=''; D:=TSaveDialog.Create(Self);
+  try
+    D.Title:='导出本地审阅摘要（不会覆盖已有文件）';
+    D.Filter:='文本文件 (*.txt)|*.txt|所有文件 (*.*)|*.*';
+    D.Options:=D.Options-[ofOverwritePrompt]; D.FileName:='GPO-review-summary.txt';
     Result:=D.Execute; if Result then Path:=D.FileName;
   finally D.Free; end;
 end;

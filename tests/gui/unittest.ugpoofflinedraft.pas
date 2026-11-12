@@ -15,6 +15,7 @@ type
     procedure CloseAndDiffAfter64;
     procedure LocalPlanRehearsal;
     procedure DomainDraftWorkflow;
+    procedure DomainSummaryExport;
   end;
 implementation
 uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugpolocalfiles,
@@ -37,6 +38,7 @@ type
     GptPath, VersionInput, PlanReport:string;
     GptChoice, VersionChoice:Boolean; PlanReports:Integer;
     MutateOnVersion, MutateOnGpt, RebaseOnGpt, InjectedEditOk:Boolean;
+    SummaryChoice,MutateOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
     constructor Create(TheOwner:TComponent); override;
     procedure PollDomainNow;
   protected
@@ -44,6 +46,7 @@ type
     function ConfirmClose(const Branches:string):TGpoCloseChoice; override;
     function ConfirmRestore:Boolean; override;
     function ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean; override;
+    function ChooseSummaryFile(out Path:string):Boolean; override;
     function ChooseGptFile(out Path:string):Boolean; override;
     function RequestGpcVersion(out Value:string):Boolean; override;
     function EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean; override;
@@ -74,6 +77,7 @@ type
     Current:TGpoDomainDraftState;
     LastUser,LastMachine:TGpoPolicyImage;
     InitialUser,InitialMachine:TGpoPolicyImage;
+    Text:string;
     procedure Execute;
     procedure Cancel;
     function State:TGpoDomainDraftState;
@@ -92,7 +96,7 @@ begin
   LastUser.Exists:=User.Exists; LastUser.Data:=Copy(User.Data);
   LastMachine.Exists:=Machine.Exists; LastMachine.Data:=Copy(Machine.Data); Current:=gddsChecking;
 end;
-function TFakeDomainJob.ResultText:string; begin Result:='模拟复核：证据不完整'; end;
+function TFakeDomainJob.ResultText:string; begin if Text<>'' then Result:=Text else Result:='模拟复核：证据不完整'; end;
 function TKeyboardOfflineForm.InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
 begin Result:=EditRecord(R,Adding); end;
 function TKeyboardOfflineForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
@@ -147,6 +151,15 @@ begin
     if ExportCount>1 then begin Result:=False; Exit; end;
     Path:=ExportPaths[ExportCount]; Result:=ExportChoices[ExportCount]; Inc(ExportCount);
   end else begin Path:=NextPath; Result:=SelectChoice; end;
+end;
+function TTestOfflineForm.ChooseSummaryFile(out Path:string):Boolean;
+begin
+  Path:=SummaryPath; Result:=SummaryChoice;
+  if MutateOnSummary then begin
+    MutateOnSummary:=False;
+    InjectedEditOk:=Draft(gdsUser).Insert(Length(Draft(gdsUser).Records),NextRecord)=grsOk;
+  end;
+  if Assigned(CancelOnSummary) then begin CancelOnSummary.Cancel; CancelOnSummary:=nil; end;
 end;
 function TTestOfflineForm.EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean;
 begin Result:=EditChoice; if Result then Item:=NextRecord; end;
@@ -229,6 +242,74 @@ begin
     Check(F.SaveButton.Enabled,'Expired domain draft remains exportable');
   finally F.Free; Ref:=nil; end;
 end;
+procedure TUnitTestGpoOfflineDraftUI.DomainSummaryExport;
+{$ifdef windows}
+var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; Machine:TGpoPolicyImage;
+  Dir,Err,Report,Path:string; Empty,Data,Original:TBytes; Id:TGUID; I:Integer;
+  function Name(N:Integer):string;
+  begin Result:=Dir+'\'+IntToStr(N)+'.txt'; end;
+  function ReadReport(N:Integer):string;
+  var B:TBytes;
+  begin
+    Result:=''; if not GpoLoadLocalFile(Name(N),B,Err) or (Length(B)<=3) then Exit;
+    if (B[0]<>$ef) or (B[1]<>$bb) or (B[2]<>$bf) then Exit;
+    SetString(Result,PAnsiChar(@B[3]),Length(B)-3);
+  end;
+begin
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-summary-'+GUIDToString(Id); Check(CreateDir(Dir));
+  Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job; F:=TTestOfflineForm.Create(nil);
+  try
+    Check(SerializeRegistryPol(nil,Empty)=grsOk); Machine:=Default(TGpoPolicyImage);
+    Machine.Exists:=True; Machine.Data:=Copy(Empty); Job.InitialMachine:=Machine;
+    Check(F.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
+    F.SummaryChoice:=True; F.SummaryPath:=Name(1); F.SummaryButton.Click; Report:=ReadReport(1);
+    Check(Pos('dc.example.test',Report)>0); Check(Pos('CN=policy,DC=example,DC=test',Report)>0);
+    Check(Pos('尚未完成只读复核',Report)>0); Check(Pos('不是 GPMC 备份',Report)>0);
+    Check(Pos('计算机 Registry.pol：基线：存在；候选：存在；意图：无变化',Report)>0);
+    Check(Pos('用户 Registry.pol：基线：缺失；候选：缺失；意图：无变化',Report)>0);
+    F.SummaryChoice:=False; F.SummaryPath:=Name(2); F.SummaryButton.Click; Check(not FileExists(Name(2)));
+    F.SummaryChoice:=True; F.MutateOnSummary:=True; F.NextRecord:=Item('Secret\NeverExport','Password',3,[7]);
+    F.SummaryButton.Click; Check(F.InjectedEditOk); Check(not FileExists(Name(2))); Check(Pos('状态已变化',F.LastError)>0);
+    F.Draft(gdsUser).Reset; F.SelectSide(gdsComputer); F.OpenButton.Click;
+    F.SelectSide(gdsUser); F.EditChoice:=True; F.AddButton.Click;
+    F.SummaryPath:=Name(2); F.SummaryButton.Click; Report:=ReadReport(2);
+    Check(Pos('计算机 Registry.pol：基线：存在；候选：缺失；意图：删除整个文件',Report)>0);
+    Check(Pos('用户 Registry.pol：基线：缺失；候选：存在；意图：创建',Report)>0);
+    Check(Pos('Secret',Report)=0); Check(Pos('Password',Report)=0);
+    F.PlanButton.Click; F.SummaryPath:=Name(3); F.SummaryButton.Click; Report:=ReadReport(3);
+    Check(Pos('复核进行中',Report)>0);
+    Job.Text:='候选计划与原域基线的只读复核一致；安全证据仍不完整，不能授权写入。';
+    Job.Current:=gddsResult; F.PollDomainNow;
+    F.SummaryPath:=Name(4); F.SummaryButton.Click; Report:=ReadReport(4);
+    Check(Pos('只读复核一致',Report)>0); Check(Pos('不能授权写入',Report)>0);
+    F.PlanButton.Click; Job.Text:='域基线已变化；本次检查阻断，草稿保留，可导出后重新采集。';
+    Job.Current:=gddsResult; F.PollDomainNow; F.SummaryPath:=Name(9); F.SummaryButton.Click; Report:=ReadReport(9);
+    Check(Pos('域基线已变化',Report)>0); Check(Pos('只读复核一致',Report)=0);
+    F.PlanButton.Click; Job.Text:='untrusted-secret-token'; Job.Current:=gddsResult; F.PollDomainNow;
+    F.SummaryPath:=Name(10); F.SummaryButton.Click; Report:=ReadReport(10);
+    Check(Pos('未得到可识别',Report)>0); Check(Pos('untrusted-secret-token',Report)=0);
+    F.NextRecord:=Item('Second\NeverExport','Value',3,[8]); F.AddButton.Click;
+    F.SummaryPath:=Name(5); F.SummaryButton.Click; Report:=ReadReport(5); Check(Pos('结果已过期',Report)>0);
+    Check(GpoLoadLocalFile(Name(1),Original,Err)); F.SummaryPath:=Name(1); I:=F.ErrorCalls;
+    F.SummaryButton.Click; Check(F.ErrorCalls=I+1); Check(GpoLoadLocalFile(Name(1),Data,Err)); Check(EqualBytes(Data,Original));
+    F.SummaryPath:=Name(6); F.CancelOnSummary:=Ref; F.SummaryButton.Click;
+    Check(not FileExists(Name(6))); Check(Pos('状态已变化',F.LastError)>0);
+    F.SummaryPath:=Name(7); F.SummaryButton.Click; Report:=ReadReport(7); Check(Pos('会话失效',Report)>0);
+    F.SelectSide(gdsComputer); F.UndoButton.Click; F.NextRecord:=Item('Machine\Hidden','Value',3,[1]); F.AddButton.Click;
+    F.SummaryPath:=Name(8); F.SummaryButton.Click; Report:=ReadReport(8);
+    Check(Pos('计算机 Registry.pol：基线：存在；候选：存在；意图：替换',Report)>0);
+    Check(Pos('Machine\Hidden',Report)=0);
+    Check(F.Draft(gdsUser).Dirty,'summary exports must retain the draft');
+  finally
+    F.Free; Ref:=nil;
+    for I:=1 to 10 do begin Path:=Name(I); if GetFileAttributesW(PWideChar(UTF8Decode(Path)))<>INVALID_FILE_ATTRIBUTES then
+      Check(DeleteFileW(PWideChar(UTF8Decode(Path))),'remove summary'); end;
+    Check(RemoveDir(Dir),'summary test directory cleaned');
+  end;
+end;
+{$else}
+begin Check(True,'local export unsupported on this platform'); end;
+{$endif}
 procedure TUnitTestGpoOfflineDraftUI.RecordEditorKeyboardLayout;
 var F:TKeyboardOfflineForm; R:TGpoRegistryRecord; I,J:Integer;
 begin
