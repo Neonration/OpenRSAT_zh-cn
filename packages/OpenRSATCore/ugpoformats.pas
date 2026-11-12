@@ -33,6 +33,13 @@ type
   end;
   TGptIniCandidateStatus = (gicOk, gicInvalid, gicUnsupported,
     gicBaselineMismatch, gicTooLarge);
+  TGpoOfflinePlanStatus = (gopOk, gopInvalidPolicy, gopBaselineMismatch,
+    gopInvalidIni, gopUnsupportedIni, gopTooLarge);
+  TGpoOfflinePlan = record
+    UserChanged, MachineChanged: Boolean;
+    Version: TGpoVersionPlan;
+    GptIni, UserPolicy, MachinePolicy: TBytes;
+  end;
 
 function GpoUserVersion(Version: Cardinal): Word;
 function GpoMachineVersion(Version: Cardinal): Word;
@@ -47,6 +54,10 @@ function ParseGptIni(const Data: TBytes; out Version: Cardinal): TGpoReadStatus;
 // Generates bytes only; Data and Candidate must be distinct variables.
 function GpoBuildGptIniCandidate(const Data: TBytes; ExpectedVersion, NewVersion: Cardinal;
   out Candidate: TBytes): TGptIniCandidateStatus;
+// Inputs must be distinct from Plan fields. All policies must be present and valid.
+function GpoBuildOfflinePlan(GpcVersion, GptVersion: Cardinal; const Ini,
+  OldUser, NewUser, OldMachine, NewMachine: TBytes;
+  out Plan: TGpoOfflinePlan): TGpoOfflinePlanStatus;
 function ParseRegistryPol(const Data: TBytes; out Records: TGpoRegistryRecords): TGpoReadStatus;
 // Preserves ordered records and raw data, including unknown types and commands.
 function SerializeRegistryPol(const Records: TGpoRegistryRecords;
@@ -296,6 +307,38 @@ begin
       Move(Data[SuffixBytes],Candidate[PrefixBytes+Length(Digits)*Width],Length(Data)-SuffixBytes);
     Result:=gicOk;
   finally Sections.Free; Keys.Free; end;
+end;
+
+function GpoBuildOfflinePlan(GpcVersion, GptVersion: Cardinal; const Ini,
+  OldUser, NewUser, OldMachine, NewMachine: TBytes;
+  out Plan: TGpoOfflinePlan): TGpoOfflinePlanStatus;
+var Work: TGpoOfflinePlan; Records: TGpoRegistryRecords; IniStatus: TGptIniCandidateStatus;
+  function EqualBytes(const A,B:TBytes):Boolean;
+  begin
+    Result:=Length(A)=Length(B);
+    if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A));
+  end;
+  function ValidPolicy(const Data:TBytes):Boolean;
+  begin Result:=ParseRegistryPol(Data,Records)=grsOk; Records:=nil; end;
+begin
+  Plan:=Default(TGpoOfflinePlan); Work:=Default(TGpoOfflinePlan);
+  Result:=gopInvalidPolicy;
+  if not ValidPolicy(OldUser) or not ValidPolicy(NewUser) or
+     not ValidPolicy(OldMachine) or not ValidPolicy(NewMachine) then Exit;
+  Work.UserChanged:=not EqualBytes(OldUser,NewUser);
+  Work.MachineChanged:=not EqualBytes(OldMachine,NewMachine);
+  if not GpoPlanVersion(GpcVersion,GptVersion,Work.UserChanged,Work.MachineChanged,Work.Version) then
+    Exit(gopBaselineMismatch);
+  IniStatus:=GpoBuildGptIniCandidate(Ini,GptVersion,Work.Version.Version,Work.GptIni);
+  case IniStatus of
+    gicBaselineMismatch: Exit(gopBaselineMismatch);
+    gicInvalid: Exit(gopInvalidIni);
+    gicUnsupported: Exit(gopUnsupportedIni);
+    gicTooLarge: Exit(gopTooLarge);
+  end;
+  if not (Work.UserChanged or Work.MachineChanged) then Work.GptIni:=Copy(Ini);
+  Work.UserPolicy:=Copy(NewUser); Work.MachinePolicy:=Copy(NewMachine);
+  Plan:=Work; Result:=gopOk;
 end;
 
 // MS-GPREG 2.2.1 and Microsoft Registry Policy File Format:

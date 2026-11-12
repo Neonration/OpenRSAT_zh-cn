@@ -11,6 +11,7 @@ type
     procedure LdapVersionSigned;
     procedure VersionPlanning;
     procedure GptIniCandidate;
+    procedure OfflineChangePlan;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -60,6 +61,47 @@ begin
 end;
 function Bytes(const S:RawByteString):TBytes;
 begin Result:=nil; SetLength(Result,Length(S)); if Length(S)>0 then Move(S[1],Result[0],Length(S)); end;
+procedure TUnitTestGpoReadOnly.OfflineChangePlan;
+var Empty, ChangedUser, ChangedMachine, Bad, Ini, OriginalIni:TBytes;
+  P:TGpoOfflinePlan; V:Cardinal;
+  procedure EmptyResult;
+  begin
+    Check(not P.UserChanged and not P.MachineChanged);
+    Check((Length(P.GptIni)=0) and (Length(P.UserPolicy)=0) and (Length(P.MachinePolicy)=0));
+    Check((P.Version.Version=0) and (P.Version.LdapValue='') and (P.Version.GptValue=''));
+  end;
+begin
+  Empty:=Header; ChangedUser:=RecordBytes('UserKey','V',3,[1]);
+  ChangedMachine:=RecordBytes('MachineKey','V',3,[2]); Bad:=Bytes('bad');
+  Ini:=Bytes('[General]'#13#10'Version=0001'#13#10'Other=untouched'); OriginalIni:=Copy(Ini);
+  Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Empty,Empty,P)=gopOk);
+  Check(not P.UserChanged and not P.MachineChanged); Check(P.Version.Version=1);
+  Check((Length(P.GptIni)=Length(Ini)) and CompareMem(@P.GptIni[0],@Ini[0],Length(Ini)));
+  Check(GpoBuildOfflinePlan(1,1,Ini,Empty,ChangedUser,Empty,Empty,P)=gopOk);
+  Check(P.UserChanged and not P.MachineChanged); Check(P.Version.Version=$00010001);
+  Check(ParseGptIni(P.GptIni,V)=grsOk); Check(V=P.Version.Version);
+  Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Empty,ChangedMachine,P)=gopOk);
+  Check(not P.UserChanged and P.MachineChanged); Check(P.Version.Version=2);
+  Check(GpoBuildOfflinePlan(1,1,Ini,Empty,ChangedUser,Empty,ChangedMachine,P)=gopOk);
+  Check(P.UserChanged and P.MachineChanged); Check(P.Version.Version=$00010002);
+  Check(ParseGptIni(P.GptIni,V)=grsOk); Check(V=P.Version.Version);
+  Check(P.Version.LdapValue='65538'); Check(P.Version.GptValue='65538');
+  ChangedUser[0]:=0; ChangedMachine[0]:=0; Ini[0]:=0;
+  Check(P.UserPolicy[0]=Ord('P')); Check(P.MachinePolicy[0]=Ord('P')); Check(P.GptIni[0]=Ord('['));
+  ChangedUser:=RecordBytes('UserKey','V',3,[1]); ChangedMachine:=RecordBytes('MachineKey','V',3,[2]);
+  Ini:=Copy(OriginalIni); P.UserPolicy[0]:=0; P.MachinePolicy[0]:=0; P.GptIni[0]:=0;
+  Check(ChangedUser[0]=Ord('P')); Check(ChangedMachine[0]=Ord('P')); Check(Ini[0]=Ord('['));
+  Check(GpoBuildOfflinePlan(1,1,Ini,Bad,ChangedUser,Empty,Empty,P)=gopInvalidPolicy); EmptyResult;
+  Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Bad,Empty,Empty,P)=gopInvalidPolicy); EmptyResult;
+  Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Bad,ChangedMachine,P)=gopInvalidPolicy); EmptyResult;
+  Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Empty,Bad,P)=gopInvalidPolicy); EmptyResult;
+  Check(GpoBuildOfflinePlan(1,2,Ini,Empty,Empty,Empty,Empty,P)=gopBaselineMismatch); EmptyResult;
+  Check(GpoBuildOfflinePlan(2,2,Ini,Empty,ChangedUser,Empty,Empty,P)=gopBaselineMismatch); EmptyResult;
+  Ini:=Bytes('[General]'#10'Version=1'#10'[general]'#10'X=1');
+  Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Empty,Empty,P)=gopInvalidIni); EmptyResult;
+  Ini:=Bytes('[General]'#10'Version=1'#10'X='#195#169);
+  Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Empty,Empty,P)=gopUnsupportedIni); EmptyResult;
+end;
 procedure TUnitTestGpoReadOnly.GptIniCandidate;
 var Source, Candidate, Expected:TBytes; V:Cardinal; Plan:TGpoVersionPlan; I:Integer;
   Original, Updated:RawByteString;
