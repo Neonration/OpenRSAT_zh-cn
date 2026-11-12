@@ -13,6 +13,7 @@ type
     procedure GptIniCandidate;
     procedure OfflineChangePlan;
     procedure OfflinePlanPresence;
+    procedure OfflineBaselineChecks;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -70,6 +71,8 @@ var Empty, ChangedUser, ChangedMachine, Bad, Ini, OriginalIni:TBytes;
     Check(not P.UserChanged and not P.MachineChanged);
     Check((Length(P.GptIni)=0) and (Length(P.UserPolicy)=0) and (Length(P.MachinePolicy)=0));
     Check((P.Version.Version=0) and (P.Version.LdapValue='') and (P.Version.GptValue=''));
+    Check((Length(P.Baseline.GptIni)=0) and (Length(P.Baseline.UserPolicy.Data)=0) and
+      (Length(P.Baseline.MachinePolicy.Data)=0));
   end;
 begin
   Empty:=Header; ChangedUser:=RecordBytes('UserKey','V',3,[1]);
@@ -145,6 +148,48 @@ begin
   Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,BadMissing,Missing,Missing,Missing,P)=gopInvalidPolicy); CheckFailure;
   Check(GpoBuildOfflinePlanWithPresence(1,2,Ini,Missing,Empty,Missing,Missing,P)=gopBaselineMismatch); CheckFailure;
   Check(GpoBuildOfflinePlanWithPresence(2,2,Ini,Missing,Empty,Missing,Missing,P)=gopBaselineMismatch); CheckFailure;
+end;
+procedure TUnitTestGpoReadOnly.OfflineBaselineChecks;
+var User,Machine,Missing,ChangedUser,ChangedMachine,Invalid:TGpoPolicyImage;
+  Ini, ChangedIni:TBytes; P:TGpoOfflinePlan;
+begin
+  User.Exists:=True; User.Data:=RecordBytes('User','V',3,[1]);
+  Machine.Exists:=True; Machine.Data:=RecordBytes('Machine','V',3,[2]);
+  Missing:=Default(TGpoPolicyImage); Invalid.Exists:=True; Invalid.Data:=nil;
+  Ini:=Bytes('[General]'#10'Version=1'#10'Other=abc');
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,User,User,Machine,Machine,P)=gopOk);
+  Check(not P.UserChanged and not P.MachineChanged);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,User,Machine)=gbcMatch);
+  Check(GpoCheckOfflineBaseline(P.Baseline,2,Ini,User,Machine)=gbcConflict);
+  ChangedUser.Exists:=True; ChangedUser.Data:=RecordBytes('User','V',3,[3]);
+  ChangedMachine.Exists:=True; ChangedMachine.Data:=RecordBytes('Machine','V',3,[4]);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,ChangedUser,Machine)=gbcConflict);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,User,ChangedMachine)=gbcConflict);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,ChangedUser,ChangedMachine)=gbcConflict);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,Missing,Machine)=gbcConflict);
+  ChangedIni:=Bytes('[General]'#10'Version=1'#10'Other=xyz');
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,ChangedIni,User,Machine)=gbcConflict);
+  ChangedIni:=Bytes('[General]'#10'Version=2'#10'Other=abc');
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,ChangedIni,User,Machine)=gbcConflict);
+  ChangedIni:=Bytes('[General]'#10'Version=1'#10'[general]'#10'X=1');
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,ChangedIni,User,Machine)=gbcInvalid);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,Invalid,Machine)=gbcInvalid);
+  User.Data[0]:=0; Machine.Data[0]:=0; Ini[0]:=0;
+  Check(P.Baseline.UserPolicy.Data[0]=Ord('P')); Check(P.Baseline.MachinePolicy.Data[0]=Ord('P'));
+  Check(P.Baseline.GptIni[0]=Ord('['));
+  User.Data:=RecordBytes('User','V',3,[1]); Machine.Data:=RecordBytes('Machine','V',3,[2]);
+  Ini:=Bytes('[General]'#10'Version=1'#10'Other=abc');
+  P.Baseline.UserPolicy.Data[0]:=0; P.Baseline.MachinePolicy.Data[0]:=0; P.Baseline.GptIni[0]:=0;
+  Check(User.Data[0]=Ord('P')); Check(Machine.Data[0]=Ord('P')); Check(Ini[0]=Ord('['));
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,User,Machine)=gbcInvalid);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,Missing,Missing,Missing,P)=gopOk);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,Missing,Missing)=gbcMatch);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,User,Missing)=gbcConflict);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,User,ChangedUser,Machine,Missing,P)=gopOk);
+  Check(P.UserChanged and P.MachineChanged);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,User,Machine)=gbcMatch);
+  Check(GpoCheckOfflineBaseline(P.Baseline,1,Ini,ChangedUser,Missing)=gbcConflict);
+  Check(P.UserChanged and P.MachineChanged and (P.Version.Version=$10002));
 end;
 procedure TUnitTestGpoReadOnly.GptIniCandidate;
 var Source, Candidate, Expected:TBytes; V:Cardinal; Plan:TGpoVersionPlan; I:Integer;

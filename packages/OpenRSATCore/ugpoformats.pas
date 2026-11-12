@@ -40,11 +40,18 @@ type
     Data: TBytes;
   end;
   TGpoPolicyAction = (gpaNone, gpaCreate, gpaReplace, gpaDelete);
+  TGpoOfflineBaseline = record
+    GpcVersion: Cardinal;
+    GptIni: TBytes;
+    UserPolicy, MachinePolicy: TGpoPolicyImage;
+  end;
+  TGpoBaselineCheck = (gbcMatch, gbcConflict, gbcInvalid);
   TGpoOfflinePlan = record
     UserChanged, MachineChanged, UserExists, MachineExists: Boolean;
     UserAction, MachineAction: TGpoPolicyAction;
     Version: TGpoVersionPlan;
     GptIni, UserPolicy, MachinePolicy: TBytes;
+    Baseline: TGpoOfflineBaseline;
   end;
 
 function GpoUserVersion(Version: Cardinal): Word;
@@ -67,6 +74,8 @@ function GpoBuildOfflinePlan(GpcVersion, GptVersion: Cardinal; const Ini,
 function GpoBuildOfflinePlanWithPresence(GpcVersion, GptVersion: Cardinal; const Ini: TBytes;
   const OldUser, NewUser, OldMachine, NewMachine: TGpoPolicyImage;
   out Plan: TGpoOfflinePlan): TGpoOfflinePlanStatus;
+function GpoCheckOfflineBaseline(const Baseline: TGpoOfflineBaseline; LatestGpcVersion: Cardinal;
+  const LatestIni: TBytes; const LatestUser, LatestMachine: TGpoPolicyImage): TGpoBaselineCheck;
 function ParseRegistryPol(const Data: TBytes; out Records: TGpoRegistryRecords): TGpoReadStatus;
 // Preserves ordered records and raw data, including unknown types and commands.
 function SerializeRegistryPol(const Records: TGpoRegistryRecords;
@@ -74,6 +83,19 @@ function SerializeRegistryPol(const Records: TGpoRegistryRecords;
 function GpoStatusText(Status: TGpoReadStatus): string;
 
 implementation
+
+function EqualPolicyBytes(const A,B:TBytes):Boolean;
+begin
+  Result:=Length(A)=Length(B);
+  if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A));
+end;
+
+function ValidPolicyImage(const Image:TGpoPolicyImage):Boolean;
+var Records:TGpoRegistryRecords;
+begin
+  if not Image.Exists then Exit(Length(Image.Data)=0);
+  Result:=ParseRegistryPol(Image.Data,Records)=grsOk;
+end;
 
 function GpoStatusText(Status: TGpoReadStatus): string;
 const Names: array[TGpoReadStatus] of string = ('OK', 'Missing', 'Access denied',
@@ -331,30 +353,20 @@ end;
 function GpoBuildOfflinePlanWithPresence(GpcVersion, GptVersion: Cardinal; const Ini: TBytes;
   const OldUser, NewUser, OldMachine, NewMachine: TGpoPolicyImage;
   out Plan: TGpoOfflinePlan): TGpoOfflinePlanStatus;
-var Work: TGpoOfflinePlan; Records: TGpoRegistryRecords; IniStatus: TGptIniCandidateStatus;
-  function EqualBytes(const A,B:TBytes):Boolean;
-  begin
-    Result:=Length(A)=Length(B);
-    if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A));
-  end;
-  function ValidPolicy(const Image:TGpoPolicyImage):Boolean;
-  begin
-    if not Image.Exists then Exit(Length(Image.Data)=0);
-    Result:=ParseRegistryPol(Image.Data,Records)=grsOk; Records:=nil;
-  end;
+var Work: TGpoOfflinePlan; IniStatus: TGptIniCandidateStatus;
   function PolicyAction(const OldImage,NewImage:TGpoPolicyImage):TGpoPolicyAction;
   begin
     if not OldImage.Exists then begin
       if NewImage.Exists then Result:=gpaCreate else Result:=gpaNone;
     end else if not NewImage.Exists then Result:=gpaDelete
-    else if EqualBytes(OldImage.Data,NewImage.Data) then Result:=gpaNone
+    else if EqualPolicyBytes(OldImage.Data,NewImage.Data) then Result:=gpaNone
     else Result:=gpaReplace;
   end;
 begin
   Plan:=Default(TGpoOfflinePlan); Work:=Default(TGpoOfflinePlan);
   Result:=gopInvalidPolicy;
-  if not ValidPolicy(OldUser) or not ValidPolicy(NewUser) or
-     not ValidPolicy(OldMachine) or not ValidPolicy(NewMachine) then Exit;
+  if not ValidPolicyImage(OldUser) or not ValidPolicyImage(NewUser) or
+     not ValidPolicyImage(OldMachine) or not ValidPolicyImage(NewMachine) then Exit;
   Work.UserAction:=PolicyAction(OldUser,NewUser);
   Work.MachineAction:=PolicyAction(OldMachine,NewMachine);
   Work.UserChanged:=Work.UserAction<>gpaNone;
@@ -371,7 +383,37 @@ begin
   end;
   if not (Work.UserChanged or Work.MachineChanged) then Work.GptIni:=Copy(Ini);
   Work.UserPolicy:=Copy(NewUser.Data); Work.MachinePolicy:=Copy(NewMachine.Data);
+  Work.Baseline.GpcVersion:=GpcVersion; Work.Baseline.GptIni:=Copy(Ini);
+  Work.Baseline.UserPolicy.Exists:=OldUser.Exists;
+  Work.Baseline.UserPolicy.Data:=Copy(OldUser.Data);
+  Work.Baseline.MachinePolicy.Exists:=OldMachine.Exists;
+  Work.Baseline.MachinePolicy.Data:=Copy(OldMachine.Data);
   Plan:=Work; Result:=gopOk;
+end;
+
+function GpoCheckOfflineBaseline(const Baseline: TGpoOfflineBaseline; LatestGpcVersion: Cardinal;
+  const LatestIni: TBytes; const LatestUser, LatestMachine: TGpoPolicyImage): TGpoBaselineCheck;
+var BaseVersion, LatestVersion:Cardinal; Scratch:TBytes;
+  function ValidIni(const Data:TBytes; out Version:Cardinal):Boolean;
+  begin
+    Result:=ParseGptIni(Data,Version)=grsOk;
+    if Result then Result:=GpoBuildGptIniCandidate(Data,Version,Version,Scratch)=gicOk;
+    Scratch:=nil;
+  end;
+begin
+  Result:=gbcInvalid;
+  if not ValidPolicyImage(Baseline.UserPolicy) or not ValidPolicyImage(Baseline.MachinePolicy) or
+     not ValidPolicyImage(LatestUser) or not ValidPolicyImage(LatestMachine) or
+     not ValidIni(Baseline.GptIni,BaseVersion) or not ValidIni(LatestIni,LatestVersion) or
+     (BaseVersion<>Baseline.GpcVersion) then Exit;
+  Result:=gbcConflict;
+  if (LatestGpcVersion<>Baseline.GpcVersion) or (LatestVersion<>LatestGpcVersion) or
+     not EqualPolicyBytes(Baseline.GptIni,LatestIni) or
+     (Baseline.UserPolicy.Exists<>LatestUser.Exists) or
+     (Baseline.MachinePolicy.Exists<>LatestMachine.Exists) or
+     not EqualPolicyBytes(Baseline.UserPolicy.Data,LatestUser.Data) or
+     not EqualPolicyBytes(Baseline.MachinePolicy.Data,LatestMachine.Data) then Exit;
+  Result:=gbcMatch;
 end;
 
 // MS-GPREG 2.2.1 and Microsoft Registry Policy File Format:
