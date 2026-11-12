@@ -260,6 +260,29 @@ var S, Line, Name, Section, Value, Digits: string;
   Sections, Keys: TStringList; Width, Start, N, I, J, LineStart, LineEnd,
   P, FirstDigit, LastDigit, PrefixBytes, SuffixBytes, NewSize: SizeInt;
   Current: Cardinal; InGeneral, Found: Boolean;
+  function ValidUtf8:Boolean;
+  var K,Count,T:SizeInt; B,B2:Byte;
+  begin
+    Result:=False; K:=Start;
+    while K<Length(Data) do
+    begin
+      B:=Data[K];
+      if B<$80 then begin Inc(K); Continue; end;
+      if (B>=$c2) and (B<=$df) then Count:=2
+      else if (B>=$e0) and (B<=$ef) then Count:=3
+      else if (B>=$f0) and (B<=$f4) then Count:=4
+      else Exit;
+      if Length(Data)-K<Count then Exit;
+      B2:=Data[K+1];
+      if (B2<$80) or (B2>$bf) or
+         ((B=$e0) and (B2<$a0)) or ((B=$ed) and (B2>$9f)) or
+         ((B=$f0) and (B2<$90)) or ((B=$f4) and (B2>$8f)) then Exit;
+      for T:=2 to Count-1 do
+        if (Data[K+T]<$80) or (Data[K+T]>$bf) then Exit;
+      Inc(K,Count);
+    end;
+    Result:=True;
+  end;
 begin
   Candidate := nil; Result := gicInvalid;
   if Length(Data)>GpoMaxFileBytes then Exit(gicTooLarge);
@@ -271,14 +294,14 @@ begin
   begin Width:=2; Start:=2; if Odd(Length(Data)) then Exit; end
   else if (Length(Data)>=2) and (Data[0]=$fe) and (Data[1]=$ff) then Exit(gicUnsupported)
   else if (Length(Data)>=3) and (Data[0]=$ef) and (Data[1]=$bb) and (Data[2]=$bf) then Start:=3;
+  if (Width=1) and not ValidUtf8 then Exit(gicUnsupported);
   N:=(Length(Data)-Start) div Width; SetLength(S,N);
   for I:=0 to N-1 do
   begin
-    if (Width=2) and (Data[Start+I*2+1]<>0) then Exit(gicUnsupported);
     J:=Data[Start+I*Width];
-    if J>127 then Exit(gicUnsupported);
+    if Width=2 then J:=J or (Integer(Data[Start+I*2+1]) shl 8);
     if (J<32) and not (J in [9,10,13]) then Exit;
-    S[I+1]:=Chr(J);
+    if (Width=2) and (J>127) then S[I+1]:=#127 else S[I+1]:=Chr(J);
   end;
   if ParseGptIni(Data,Current)<>grsOk then Exit;
   Sections:=TStringList.Create; Keys:=TStringList.Create;

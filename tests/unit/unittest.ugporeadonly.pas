@@ -11,6 +11,7 @@ type
     procedure LdapVersionSigned;
     procedure VersionPlanning;
     procedure GptIniCandidate;
+    procedure GptIniUnicodeCandidate;
     procedure OfflineChangePlan;
     procedure OfflinePlanPresence;
     procedure OfflineBaselineChecks;
@@ -104,7 +105,7 @@ begin
   Check(GpoBuildOfflinePlan(2,2,Ini,Empty,ChangedUser,Empty,Empty,P)=gopBaselineMismatch); EmptyResult;
   Ini:=Bytes('[General]'#10'Version=1'#10'[general]'#10'X=1');
   Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Empty,Empty,P)=gopInvalidIni); EmptyResult;
-  Ini:=Bytes('[General]'#10'Version=1'#10'X='#195#169);
+  Ini:=Bytes('[General]'#10'Version=1'#10'X='#255);
   Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Empty,Empty,P)=gopUnsupportedIni); EmptyResult;
 end;
 procedure TUnitTestGpoReadOnly.OfflinePlanPresence;
@@ -259,7 +260,7 @@ begin
   Reject('[General]'#10'Version=4294967296',gicInvalid);
   Reject(#254#255#0#65,gicUnsupported);
   Reject(#255#254#0#0#65#0#0#0,gicUnsupported);
-  Reject('[General]'#10'Version=1'#10'Other='#195#169,gicUnsupported);
+  Reject('[General]'#10'Version=1'#10'Other='#255,gicUnsupported);
   Source:=nil; AddWord(Source,$feff); Original:='[General]'#13#10'Version=4294967295'#13#10'Other=x';
   for I:=1 to Length(Original) do AddWord(Source,Ord(Original[I]));
   Check(GpoBuildGptIniCandidate(Source,High(Cardinal),0,Candidate)=gicOk);
@@ -274,6 +275,59 @@ begin
   Move(Original[1],Source[0],Length(Original)); Candidate:=Bytes('stale');
   Check(GpoBuildGptIniCandidate(Source,1,High(Cardinal),Candidate)=gicTooLarge);
   Check(Length(Candidate)=0);
+end;
+procedure TUnitTestGpoReadOnly.GptIniUnicodeCandidate;
+const InvalidUtf8:array[0..7] of RawByteString=(#128,#192#128,#226#130,
+  #237#160#128,#240#128#128#128,#244#144#128#128,#245#128#128#128,#226#40#161);
+var Original,Updated,Text:RawByteString;
+  Source,Candidate,Before:TBytes; I:Integer; V:Cardinal;
+  Missing,NewUser:TGpoPolicyImage; Plan:TGpoOfflinePlan;
+  function Utf16File(const Value:RawByteString):TBytes;
+  var S:UnicodeString; K:Integer;
+  begin
+    Result:=nil; AddWord(Result,$feff); S:=UTF8Decode(Value);
+    for K:=1 to Length(S) do AddWord(Result,Ord(S[K]));
+  end;
+  procedure Verify(const Input,Output:TBytes);
+  begin
+    Source:=Copy(Input); Before:=Copy(Source);
+    Check(GpoBuildGptIniCandidate(Source,1,65537,Candidate)=gicOk);
+    Check((Length(Candidate)=Length(Output)) and CompareMem(@Candidate[0],@Output[0],Length(Output)));
+    Check((Length(Source)=Length(Before)) and CompareMem(@Source[0],@Before[0],Length(Before)));
+    Check(ParseGptIni(Candidate,V)=grsOk); Check(V=65537);
+    Candidate:=Bytes('stale');
+    Check(GpoBuildGptIniCandidate(Source,2,3,Candidate)=gicBaselineMismatch); Check(Length(Candidate)=0);
+  end;
+begin
+  Text:=#228#184#173#230#150#135#240#159#152#128;
+  Original:=';'+Text+#13#10'[Other]'#10'Label='+Text+#13'[General]'#13#10'Version=1'#10'Extra='+Text;
+  Updated:=';'+Text+#13#10'[Other]'#10'Label='+Text+#13'[General]'#13#10'Version=65537'#10'Extra='+Text;
+  Verify(Bytes(Original),Bytes(Updated));
+  Verify(Bytes(#239#187#191+Original),Bytes(#239#187#191+Updated));
+  Verify(Utf16File(Original),Utf16File(Updated));
+  Missing:=Default(TGpoPolicyImage); NewUser.Exists:=True; NewUser.Data:=Header;
+  Source:=Utf16File(Original);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Source,Missing,NewUser,Missing,Missing,Plan)=gopOk);
+  Check(Plan.UserChanged and (Plan.Version.Version=65537));
+  Check(ParseGptIni(Plan.GptIni,V)=grsOk); Check(V=65537);
+  Check(GpoCheckOfflinePlan(Plan,1,Source,Missing,Missing)=gbcMatch);
+  for I:=Low(InvalidUtf8) to High(InvalidUtf8) do
+  begin
+    Source:=Bytes('[General]'#10'Version=1'#10'X='+InvalidUtf8[I]); Before:=Copy(Source);
+    Candidate:=Bytes('stale');
+    Check(GpoBuildGptIniCandidate(Source,1,2,Candidate)=gicUnsupported);
+    Check(Length(Candidate)=0); Check(CompareMem(@Source[0],@Before[0],Length(Source)));
+  end;
+  Source:=Utf16File('[General]'#10'Version=1'#10'X='); AddWord(Source,$d800);
+  Candidate:=Bytes('stale'); Check(GpoBuildGptIniCandidate(Source,1,2,Candidate)=gicInvalid);
+  Check(Length(Candidate)=0);
+  Source:=Utf16File('[General]'#10'Version=1'#10'X='); AddWord(Source,$dc00);
+  Candidate:=Bytes('stale'); Check(GpoBuildGptIniCandidate(Source,1,2,Candidate)=gicInvalid);
+  Check(Length(Candidate)=0);
+  Source:=Bytes('[General]'#10'Version=1'#10'[general]'#10'X='+Text);
+  Check(GpoBuildGptIniCandidate(Source,1,2,Candidate)=gicInvalid); Check(Length(Candidate)=0);
+  Source:=Utf16File('[General]'#10'Version=1'#10+Text+'=1');
+  Check(GpoBuildGptIniCandidate(Source,1,2,Candidate)=gicInvalid); Check(Length(Candidate)=0);
 end;
 procedure TUnitTestGpoReadOnly.RegistryRecords;
 var B:TBytes; R:TGpoRegistryRecords; U:UnicodeString;
