@@ -182,7 +182,7 @@ end;
 function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
 procedure TUnitTestGpoOfflineDraftUI.DomainDraftWorkflow;
-var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; User,Machine:TGpoPolicyImage; Empty:TBytes;
+var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; User,Machine:TGpoPolicyImage; Empty:TBytes; CanClose:Boolean;
   {$ifdef windows}Dir,Path:string;{$endif}
 begin
   Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job; F:=TTestOfflineForm.Create(nil);
@@ -193,11 +193,28 @@ begin
     Check(not F.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'),'Absent baseline cannot contain bytes');
     Job.InitialUser:=User; Job.InitialMachine:=Machine;
     Check(F.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
-    Check(not F.NewButton.Enabled); Check(not F.OpenButton.Enabled); Check(F.PlanButton.Enabled);
+    Check(not F.NewButton.Enabled); Check(F.OpenButton.Enabled); Check(F.PlanButton.Enabled);
     F.PlanButton.Click; Check(Job.Current=gddsChecking); Check(not Job.LastUser.Exists); Check(Job.LastMachine.Exists);
     Job.Current:=gddsResult; F.PollDomainNow; Check(F.PlanReports=1);
     Check(Pos('不会执行域写入',F.PlanReport)>0);
+    F.OpenButton.Click; Check(Pos('候选文件缺失',F.StatusLabel.Caption)>0);
+    Check(not F.SaveButton.Enabled); Check(F.UndoButton.Enabled); Check(F.ResetButton.Enabled);
+    F.UseCloseAction:=True; F.CloseAction:=gccReturn; CanClose:=True; F.OnCloseQuery(F,CanClose);
+    Check(not CanClose); Check(Pos('计算机',F.BranchList)>0);
+    F.CloseAction:=gccExport; CanClose:=True; F.OnCloseQuery(F,CanClose); Check(not CanClose);
+    F.PlanButton.Click; Check(not Job.LastMachine.Exists); Check(Length(Job.LastMachine.Data)=0);
+    Job.Current:=gddsResult; F.PollDomainNow; Check(Pos('删除整个文件',F.PlanReport)>0);
+    F.UndoButton.Click; Check(Pos('候选文件存在',F.StatusLabel.Caption)>0);
+    F.SelectSide(gdsUser); Check(F.NewButton.Enabled); F.NewButton.Click;
+    F.PlanButton.Click; Check(Job.LastUser.Exists); Check(EqualBytes(Job.LastUser.Data,Empty));
+    F.OpenButton.Click; F.UndoButton.Click;
+    Job.Current:=gddsResult; F.PollDomainNow; Check(Pos('结果已丢弃',F.LastError)>0);
+    F.RestoreChoice:=True; F.ResetButton.Click; Check(Pos('候选文件缺失',F.StatusLabel.Caption)>0);
     F.SelectSide(gdsUser); F.EditChoice:=True; F.NextRecord:=Item('QA\User','V',3,[1]); F.AddButton.Click;
+    F.UndoButton.Click; Check(Pos('候选文件缺失',F.StatusLabel.Caption)>0);
+    F.AddButton.Click; F.Pane.Rows.Items[0].Selected:=True; F.DeleteButton.Click;
+    Check(Pos('候选文件存在',F.StatusLabel.Caption)>0); Check(Length(F.Draft(gdsUser).Records)=0);
+    F.UndoButton.Click; Check(Length(F.Draft(gdsUser).Records)=1);
     {$ifdef windows}
     Dir:=GetTempDir(False)+'openrsat-bound-export-'+IntToStr(GetCurrentProcessId);
     Check(CreateDir(Dir)); Path:=Dir+'\draft.pol'; F.SelectChoice:=True; F.NextPath:=Path;
@@ -206,7 +223,7 @@ begin
     {$endif}
     F.PlanButton.Click; Check(Job.LastUser.Exists,'Editing a missing side creates a candidate');
     F.NextRecord:=Item('QA\Later','V',3,[2]); F.AddButton.Click;
-    Job.Current:=gddsResult; F.PollDomainNow; Check(F.PlanReports=1); Check(Pos('结果已丢弃',F.LastError)>0);
+    Job.Current:=gddsResult; F.PollDomainNow; Check(F.PlanReports=2); Check(Pos('结果已丢弃',F.LastError)>0);
     F.PlanButton.Click; Check(Job.LastUser.Exists); Check(Length(Job.LastUser.Data)>Length(Empty));
     Job.Cancel; F.PollDomainNow; Check(not F.PlanButton.Enabled); Check(F.Draft(gdsUser).Dirty);
     Check(F.SaveButton.Enabled,'Expired domain draft remains exportable');

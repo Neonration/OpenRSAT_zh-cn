@@ -15,6 +15,8 @@ type
     fDomainJob:IGpoDomainDraftJob;
     fDomain:Boolean;
     fDomainExists:array[TGpoDraftSide] of Boolean;
+    fCandidateExists,fUndoExists,fDomainUndoValid,fUndoPresenceOnly:array[TGpoDraftSide] of Boolean;
+    fRevision,fPendingRevision:QWord;
     fDomainTarget:string;
     fDomainTimer:TTimer;
     fDomainWaiting:Boolean;
@@ -47,6 +49,8 @@ type
     procedure DomainPlanClick;
     procedure DomainClosed(Sender:TObject; var CloseAction:TCloseAction);
     function DomainCandidates(out User,Machine:TGpoPolicyImage):Boolean;
+    function SideDirty(Side:TGpoDraftSide):Boolean;
+    procedure PresenceClick(Sender:TObject);
     procedure FindClick(Sender:TObject);
     procedure FindChanged(Sender:TObject);
     procedure FindKeyDown(Sender:TObject; var Key:Word; Shift:TShiftState);
@@ -512,6 +516,9 @@ begin
   if Job.State<>gddsReady then Exit;
   fDomain:=True; fDomainJob:=Job; fDomainExists[gdsUser]:=User.Exists;
   fDomainExists[gdsComputer]:=Machine.Exists; fDomainTarget:=DC+' / '+DN;
+  fCandidateExists[gdsUser]:=User.Exists; fCandidateExists[gdsComputer]:=Machine.Exists;
+  fNew.Caption:='创建空文件'; fNew.OnClick:=@PresenceClick;
+  fOpen.Caption:='删除整个文件'; fOpen.OnClick:=@PresenceClick;
   Caption:='域目标绑定草稿（只读，不会应用到域）';
   fPlan.Caption:='只读复核草稿…'; fTree.Items[0].Text:='域目标绑定草稿';
   OnClose:=@DomainClosed;
@@ -522,11 +529,30 @@ end;
 function TFrmGpoOfflineDraft.DomainCandidates(out User,Machine:TGpoPolicyImage):Boolean;
 begin
   User:=Default(TGpoPolicyImage); Machine:=Default(TGpoPolicyImage);
-  User.Exists:=fDomainExists[gdsUser] or fDrafts[gdsUser].Dirty;
-  Machine.Exists:=fDomainExists[gdsComputer] or fDrafts[gdsComputer].Dirty;
+  User.Exists:=fCandidateExists[gdsUser];
+  Machine.Exists:=fCandidateExists[gdsComputer];
   Result:=(fDrafts[gdsUser].Export(User.Data)=grsOk) and (fDrafts[gdsComputer].Export(Machine.Data)=grsOk);
   if not User.Exists then User.Data:=nil;
   if not Machine.Exists then Machine.Data:=nil;
+end;
+
+function TFrmGpoOfflineDraft.SideDirty(Side:TGpoDraftSide):Boolean;
+begin
+  if fDomain then Result:=(fCandidateExists[Side]<>fDomainExists[Side]) or
+    (fCandidateExists[Side] and fDrafts[Side].Dirty)
+  else Result:=fDrafts[Side].Dirty;
+end;
+
+procedure TFrmGpoOfflineDraft.PresenceClick(Sender:TObject);
+begin
+  if not fDomain or not fValidSide then Exit;
+  if (Sender=fNew) and (not fCandidateExists[fSide]) and (Length(Current.Records)=0) then
+  begin fUndoExists[fSide]:=False; fCandidateExists[fSide]:=True; end
+  else if (Sender=fOpen) and fCandidateExists[fSide] then
+  begin fUndoExists[fSide]:=True; fCandidateExists[fSide]:=False; end
+  else Exit;
+  fDomainUndoValid[fSide]:=True; fUndoPresenceOnly[fSide]:=True;
+  Inc(fRevision); RefreshView;
 end;
 
 procedure TFrmGpoOfflineDraft.DomainPlanClick;
@@ -535,7 +561,7 @@ begin
   if not DomainCandidates(fPendingUser,fPendingMachine) then begin ShowError('无法读取域草稿内容。'); Exit; end;
   if not fDomainJob.Submit(fPendingUser,fPendingMachine) then
   begin ShowError('域会话已失效或后台仍在工作；草稿可继续编辑和本地导出。'); Exit; end;
-  fDomainWaiting:=True; fPlan.Enabled:=False;
+  fPendingRevision:=fRevision; fDomainWaiting:=True; fPlan.Enabled:=False;
   fDomainStarted:=GetTickCount64;
   fStatus.Caption:='正在后台只读复核原域目标；关闭属性页或连接变化会使结果失效。';
 end;
@@ -550,6 +576,7 @@ var User,Machine:TGpoPolicyImage; MessageText:string;
   function ActionText(Side:TGpoDraftSide; const Candidate:TGpoPolicyImage):string;
   begin
     if not fDomainExists[Side] and Candidate.Exists then Exit('创建');
+    if fDomainExists[Side] and not Candidate.Exists then Exit('删除整个文件');
     if fDomainExists[Side] and fDrafts[Side].Dirty then Exit('替换');
     Result:='无变化';
   end;
@@ -563,7 +590,7 @@ begin
   end;
   if not fDomainWaiting or (fDomainJob.State<>gddsResult) then Exit;
   fDomainWaiting:=False; fPlan.Enabled:=True;
-  if not DomainCandidates(User,Machine) or not SameImage(User,fPendingUser) or not SameImage(Machine,fPendingMachine) then
+  if (fRevision<>fPendingRevision) or not DomainCandidates(User,Machine) or not SameImage(User,fPendingUser) or not SameImage(Machine,fPendingMachine) then
   begin ShowError('复核期间草稿已变化，旧结果已丢弃；请重新复核。'); Exit; end;
   MessageText:=fDomainJob.ResultText;
   if MessageText='' then MessageText:='只读复核未完成；草稿保留。';
@@ -611,7 +638,7 @@ end;
 procedure TFrmGpoOfflineDraft.RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);
 begin
   fFindStatus.Caption:='';
-  fEdit.Enabled:=fValidSide and Selected;
+  fEdit.Enabled:=fValidSide and Selected and (not fDomain or fCandidateExists[fSide]);
   fDelete.Enabled:=fEdit.Enabled;
 end;
 function TFrmGpoOfflineDraft.SelectedIndex:Integer;
@@ -623,8 +650,8 @@ end;
 procedure TFrmGpoOfflineDraft.RefreshView(SelectedIndex:Integer; PreserveCurrent:Boolean);
 var Rows:TGpoRegistryRecords; State,SideName,Path:string; Row:Integer;
 begin
-  fComputerNode.Text:=SComputer; if fDrafts[gdsComputer].Dirty then fComputerNode.Text:=SComputer+SDirty;
-  fUserNode.Text:=SUser; if fDrafts[gdsUser].Dirty then fUserNode.Text:=SUser+SDirty;
+  fComputerNode.Text:=SComputer; if SideDirty(gdsComputer) then fComputerNode.Text:=SComputer+SDirty;
+  fUserNode.Text:=SUser; if SideDirty(gdsUser) then fUserNode.Text:=SUser+SDirty;
   fNew.Enabled:=fValidSide and not fDomain; fOpen.Enabled:=fValidSide and not fDomain; fSave.Enabled:=fValidSide;
   fAdd.Enabled:=fValidSide; fPreview.Enabled:=fValidSide; fFindButton.Enabled:=fValidSide;
   if not fValidSide then begin
@@ -641,20 +668,26 @@ begin
     if Row<fPane.Rows.Items.Count then fPane.Rows.Items[Row].Selected:=True;
   end;
   if fSide=gdsComputer then SideName:='计算机配置' else SideName:='用户配置';
-  if Current.Dirty then State:='有未保存修改' else State:='无未保存修改';
+  if SideDirty(fSide) then State:='有未保存修改' else State:='无未保存修改';
   Path:=fPaths[fSide]; if Path='' then Path:='新建空草稿';
   fStatus.Caption:='本地离线草稿 | '+SideName+' | '+State+' | '+Path+
     '。仅原始 Registry.pol；不会应用到域。';
   if fDomain then
   begin
-    if fDomainExists[fSide] then Path:='域基线文件存在'
-    else Path:='域基线文件缺失；增加记录后候选为创建';
+    if fDomainExists[fSide] then Path:='域基线文件存在' else Path:='域基线文件缺失';
+    if fCandidateExists[fSide] then Path:=Path+'；候选文件存在'
+    else Path:=Path+'；候选文件缺失';
+    fNew.Enabled:=not fCandidateExists[fSide] and (Length(Rows)=0);
+    fOpen.Enabled:=fCandidateExists[fSide];
+    fSave.Enabled:=fCandidateExists[fSide];
+    fAdd.Enabled:=fCandidateExists[fSide] or ((not fDomainExists[fSide]) and (Length(Rows)=0));
     fStatus.Caption:='域目标绑定草稿 | '+SideName+' | '+State+' | '+Path+
       '。'+fDomainTarget+'；只读，不会应用到域。';
     fPlan.Enabled:=not fDomainWaiting and Assigned(fDomainJob) and (fDomainJob.State in [gddsReady,gddsResult]);
   end;
-  fEdit.Enabled:=Assigned(fPane.Rows.Selected); fDelete.Enabled:=fEdit.Enabled;
-  fUndo.Enabled:=Current.CanUndo; fReset.Enabled:=Current.Dirty;
+  fEdit.Enabled:=Assigned(fPane.Rows.Selected) and (not fDomain or fCandidateExists[fSide]); fDelete.Enabled:=fEdit.Enabled;
+  if fDomain then fUndo.Enabled:=fDomainUndoValid[fSide] else fUndo.Enabled:=Current.CanUndo;
+  fReset.Enabled:=SideDirty(fSide);
 end;
 function TFrmGpoOfflineDraft.ConfirmDiscard:Boolean;
 begin
@@ -664,6 +697,12 @@ end;
 function TFrmGpoOfflineDraft.ConfirmClose(const Branches:string):TGpoCloseChoice;
 var Choice:Integer;
 begin
+  if fDomain then begin
+    Choice:=MessageDlg('关闭域草稿','以下分支仍有域候选修改：'+Branches+
+      '。本地导出不能保存文件存在状态。是否放弃草稿并关闭？',mtConfirmation,[mbYes,mbNo],0);
+    if Choice=mrYes then Result:=gccDiscard else Result:=gccReturn;
+    Exit;
+  end;
   Choice:=QuestionDlg(SCloseTitle,Format(SCloseQuestion,[Branches]),mtConfirmation,
     [mrYes,SCloseYes,mrNo,SCloseNo,mrCancel,SCloseCancel,'IsCancel','IsDefault'],0);
   case Choice of mrYes:Result:=gccExport; mrNo:Result:=gccDiscard; else Result:=gccReturn; end;
@@ -714,9 +753,10 @@ begin
   for Side:=Low(TGpoDraftSide) to High(TGpoDraftSide) do
   begin
     if Side=gdsComputer then SideName:='计算机配置' else SideName:='用户配置';
-    if fDrafts[Side].Dirty then State:='有未导出修改' else State:='无未导出修改';
+    if SideDirty(Side) then State:='有未导出修改' else State:='无未导出修改';
     if fDomain then begin if fDomainExists[Side] then Source:='域文件快照' else Source:='域文件缺失'; end
     else if fPaths[Side]='' then Source:='新建空草稿' else Source:='本地文件 '+fPaths[Side];
+    if fDomain then begin if fCandidateExists[Side] then Source:=Source+'；候选文件存在' else Source:=Source+'；候选文件缺失'; end;
     Result:=Result+SideName+'：'+State+'；基线：'+Source+LineEnding;
   end;
   if fDomain then Result:=Result+'域目标：'+fDomainTarget+'；只能只读复核，不授权写入。'
@@ -727,12 +767,13 @@ procedure TFrmGpoOfflineDraft.Closing(Sender:TObject; var CanClose:Boolean);
 var Branches:string; Choice:TGpoCloseChoice; Side:TGpoDraftSide;
 begin
   CanClose:=False; Branches:='';
-  if fDrafts[gdsComputer].Dirty then Branches:=SComputer;
-  if fDrafts[gdsUser].Dirty then begin if Branches<>'' then Branches:=Branches+'、'; Branches:=Branches+SUser; end;
+  if SideDirty(gdsComputer) then Branches:=SComputer;
+  if SideDirty(gdsUser) then begin if Branches<>'' then Branches:=Branches+'、'; Branches:=Branches+SUser; end;
   if Branches='' then begin CanClose:=True; Exit; end;
   Choice:=ConfirmClose(Branches);
   if Choice=gccReturn then Exit;
   if Choice=gccDiscard then begin CanClose:=True; Exit; end;
+  if fDomain then begin ShowError('本地导出不能保存域草稿的文件存在状态；请返回继续编辑，或选择放弃草稿。'); Exit; end;
   for Side:=Low(TGpoDraftSide) to High(TGpoDraftSide) do
     if fDrafts[Side].Dirty then begin SelectSide(Side); if not ExportCurrent then Exit; end;
   CanClose:=True;
@@ -759,6 +800,7 @@ function TFrmGpoOfflineDraft.ExportCurrent:Boolean;
 var Path,Err,SideName:string; Data:TBytes;
 begin
   Result:=False;
+  if fDomain and not fCandidateExists[fSide] then begin ShowError('候选文件缺失，不能导出为本地文件。'); Exit; end;
   if not ChooseLocalFile(True,Path) then Exit;
   if Current.Export(Data)<>grsOk then begin ShowError('无法导出草稿。'); Exit; end;
   if not GpoSaveNewLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
@@ -776,38 +818,55 @@ end;
 procedure TFrmGpoOfflineDraft.SaveClick(Sender:TObject);
 begin ExportCurrent; end;
 procedure TFrmGpoOfflineDraft.AddClick(Sender:TObject);
-var R:TGpoRegistryRecord; Err:string; Rows:TGpoRegistryRecords;
+var R:TGpoRegistryRecord; Err:string; Rows:TGpoRegistryRecords; WasPresent:Boolean;
 begin
+  if fDomain and not fCandidateExists[fSide] and (fDomainExists[fSide] or (Length(Current.Records)>0)) then Exit;
   R:=Default(TGpoRegistryRecord); R.ValueType:=3;
   if not EditRecord(R,True) then Exit;
   if not GpoValidateDraftRecord(R,Err) then begin ShowError(Err); Exit; end;
   Rows:=Current.Records;
+  WasPresent:=fCandidateExists[fSide];
   if Current.Insert(Length(Rows),R)<>grsOk then begin ShowError('无法添加记录：超出格式限制。'); Exit; end;
+  if fDomain then begin fUndoExists[fSide]:=WasPresent; fCandidateExists[fSide]:=True; fDomainUndoValid[fSide]:=True; fUndoPresenceOnly[fSide]:=False; Inc(fRevision); end;
   RefreshView(Length(Rows));
 end;
 procedure TFrmGpoOfflineDraft.EditClick(Sender:TObject);
-var R:TGpoRegistryRecord; Rows:TGpoRegistryRecords; I:Integer; Err:string;
+var R:TGpoRegistryRecord; Rows:TGpoRegistryRecords; I:Integer; Err:string; Before,After:TBytes;
 begin
+  if fDomain and not fCandidateExists[fSide] then Exit;
   I:=SelectedIndex; Rows:=Current.Records;
   if (I<0) or (I>=Length(Rows)) then begin ShowError('请先选择一条记录。'); Exit; end;
   R:=Rows[I]; if not EditRecord(R,False) then Exit;
   if not GpoValidateDraftRecord(R,Err) then begin ShowError(Err); Exit; end;
+  Current.Export(Before);
   if Current.Replace(I,R)<>grsOk then begin ShowError('无法修改记录：超出格式限制。'); Exit; end;
+  Current.Export(After);
+  if fDomain and ((Length(Before)<>Length(After)) or ((Length(Before)>0) and not CompareMem(@Before[0],@After[0],Length(Before)))) then
+  begin fUndoExists[fSide]:=fCandidateExists[fSide]; fDomainUndoValid[fSide]:=True; fUndoPresenceOnly[fSide]:=False; Inc(fRevision); end;
   RefreshView(I);
 end;
 procedure TFrmGpoOfflineDraft.DeleteClick(Sender:TObject);
 var I:Integer; Rows:TGpoRegistryRecords;
 begin
+  if fDomain and not fCandidateExists[fSide] then Exit;
   I:=SelectedIndex; Rows:=Current.Records;
   if (I<0) or (I>=Length(Rows)) then begin ShowError('请先选择一条记录。'); Exit; end;
   if Current.Delete(I)<>grsOk then begin ShowError('无法删除记录。'); Exit; end;
+  if fDomain then begin fUndoExists[fSide]:=fCandidateExists[fSide]; fDomainUndoValid[fSide]:=True; fUndoPresenceOnly[fSide]:=False; Inc(fRevision); end;
   if I>=Length(Rows)-1 then Dec(I);
   RefreshView(I);
 end;
 procedure TFrmGpoOfflineDraft.UndoClick(Sender:TObject);
-begin Current.Undo; RefreshView; end;
+begin
+  if fDomain then begin
+    if not fDomainUndoValid[fSide] then Exit;
+    if not fUndoPresenceOnly[fSide] and not Current.Undo then Exit;
+    fCandidateExists[fSide]:=fUndoExists[fSide]; fDomainUndoValid[fSide]:=False; Inc(fRevision);
+  end else Current.Undo;
+  RefreshView;
+end;
 procedure TFrmGpoOfflineDraft.ResetClick(Sender:TObject);
-begin if Current.Dirty and ConfirmRestore then begin Current.Reset; RefreshView; end; end;
+begin if SideDirty(fSide) and ConfirmRestore then begin Current.Reset; if fDomain then begin fCandidateExists[fSide]:=fDomainExists[fSide]; fDomainUndoValid[fSide]:=False; Inc(fRevision); end; RefreshView; end; end;
 procedure TFrmGpoOfflineDraft.RowDblClick(Sender:TObject);
 begin EditClick(Sender); end;
 function TFrmGpoOfflineDraft.PreviewText(Page:Integer):string;
