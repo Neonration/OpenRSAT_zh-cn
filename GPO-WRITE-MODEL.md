@@ -41,6 +41,8 @@ Registry.pol、GPT.INI 与 LDAP 不是天然跨资源原子事务。本模型未
 
 已增加部分底层接口：`TGpoBoundPlan.Bind` 校验计划内部一致性并复制计划字节，绑定调用方提供的域、DC、GPO 路径、DN、`objectGUID` 与可撤销 LDAP 会话令牌；`Compare` 检查这些身份、会话及调用方提供的版本和双侧文件快照。调用方必须自行通过已绑定 LDAP 会话验证身份来源，这些接口不会认证调用方提供的数据。`GpoCapturePreflightFiles` 使用现有固定 DC 保护路径和会话撤销检查顺序读取三个文件，仅负责只读文件采集，不读取 LDAP 或文件安全元数据；同步系统调用仍可能超出协作预算。任一读取失败或身份、会话、字节不符均不能得到一致结果；即使当前已比较项目一致，结果也始终是 `gprEvidenceIncomplete`。这些接口尚未连接产品界面，未验证真实域，不能作为授权写入或完整预检使用。
 
+`GpoCaptureLdapEvidence` 在调用方串行持有的已绑定 LDAP 会话上，只读查询 RootDSE 与 GPC：核对实际域控和目标对象，提取 `objectGUID`、`uSNChanged`、版本、flags 及安全描述符。查询前后检查同一令牌、连接、绑定用户和目标，缺失或读取失败时不返回部分证据；仅请求描述符的 owner/group/DACL，不采集 SACL，也不修改权限。临时查询控制在退出时恢复。`BindEvidence` 深拷贝这些 LDAP 证据，`CompareEvidence` 另比较变更序号、flags 和描述符；这些底层接口均不是原子采集，调用方不能以伪造结果代替真实采集，结果仍为 `gprEvidenceIncomplete`。它们尚未连接产品入口，尚未在真实域验证；文件安全描述符、文件身份及扩展属性仍未纳入。
+
 ## 运行回归测试
 
 按 [tests/README.md](tests/README.md) 注册构建依赖后，在仓库根目录运行：

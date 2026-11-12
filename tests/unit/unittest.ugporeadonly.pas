@@ -1,7 +1,7 @@
 unit unittest.ugporeadonly;
 {$mode ObjFPC}{$H+}
 interface
-uses Classes, SysUtils, mormot.core.test, mormot.net.ldap, ugpoformats, ugposysvol;
+uses Classes, SysUtils, mormot.core.test, mormot.core.os.security, mormot.net.ldap, ugpoformats, ugposysvol;
 type
   TUnitTestGpoReadOnly = class(TSynTestCase)
   published
@@ -17,6 +17,7 @@ type
     procedure OfflineBaselineChecks;
     procedure OfflinePlanIntegrity;
     procedure BoundPlanComparison;
+    procedure LdapEvidenceParsing;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -76,10 +77,44 @@ begin
 end;
 function Bytes(const S:RawByteString):TBytes;
 begin Result:=nil; SetLength(Result,Length(S)); if Length(S)>0 then Move(S[1],Result[0],Length(S)); end;
+procedure TUnitTestGpoReadOnly.LdapEvidenceParsing;
+const Guid='{12345678-1234-1234-1234-123456789ABC}'; DN='CN='+Guid+',CN=Policies,CN=System,DC=example,DC=test';
+var Entry:TLdapResult; E:TGpoLdapEvidence; SD:mormot.core.os.security.TSecurityDescriptor; RawSD:RawByteString;
+begin
+  Check(GpoCaptureLdapEvidence(nil,DN,Guid,E)=gprSessionInvalid);
+  Check(GpoParseLdapGpc(nil,'example.test','dc.example.test',DN,Guid,E)=gprReadUnavailable);
+  Entry:=TLdapResult.Create;
+  try
+    Entry.ObjectName:=DN; Entry.Attributes.Add('name',Guid);
+    Entry.Attributes.Add('objectGUID',#1+StringOfChar(#0,15));
+    Entry.Attributes.Add('gPCFileSysPath','\\example.test\SYSVOL\example.test\Policies\'+Guid);
+    Entry.Attributes.Add('versionNumber','-2147483648'); Entry.Attributes.Add('flags','0');
+    Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,Guid,E)=gprReadUnavailable);
+    Entry.Attributes.Add('uSNChanged','17');
+    Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,Guid,E)=gprReadUnavailable);
+    SD.FromText('O:SYG:SYD:(A;;GA;;;SY)'); RawSD:=SD.ToBinary;
+    Entry.Attributes.Add('nTSecurityDescriptor',RawSD);
+    Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,Guid,E)=gprEvidenceIncomplete);
+    Check((E.Version=$80000000) and (E.USNChanged=17) and (Length(E.Target.ObjectGuid)=16));
+    Check((Length(E.SecurityDescriptor)=Length(RawSD)) and (E.Target.DC='dc.example.test'));
+    Check(not Assigned(E.Target.Session),'Parsed facts do not authenticate LDAP origin');
+    Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,'{AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA}',E)=gprTargetMismatch);
+    Entry.Attributes.Add('objectGUID',StringOfChar(#0,16),aoReplaceValue);
+    Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,Guid,E)=gprReadUnavailable);
+    Entry.Attributes.Add('objectGUID',#1+StringOfChar(#0,15),aoReplaceValue);
+    Entry.Attributes.Add('uSNChanged','-1',aoReplaceValue);
+    Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,Guid,E)=gprReadUnavailable);
+    Check((Length(E.Target.ObjectGuid)=0) and (Length(E.SecurityDescriptor)=0));
+    Entry.Attributes.Add('uSNChanged','17',aoReplaceValue);
+    Entry.Attributes.Add('nTSecurityDescriptor','invalid',aoReplaceValue);
+    Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,Guid,E)=gprReadUnavailable);
+  finally Entry.Free; end;
+end;
 procedure TUnitTestGpoReadOnly.BoundPlanComparison;
 const Guid='{12345678-1234-1234-1234-123456789ABC}';
 var T,Other:TGpoPreflightTarget; Token,OtherToken:ILdapSessionToken; TokenObj:TPreflightToken; UOld,UNew,MOld,MNew:TGpoPolicyImage;
-  P:TGpoOfflinePlan; Bound:TGpoBoundPlan; Ini:TBytes; R:TGpoPreflightResult; Files:TGpoCapturedFiles;
+  P:TGpoOfflinePlan; Bound,B2:TGpoBoundPlan; Ini:TBytes; R:TGpoPreflightResult; Files:TGpoCapturedFiles;
+  E,Changed:TGpoLdapEvidence; SD:mormot.core.os.security.TSecurityDescriptor; RawSD:RawByteString;
   function CompareCurrent:TGpoPreflightResult;
   begin Result:=Bound.Compare(T,grsOk,1,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data); end;
 begin
@@ -92,6 +127,25 @@ begin
   MOld.Exists:=True; MOld.Data:=Header; MNew:=Default(TGpoPolicyImage);
   Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,UOld,UNew,MOld,MNew,P)=gopOk);
   Check((P.UserAction=gpaCreate) and (P.MachineAction=gpaDelete));
+  SD.FromText('O:SYG:SYD:(A;;GA;;;SY)'); RawSD:=SD.ToBinary;
+  E:=Default(TGpoLdapEvidence); E.Target:=T; E.Version:=1; E.USNChanged:=17; E.SecurityDescriptor:=Bytes(RawSD);
+  Check(TGpoBoundPlan.BindEvidence(E,P,B2)=gprEvidenceIncomplete);
+  if Assigned(B2) then
+  try
+    Check(B2.CompareEvidence(E,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprEvidenceIncomplete);
+    Changed:=E; Inc(Changed.USNChanged);
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
+    Changed:=E; Changed.SecurityDescriptor:=nil;
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprReadUnavailable);
+    Changed:=E; Changed.Flags:=1;
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
+    Changed:=E; E.SecurityDescriptor[0]:=0;
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprReadUnavailable);
+    Changed.SecurityDescriptor:=Bytes(RawSD);
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprEvidenceIncomplete);
+    SD.FromText('O:SYG:SYD:(A;;GR;;;SY)'); Changed.SecurityDescriptor:=Bytes(SD.ToBinary);
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
+  finally B2.Free; end;
   R:=TGpoBoundPlan.Bind(T,P,Bound); Check((R=gprEvidenceIncomplete) and Assigned(Bound));
   if not Assigned(Bound) then Exit;
   try
