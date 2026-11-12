@@ -8,6 +8,7 @@ uses
   SysUtils,
   mormot.core.base,
   mormot.core.test,
+  mormot.net.dns,
   udns;
 
 type
@@ -16,9 +17,37 @@ type
     procedure BinaryPayloadRoundTrip;
     procedure PayloadLengthBoundaries;
     procedure PayloadBoundsDoNotTouchAdjacentBytes;
+    procedure AAAADisplay;
   end;
 
 implementation
+
+procedure TUnitTestDNSRecord.AAAADisplay;
+var Source,Decoded:TDNSRecord; Raw:RawByteString;
+  function Display(const Payload:array of Byte):RawUtf8;
+  var I:Integer;
+  begin
+    Source:=Default(TDNSRecord); Source.RecType:=Ord(drrAAAA); Source.DataLength:=Length(Payload);
+    for I:=0 to High(Payload) do Source.RData[I]:=Payload[I];
+    Raw:=DNSRecordToRaw(Source);
+    if DNSRecordBytesToRecord(Decoded,PByteArray(Pointer(Raw))^) then
+      Result:=DNSRecordDataToString(Decoded) else Result:='decode failed';
+  end;
+begin
+  CheckEqual(DnsResourceRecordToStr(drrAAAA),'IPv6 Host (AAAA)');
+  Source:=Default(TDNSRecord); Source.RecType:=Ord(drrA); Source.DataLength:=4;
+  Source.RData[0]:=192; Source.RData[1]:=0; Source.RData[2]:=2; Source.RData[3]:=250;
+  CheckEqual(DNSRecordDataToString(Source),'192.0.2.250');
+  CheckEqual(Display([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]),'::1');
+  CheckEqual(Display([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),'::');
+  CheckEqual(Display([$20,$01,$0d,$b8,0,0,0,0,0,0,0,0,0,0,0,1]),'2001:db8::1');
+  CheckEqual(Display([$20,$01,$0d,$b8,0,0,0,1,0,2,0,3,0,4,0,5]),'2001:db8:0:1:2:3:4:5');
+  CheckEqual(Display([$fe,$80,0,0,0,0,0,0,$01,$ff,$fe,$23,$45,$67,$89,$0a]),'fe80::1ff:fe23:4567:890a');
+  CheckEqual(Display([]),'');
+  CheckEqual(Display([0,0,0,1]),'');
+  CheckEqual(Display([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),'');
+  CheckEqual(Display([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),'');
+end;
 
 procedure TUnitTestDNSRecord.BinaryPayloadRoundTrip;
 var

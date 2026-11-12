@@ -1371,6 +1371,7 @@ end;
 function DNSRecordDataToString(const DNSRecord: TDNSRecord): RawUtf8;
 var
   BytesData: PByteArray;
+  IPv6: TShort47;
 begin
   result := '';
   BytesData := PByteArray(@DNSRecord.RData[0]);
@@ -1382,6 +1383,12 @@ begin
     drrMX: result := DNSRRMXToStringFromBytes(BytesData^);
     drrPTR: result := DNSRRPTRToStringFromBytes(BytesData^);
     drrSRV: result := DNSRRSRVToStringFromBytes(BytesData^);
+    drrAAAA:
+      if DNSRecord.DataLength = 16 then
+      begin
+        IP6Short(BytesData, IPv6);
+        FastSetString(result, @IPv6[1], Ord(IPv6[0]));
+      end;
   end;
 end;
 
@@ -1698,6 +1705,7 @@ begin
     drrSRV: result := 'Service Location (SRV)';
     drrMX: result := 'Mail Exchanger (MX)';
     drrPTR: result := 'Pointer (PTR)';
+    drrAAAA: result := 'IPv6 Host (AAAA)';
   end;
 end;
 
