@@ -24,7 +24,13 @@ Assert ((Get-CodexComCleanupDisposition $true $id 'post-save-unverified') -eq 'd
 Assert ((Get-CodexComCleanupDisposition $true '31B2F340-016D-11D2-945F-00C04FB984F9' 'stopped') -eq 'protected-target') 'default domain cannot be deleted'
 Assert ((Get-CodexComCleanupDisposition $true '6AC1786C-016F-11D2-945F-00C04FB984F9' 'stopped') -eq 'protected-target') 'default DC cannot be deleted'
 Assert ((Get-CodexComCleanupDisposition $false $id 'stopped') -eq 'unavailable') 'lost session blocks cleanup'
-Assert ((Get-CodexComCleanupDisposition $true $id 'stopped') -eq 'identity-and-link-check-required') 'cleanup still requires remote identity and link checks'
+Assert ((Get-CodexComCleanupDisposition $true $id 'stopped') -eq 'deferred') 'unverified errors block cleanup'
+Assert ((Get-CodexComCleanupDisposition $true $id 'readback-verified') -eq 'identity-and-link-check-required') 'verified cleanup still requires fresh snapshot, identity and link checks'
+Assert ((Get-CodexComFailurePhase 'baseline-conflict' $false $false $false) -eq 'baseline-conflict') 'baseline conflict is not rewritten as stopped'
+Assert ((Get-CodexComCleanupDisposition $true $id (Get-CodexComFailurePhase 'baseline-conflict' $false $false $false)) -eq 'deferred') 'baseline conflict preserves object'
+Assert ((Get-CodexComFailurePhase 'read-only-open-confirmed' $false $false $false) -eq 'stopped') 'pre-save read error classified'
+Assert ((Get-CodexComFailurePhase 'save-requested' $true $false $false) -eq 'save-outcome-unknown') 'lost save response classified'
+Assert ((Get-CodexComFailurePhase 'save-returned' $true $true $false) -eq 'post-save-unverified') 'failed readback classified'
 Assert ([OpenRsatLabGpoComProbe]::ValidObservedTarget($id,$name,$canon,$name,$ad,$files)) 'exact DC and target'
 Assert (-not [OpenRsatLabGpoComProbe]::ValidObservedTarget($id,$name,$canon,$name,$ad,($files+'\other'))) 'path extension'
 Assert (-not [OpenRsatLabGpoComProbe]::ValidObservedTarget($id,$name,$canon,$name,$ad,$files.Replace('SYSVOL','other'))) 'different share'
@@ -60,7 +66,7 @@ function SampleFile([byte[]]$data) {
   return [pscustomobject]@{Exists=$true;Length=$data.Length;SHA256=$hash;Bytes=[Convert]::ToBase64String($data)}
 }
 $base=[pscustomobject]@{Guid=$canon;ObjectGuid='ecf0cbe4-3448-4a1d-baa5-8f0b40972fa2';DN=('CN='+$canon+',CN=Policies,CN=System,DC=openrsat,DC=test');Name=$name;Version=0;Flags=0;
-  FilePath='sysvol';MachineExtension='';UserExtension='';OwnerGroupDacl='test-sddl';
+  FilePath='sysvol';MachineExtension='';UserExtension='';OwnerGroupDacl='test-sddl';USN=10;Description='';
   Files=[pscustomobject]@{GPT=(SampleFile (Gpt "[General]`nVersion=0"));Machine=$empty;User=$empty}}
 function Clone($value) { return $value | ConvertTo-Json -Depth 12 | ConvertFrom-Json }
 $after=Clone $base; $after.Version=1
@@ -75,6 +81,16 @@ $changed=Clone $base; $changed.UserExtension='unexpected'
 Assert (-not (Test-CodexComFreshBaseline $changed ([guid]$id) $name)) 'unexpected extension'
 $changed=Clone $base; $changed.OwnerGroupDacl='different'
 Assert (-not (Test-CodexComSameBaseline $base $changed)) 'changed descriptor'
+$changed=Clone $base; $changed.USN=11
+Assert (-not (Test-CodexComSameBaseline $base $changed)) 'changed USN'
+$changed=Clone $base; $changed.Description='other writer'
+Assert (-not (Test-CodexComSameBaseline $base $changed)) 'changed description'
+$baselinePhase=if(Test-CodexComSameBaseline $base $changed){'readback-verified'}else{'baseline-conflict'}
+Assert ((Get-CodexComCleanupDisposition $true $id (Get-CodexComFailurePhase $baselinePhase $false $false $false)) -eq 'deferred') 'changed baseline cannot lead to cleanup'
+Assert (Test-CodexComCleanupSnapshot 'readback-verified' $base (Clone $base)) 'matching final snapshot comparison'
+Assert (-not (Test-CodexComCleanupSnapshot 'baseline-conflict' $base (Clone $base))) 'conflict cannot pass cleanup comparison'
+Assert (-not (Test-CodexComCleanupSnapshot 'readback-verified' $base $changed)) 'changed final snapshot blocks cleanup'
+Assert (-not (Test-CodexComCleanupSnapshot 'readback-verified' $base $null)) 'missing final snapshot blocks cleanup'
 $changed=Clone $base; $changed.Files.Machine.Exists=$true
 Assert (-not (Test-CodexComSameBaseline $base $changed)) 'changed file presence'
 $changed=Clone $base; $changed.Files.GPT.Bytes=[Convert]::ToBase64String((Gpt "[General]`nVersion=9"))

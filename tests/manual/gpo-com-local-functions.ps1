@@ -5,8 +5,14 @@ function Get-CodexComCleanupDisposition([bool]$hasSession,$targetId,[string]$pha
   if($null -eq $targetId -or -not [guid]::TryParse([string]$targetId,[ref]$id) -or $id -eq [guid]::Empty){return 'no-target'}
   if($id -eq [guid]'31B2F340-016D-11D2-945F-00C04FB984F9' -or
     $id -eq [guid]'6AC1786C-016F-11D2-945F-00C04FB984F9'){return 'protected-target'}
-  if($phase -in @('save-outcome-unknown','create-outcome-unknown','post-save-unverified')){return 'deferred'}
+  if($phase -ne 'readback-verified'){return 'deferred'}
   return 'identity-and-link-check-required'
+}
+function Get-CodexComFailurePhase([string]$phase,[bool]$enteredWrite,[bool]$writeReturned,[bool]$verified) {
+  if($phase -eq 'baseline-conflict'){return 'baseline-conflict'}
+  if($enteredWrite -and -not $writeReturned){return 'save-outcome-unknown'}
+  if($enteredWrite -and -not $verified){return 'post-save-unverified'}
+  return 'stopped'
 }
 function Get-CodexGptVersion([byte[]]$bytes) {
   if($null -eq $bytes -or $bytes.Length -eq 0){return $null}
@@ -41,10 +47,10 @@ function Test-CodexFileSnapshot($file) {
 }
 function Test-CodexComSameBaseline($before,$after) {
   if($null -eq $before -or $null -eq $after){return $false}
-  foreach($field in @('Guid','ObjectGuid','DN','Name','Version','Flags','FilePath','OwnerGroupDacl')) {
+  foreach($field in @('Guid','ObjectGuid','DN','Name','Version','Flags','FilePath','OwnerGroupDacl','USN')) {
     if($null -eq $before.$field -or $null -eq $after.$field -or [string]$before.$field -eq ''){return $false}
   }
-  foreach($field in @('Guid','ObjectGuid','DN','Name','Version','Flags','FilePath','MachineExtension','UserExtension','OwnerGroupDacl')) {
+  foreach($field in @('Guid','ObjectGuid','DN','Name','Version','Flags','FilePath','MachineExtension','UserExtension','OwnerGroupDacl','USN','Description')) {
     if([string]$before.$field -cne [string]$after.$field){return $false}
   }
   foreach($side in @('GPT','Machine','User')) {
@@ -53,6 +59,10 @@ function Test-CodexComSameBaseline($before,$after) {
        $a.Length -ne $b.Length -or [string]$a.SHA256 -cne [string]$b.SHA256){return $false}
   }
   return $true
+}
+# Comparison only; it is not an atomic condition or cleanup authorization.
+function Test-CodexComCleanupSnapshot([string]$phase,$verified,$current) {
+  return $phase -eq 'readback-verified' -and (Test-CodexComSameBaseline $verified $current)
 }
 function Test-CodexComFreshBaseline($baseline,[guid]$id,[string]$name) {
   if(-not [OpenRsatLabGpoComProbe]::ValidTarget($id.ToString(),$name) -or

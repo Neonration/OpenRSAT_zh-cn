@@ -23,7 +23,7 @@ try {
     function global:Get-CodexComSnapshot([guid]$Id,[bool]$IncludeBytes) {
       $server='ORSAT-DC01.openrsat.test'; $guid='{'+$Id.ToString().ToUpperInvariant()+'}'
       $dn='CN='+$guid+',CN=Policies,CN=System,DC=openrsat,DC=test'
-      $a=Get-ADObject -Server $server -Identity $dn -Properties displayName,versionNumber,flags,gPCFileSysPath,gPCMachineExtensionNames,gPCUserExtensionNames,nTSecurityDescriptor,objectGUID
+      $a=Get-ADObject -Server $server -Identity $dn -Properties displayName,versionNumber,flags,gPCFileSysPath,gPCMachineExtensionNames,gPCUserExtensionNames,nTSecurityDescriptor,objectGUID,uSNChanged,description
       $p=Join-Path $env:SystemRoot ('SYSVOL\sysvol\openrsat.test\Policies\'+$guid)
       $files=[ordered]@{}
       foreach($entry in @(@('GPT','GPT.INI'),@('Machine','Machine\Registry.pol'),@('User','User\Registry.pol'))) {
@@ -40,7 +40,7 @@ try {
         } else { $files[$entry[0]]=[ordered]@{Exists=$false; Length=0; SHA256=$null; Bytes=$null} }
       }
       $sddl=$a.nTSecurityDescriptor.GetSecurityDescriptorSddlForm([System.Security.AccessControl.AccessControlSections]::Owner -bor [System.Security.AccessControl.AccessControlSections]::Group -bor [System.Security.AccessControl.AccessControlSections]::Access)
-      [pscustomobject][ordered]@{Guid=$guid; ObjectGuid=$a.ObjectGUID.ToString(); DN=$a.DistinguishedName; Name=$a.DisplayName; Version=[int64]$a.versionNumber; Flags=$a.flags; FilePath=$a.gPCFileSysPath; MachineExtension=$a.gPCMachineExtensionNames; UserExtension=$a.gPCUserExtensionNames; OwnerGroupDacl=$sddl; Files=$files}
+      [pscustomobject][ordered]@{Guid=$guid; ObjectGuid=$a.ObjectGUID.ToString(); DN=$a.DistinguishedName; Name=$a.DisplayName; Version=[int64]$a.versionNumber; Flags=$a.flags; FilePath=$a.gPCFileSysPath; MachineExtension=$a.gPCMachineExtensionNames; UserExtension=$a.gPCUserExtensionNames; OwnerGroupDacl=$sddl; USN=[int64]$a.uSNChanged; Description=$a.Description; Files=$files}
     }
     function global:Get-CodexComLinks([guid]$Id) {
       $needle='{'+$Id.ToString().ToUpperInvariant()+'}'; $server='ORSAT-DC01.openrsat.test'
@@ -72,12 +72,17 @@ try {
   $src=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'gpo-com-probe.cs') -Raw
   Invoke-Command -Session $session -ArgumentList $src -ScriptBlock {param($s) Add-Type -TypeDefinition $s -Language CSharp}
   Add-Type -TypeDefinition $src -Language CSharp
-  if(-not (Test-CodexComFreshBaseline $baseline $targetId $name)){throw 'Fresh test GPO baseline is invalid or not empty'}
+  if(-not (Test-CodexComFreshBaseline $baseline $targetId $name)){
+    $state.Phase='baseline-conflict'; Save-State; throw 'Fresh test GPO baseline is invalid or not empty'
+  }
   $inspect=Invoke-Command -Session $session -ArgumentList $targetId.ToString(),$name -ScriptBlock {param($id,$n) [OpenRsatLabGpoComProbe]::Run($id,$n,$false)}
   $state.Inspect=$inspect; $state.Phase='read-only-open-confirmed'; Save-State
   if(@(Invoke-Command -Session $session -ArgumentList $targetId -ScriptBlock {param($id) Get-CodexComLinks $id}).Count -ne 0) { throw 'Test object became linked' }
   $rechecked=Invoke-Command -Session $session -ArgumentList $targetId -ScriptBlock {param($id) Get-CodexComSnapshot $id $true}
-  if(-not (Test-CodexComSameBaseline $baseline $rechecked)){throw 'Test baseline changed before save'}
+  Save-Json $rechecked 'test-before-save.json'
+  if(-not (Test-CodexComSameBaseline $baseline $rechecked)){
+    $state.Phase='baseline-conflict'; Save-State; throw 'Test baseline changed before save'
+  }
   $state.Phase='save-requested'; Save-State; $enteredWrite=$true
   $save=Invoke-Command -Session $session -ArgumentList $targetId.ToString(),$name -ScriptBlock {param($id,$n) [OpenRsatLabGpoComProbe]::Run($id,$n,$true)}
   $writeReturned=$true; $state.Save=$save; $state.Phase='save-returned'; Save-State
@@ -89,8 +94,7 @@ try {
   $state.Phase='readback-verified'; Save-State; $verified=$true
 } catch {
   $state.FailedAt=$state.Phase; $state.Error=$_.Exception.GetType().FullName
-  $state.Phase=if($enteredWrite -and -not $writeReturned){'save-outcome-unknown'}
-    elseif($enteredWrite -and -not $verified){'post-save-unverified'}else{'stopped'}; Save-State
+  $state.Phase=Get-CodexComFailurePhase $state.Phase $enteredWrite $writeReturned $verified; Save-State
   if($session -and $targetId) { try { Save-Json (Invoke-Command -Session $session -ArgumentList $targetId -ScriptBlock {param($id) Get-CodexComSnapshot $id $true}) 'test-after-error.json' } catch {} }
 } finally {
   if($session -and -not $targetId -and $createRequested) {
@@ -104,6 +108,11 @@ try {
   if($cleanupDisposition -eq 'identity-and-link-check-required' -and -not $baselineObjectGuid){$cleanupDisposition='identity-unavailable'}
   if($cleanupDisposition -eq 'identity-and-link-check-required') {
     try {
+      $preCleanup=Invoke-Command -Session $session -ArgumentList $targetId -ScriptBlock {param($id) Get-CodexComSnapshot $id $true}
+      Save-Json $preCleanup 'test-before-cleanup.json'
+      if(-not (Test-CodexComCleanupSnapshot $state.Phase $after $preCleanup)) {
+        $state.Cleanup='deferred: post-verification snapshot changed'
+      } else {
       $result=Invoke-Command -Session $session -ArgumentList $targetId,$name,$baselineObjectGuid -ScriptBlock {
         param($id,$expected,$expectedObjectGuid)
         if($id -eq [guid]::Empty -or $id -eq [guid]'31B2F340-016D-11D2-945F-00C04FB984F9' -or
@@ -119,8 +128,11 @@ try {
         [pscustomobject]@{GpcAbsent=($null -eq $remaining); SysvolAbsent=(-not (Test-Path -LiteralPath $p)); LinksAbsent=(@(Get-CodexComLinks $id).Count -eq 0)}
       }
       $state.Cleanup=$result; if(-not $result.GpcAbsent -or -not $result.SysvolAbsent -or -not $result.LinksAbsent){throw 'Cleanup verification failed'}
+      }
     } catch { $state.Cleanup='failed: '+$_.Exception.GetType().FullName }
   } elseif($targetId -and $state.Phase -in @('save-outcome-unknown','post-save-unverified')) { $state.Cleanup='deferred: write outcome or verification uncertain' }
+  elseif($targetId -and $state.Phase -eq 'baseline-conflict') { $state.Cleanup='deferred: baseline conflict' }
+  elseif($targetId -and $cleanupDisposition -eq 'deferred') { $state.Cleanup='deferred: experiment did not complete verification' }
   elseif($cleanupDisposition -eq 'protected-target') { $state.Cleanup='deferred: protected target' }
   elseif($cleanupDisposition -eq 'identity-unavailable') { $state.Cleanup='deferred: original object identity unavailable' }
   elseif($createRequested -and -not $targetId) { $state.Cleanup='deferred: creation state or identity unavailable' }
