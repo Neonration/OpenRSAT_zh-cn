@@ -19,6 +19,17 @@ type
 
   TProcLdapClientObject = procedure(LdapClient: TLdapClient) of Object;
 
+  // The object and any earlier joins remain committed. Retry memberships only,
+  // not object creation. Processing stops at FailedGroupDN.
+  ELdapPartialCreation = class(ELdap)
+  private
+    fCreatedDN, fFailedGroupDN: RawUtf8;
+  public
+    constructor Create(const CreatedDN, FailedGroupDN, Detail: RawUtf8);
+    property CreatedDN: RawUtf8 read fCreatedDN;
+    property FailedGroupDN: RawUtf8 read fFailedGroupDN;
+  end;
+
   { TRsatLdapClient }
 
   TRsatLdapClient = class(TLdapClient)
@@ -76,7 +87,7 @@ type
       const Types: array of TLdapAttributeType;
       const Values: array of const): boolean; overload;
     function Modify(const Obj: RawUtf8; Op: TLdapModifyOp; const AttrName: RawUtf8;
-  const AttrValue: RawByteString): boolean; overload;
+  const AttrValue: RawByteString): boolean; overload; virtual;
     function Modify(const Obj: RawUtf8; Op: TLdapModifyOp; Attribute: TLdapAttribute
   ): boolean; overload; virtual;
     function Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
@@ -86,7 +97,7 @@ type
       DeleteOldRdn: boolean): boolean;
     function ModifyUserPassword(const UserDN: RawUtf8; const OldPassword,
       NewPassword: SpiUtf8): boolean;
-    function Add(const Obj: RawUtf8; Value: TLdapAttributeList): boolean;
+    function Add(const Obj: RawUtf8; Value: TLdapAttributeList): boolean; virtual;
     function Delete(const Obj: RawUtf8; DeleteChildren: boolean=false): boolean;
     function Connect(DiscoverMode: TLdapClientConnect=[lccCldap, lccTlsFirst];
       DelayMS: integer=500): boolean;
@@ -528,6 +539,15 @@ begin
     Connect;
 end;
 
+constructor ELdapPartialCreation.Create(const CreatedDN, FailedGroupDN,
+  Detail: RawUtf8);
+begin
+  fCreatedDN := CreatedDN;
+  fFailedGroupDN := FailedGroupDN;
+  inherited Create(FormatUtf8('Object "%" was created and still exists, but joining group "%" failed: %. Earlier memberships remain saved; later groups were not attempted. Retry the failed and remaining memberships only, not object creation.',
+    [CreatedDN, FailedGroupDN, Detail]));
+end;
+
 function TRsatLdapClient.CreateOrganizationalUnit(OUName, ParentDN: RawUtf8;
   Protected: Boolean): RawUtf8;
 var
@@ -578,7 +598,8 @@ begin
     Attrs.Free;
   end;
   for group in JoinGroups do
-    Modify(group, lmoAdd, 'member', result);
+    if not Modify(group, lmoAdd, 'member', result) then
+      raise ELdapPartialCreation.Create(result, group, ResultString);
 end;
 
 function TRsatLdapClient.CreateUser(UserName, ParentDN: RawUtf8;
@@ -604,7 +625,8 @@ begin
     Attrs.Free;
   end;
   for group in JoinGroups do
-    Modify(group, lmoAdd, 'member', result);
+    if not Modify(group, lmoAdd, 'member', result) then
+      raise ELdapPartialCreation.Create(result, group, ResultString);
 end;
 
 function TRsatLdapClient.SetOUProtection(DistinguishedName: RawUtf8;

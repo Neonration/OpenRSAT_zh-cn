@@ -19,6 +19,7 @@ type
       out MustChange, Unlock: Boolean): Boolean;
     procedure PasswordChanged(Sender: TObject);
   published
+    procedure PartialObjectCreation;
     procedure TlsPolicyOnActualConnect;
     procedure CancelPasswordReset;
     procedure PasswordWriteFailure;
@@ -32,10 +33,15 @@ implementation
 type
   TRecordingLdapClient = class(TRsatLdapClient)
   public
+    AddCalls: Integer;
+    AddFails: Boolean;
     Data: TLdapResult;
     Calls, SingleCalls, ArrayCalls, Searches, FailOnCall: Integer;
     LastModifications: TAsnObjects;
     WrittenNames: TRawUtf8DynArray;
+    function Add(const Obj: RawUtf8; Value: TLdapAttributeList): Boolean; override;
+    function Modify(const Obj: RawUtf8; Op: TLdapModifyOp; const AttrName: RawUtf8;
+      const AttrValue: RawByteString): Boolean; override;
     constructor Create;
     destructor Destroy; override;
     function SearchObject(const ObjectDN, Filter: RawUtf8;
@@ -49,6 +55,78 @@ type
 
 const
   OBJECT_DN = 'CN=Test,DC=example,DC=com';
+
+function TRecordingLdapClient.Modify(const Obj: RawUtf8; Op: TLdapModifyOp;
+  const AttrName: RawUtf8; const AttrValue: RawByteString): Boolean;
+begin
+  Inc(Calls);
+  Result := Calls <> FailOnCall;
+end;
+
+function TRecordingLdapClient.Add(const Obj: RawUtf8;
+  Value: TLdapAttributeList): Boolean;
+begin
+  Inc(AddCalls);
+  Result := not AddFails;
+end;
+
+procedure TUnitTestLdapWriteSafety.PartialObjectCreation;
+var
+  Client: TRecordingLdapClient;
+  Kind: Integer;
+  DN: RawUtf8;
+  Raised: Boolean;
+const
+  Parent = 'OU=Test,DC=example,DC=com';
+  FirstGroup = 'CN=First,OU=Test,DC=example,DC=com';
+  FailedGroup = 'CN=Missing,OU=Test,DC=example,DC=com';
+  LastGroup = 'CN=Later,OU=Test,DC=example,DC=com';
+begin
+  for Kind := 0 to 1 do
+  begin
+    Client := TRecordingLdapClient.Create;
+    try
+      Client.FailOnCall := 2;
+      Raised := False;
+      try
+        if Kind = 0 then
+          DN := Client.CreateGroup('Created', Parent, [FirstGroup, FailedGroup, LastGroup])
+        else
+          DN := Client.CreateUser('Created', Parent, [FirstGroup, FailedGroup, LastGroup]);
+      except
+        on E: ELdapPartialCreation do
+        begin
+          Raised := True;
+          CheckEqual(E.CreatedDN, 'cn=Created,' + Parent);
+          CheckEqual(E.FailedGroupDN, FailedGroup);
+          Check(Pos('still exists', E.Message) > 0);
+          Check(Pos('not object creation', E.Message) > 0);
+        end;
+      end;
+      Check(Raised, 'A failed membership must explicitly report partial creation.');
+      CheckEqual(Client.AddCalls, 1, 'Never recreate the committed object.');
+      CheckEqual(Client.Calls, 2, 'Stop at first failed membership.');
+      Client.Calls := 0;
+      Client.FailOnCall := 0;
+      if Kind = 0 then
+        DN := Client.CreateGroup('Complete', Parent, [FirstGroup, LastGroup])
+      else
+        DN := Client.CreateUser('Complete', Parent, [FirstGroup, LastGroup]);
+      CheckEqual(DN, 'cn=Complete,' + Parent);
+      CheckEqual(Client.Calls, 2);
+      Client.AddFails := True;
+      Client.Calls := 0;
+      if Kind = 0 then
+        DN := Client.CreateGroup('Failed', Parent, [FirstGroup])
+      else
+        DN := Client.CreateUser('Failed', Parent, [FirstGroup]);
+      CheckEqual(DN, '');
+      CheckEqual(Client.Calls, 0, 'No joins when creation failed.');
+    finally
+      Client.Free;
+    end;
+  end;
+end;
 
 constructor TRecordingLdapClient.Create;
 begin
