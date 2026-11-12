@@ -434,7 +434,8 @@ end;
 function TFrmGpoOfflineDraft.PreviewSummary:string;
 var Side:TGpoDraftSide; SideName,State,Source:string;
 begin
-  Result:='';
+  if fSide=gdsComputer then SideName:='计算机配置' else SideName:='用户配置';
+  Result:='当前差异：'+SideName+LineEnding;
   for Side:=Low(TGpoDraftSide) to High(TGpoDraftSide) do
   begin
     if Side=gdsComputer then SideName:='计算机配置' else SideName:='用户配置';

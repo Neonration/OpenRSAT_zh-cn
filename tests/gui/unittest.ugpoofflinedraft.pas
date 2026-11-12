@@ -117,6 +117,7 @@ end;
 procedure TUnitTestGpoOfflineDraftUI.LocalDraftInteraction;
 var F:TTestOfflineForm; R:TGpoRegistryRecord; Rows:TGpoRegistryRecords;
   Data,Prior:TBytes; E,Dir,Path:string; CanClose:Boolean;
+  PreviewForm:TForm; PreviewMemo:TMemo;
   {$ifdef windows} LockedDraft:TBytes; LockHandle:THandle; ErrorsBefore:Integer; BeforePreview:string; {$endif}
 begin
   F:=TTestOfflineForm.Create(nil); Dir:='';
@@ -168,15 +169,21 @@ begin
     F.NextRecord:=Item('User\Policy','B',3,[7]); F.AddButton.Click;
     Check(F.Draft(gdsUser).Dirty); Check(F.Draft(gdsComputer).Dirty);
     F.PreviewButton.Click;
+    Check(Pos('当前差异：用户配置',F.LastPreview)>0);
+    Check(Pos('User\Policy',F.LastPreview)>0); Check(Pos('Software\Policies\Test',F.LastPreview)=0);
     Check(Pos('计算机配置：有未导出修改',F.LastPreview)>0);
     Check(Pos('用户配置：有未导出修改',F.LastPreview)>0);
     Check(Pos('本地草稿没有域基线，不能生成域变更计划',F.LastPreview)>0);
     Check(F.Draft(gdsUser).Dirty and F.Draft(gdsComputer).Dirty);
+    F.SelectSide(gdsComputer); F.PreviewButton.Click;
+    Check(Pos('当前差异：计算机配置',F.LastPreview)>0);
+    Check(Pos('Software\Policies\Test',F.LastPreview)>0); Check(Pos('User\Policy',F.LastPreview)=0);
+    F.SelectSide(gdsUser);
     F.Choice:=False; CanClose:=True; F.OnCloseQuery(F,CanClose); Check(not CanClose);
     F.Choice:=True; CanClose:=False; F.OnCloseQuery(F,CanClose); Check(CanClose);
     F.SelectSide(gdsComputer);
     {$ifdef windows}
-    Dir:=GetTempDir(False)+'openrsat-draft-ui-'+IntToStr(GetCurrentProcessId);
+    Dir:=GetTempDir(False)+'openrsat-draft-ui-'+IntToStr(GetCurrentProcessId)+'-'+StringOfChar('x',64);
     if not CreateDir(Dir) then begin Check(False,'Cannot create a fresh test directory'); Exit; end;
     Check(True); Path:=Dir+'\copy.pol'; F.NextPath:=Path;
     Check(F.Draft(gdsComputer).Export(Prior)=grsOk);
@@ -195,6 +202,15 @@ begin
     Check(Pos('计算机配置：无未导出修改；基线：本地文件',F.LastPreview)>0);
     Check(Pos(Path,F.LastPreview)>0);
     Check(Pos('用户配置：有未导出修改',F.LastPreview)>0);
+    PreviewForm:=F.CreatePreviewWindow;
+    try
+      PreviewMemo:=TMemo(PreviewForm.FindComponent('GpoPreviewMemo'));
+      Check(Assigned(PreviewMemo));
+      if Assigned(PreviewMemo) then begin
+        Check(PreviewMemo.ReadOnly); Check(Pos(Path,PreviewMemo.Text)>0);
+        Check(PreviewMemo.ScrollBars=ssAutoBoth);
+      end;
+    finally PreviewForm.Free; end;
     F.NextRecord:=Item('K','Changed',3,[9]); F.AddButton.Click;
     Check(F.Draft(gdsComputer).Dirty); F.SaveButton.Click;
     Check(F.Draft(gdsComputer).Dirty); Check(Pos('已存在',F.LastError)>0);
