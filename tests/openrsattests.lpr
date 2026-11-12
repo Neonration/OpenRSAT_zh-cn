@@ -23,6 +23,7 @@ uses
   unittest.ugporeadonly,
   unittest.ugpooffline,
   unittest.ugpowritemodel,
+  unittest.ugporeplaymodel,
   unittest.advancedsearch;
 
 type
@@ -57,6 +58,7 @@ begin
     TUnitTestGpoReadOnly,
     TUnitTestGpoOffline,
     TUnitTestGpoWriteModel,
+    TUnitTestGpoReplayModel,
     TUnitTestAdvancedSearch
   ]);
 end;
