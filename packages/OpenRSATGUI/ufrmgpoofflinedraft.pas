@@ -351,8 +351,19 @@ begin
   finally Window.Free; end;
 end;
 procedure TFrmGpoOfflineDraft.PlanClick(Sender:TObject);
-var Input,Path,Err,Report:string; Gpc,Gpt:Cardinal;
+var Input,Path,Err,Report,UserPath,MachinePath:string; Gpc,Gpt:Cardinal;
   Ini,OldUser,NewUser,OldMachine,NewMachine:TBytes; P:TGpoOfflinePlan; Status:TGpoOfflinePlanStatus;
+  function SameBytes(const A,B:TBytes):Boolean;
+  begin
+    Result:=Length(A)=Length(B);
+    if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A));
+  end;
+  function SameDraft(Side:TGpoDraftSide; const Baseline,Current:TBytes; const SourcePath:string):Boolean;
+  var B,C:TBytes;
+  begin
+    Result:=(fPaths[Side]=SourcePath) and (fDrafts[Side].Baseline(B)=grsOk) and
+      (fDrafts[Side].Export(C)=grsOk) and SameBytes(B,Baseline) and SameBytes(C,Current);
+  end;
   function ActionText(Action:TGpoPolicyAction):string;
   begin
     case Action of
@@ -363,14 +374,18 @@ var Input,Path,Err,Report:string; Gpc,Gpt:Cardinal;
 begin
   if (fPaths[gdsUser]='') or (fPaths[gdsComputer]='') then
   begin ShowError('请先为计算机和用户两侧分别打开或导出本地 Registry.pol 基线。'); Exit; end;
-  if not RequestGpcVersion(Input) then Exit;
-  if not GpoParseLdapVersion(Input,Gpc) then begin ShowError('LDAP versionNumber 必须是有效的有符号 32 位十进制数。'); Exit; end;
-  if not ChooseGptFile(Path) then Exit;
-  if not GpoLoadLocalFile(Path,Ini,Err) then begin ShowError(Err); Exit; end;
-  if ParseGptIni(Ini,Gpt)<>grsOk then begin ShowError('无法解析本地 GPT.INI 版本。'); Exit; end;
+  UserPath:=fPaths[gdsUser]; MachinePath:=fPaths[gdsComputer];
   if (fDrafts[gdsUser].Baseline(OldUser)<>grsOk) or (fDrafts[gdsUser].Export(NewUser)<>grsOk) or
      (fDrafts[gdsComputer].Baseline(OldMachine)<>grsOk) or (fDrafts[gdsComputer].Export(NewMachine)<>grsOk) then
   begin ShowError('无法读取本地草稿快照。'); Exit; end;
+  if not RequestGpcVersion(Input) then Exit;
+  if not GpoParseLdapVersion(Input,Gpc) then begin ShowError('LDAP versionNumber 必须是有效的有符号 32 位十进制数。'); Exit; end;
+  if not ChooseGptFile(Path) then Exit;
+  if not SameDraft(gdsUser,OldUser,NewUser,UserPath) or
+     not SameDraft(gdsComputer,OldMachine,NewMachine,MachinePath) then
+  begin ShowError('输入期间本地草稿或基线已变化，请重新开始预演。'); Exit; end;
+  if not GpoLoadLocalFile(Path,Ini,Err) then begin ShowError(Err); Exit; end;
+  if ParseGptIni(Ini,Gpt)<>grsOk then begin ShowError('无法解析本地 GPT.INI 版本。'); Exit; end;
   Status:=GpoBuildOfflinePlan(Gpc,Gpt,Ini,OldUser,NewUser,OldMachine,NewMachine,P);
   if Status<>gopOk then
   begin
@@ -379,11 +394,12 @@ begin
     Exit;
   end;
   Report:='仅本地预演：来源未经验证，不构成域写入授权，不会应用到域。'+LineEnding+
-    '计算机基线：'+fPaths[gdsComputer]+LineEnding+'用户基线：'+fPaths[gdsUser]+LineEnding+
+    '计算机基线：'+MachinePath+LineEnding+'用户基线：'+UserPath+LineEnding+
     'GPT.INI 快照：'+Path+LineEnding+'输入 LDAP versionNumber：'+Input+LineEnding+
     '计算机策略：'+ActionText(P.MachineAction)+LineEnding+'用户策略：'+ActionText(P.UserAction)+LineEnding+
     'GPT 版本：'+UIntToStr(Gpt)+' → '+P.Version.GptValue+LineEnding+
     'LDAP versionNumber：'+Input+' → '+P.Version.LdapValue+LineEnding+
+    '两侧使用输入前的内存快照，未重新读取基线文件。'+LineEnding+
     '未验证文件身份、域控、权限、并发或复制；不执行写入。';
   ShowPlanReport(Report);
 end;

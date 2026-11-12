@@ -33,6 +33,7 @@ type
     NextPath, LastError, LastPreview:string;
     GptPath, VersionInput, PlanReport:string;
     GptChoice, VersionChoice:Boolean; PlanReports:Integer;
+    MutateOnVersion, MutateOnGpt, RebaseOnGpt, InjectedEditOk:Boolean;
     constructor Create(TheOwner:TComponent); override;
   protected
     function ConfirmDiscard:Boolean; override;
@@ -84,9 +85,22 @@ end;
 function TTestOfflineForm.EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean;
 begin Result:=EditChoice; if Result then Item:=NextRecord; end;
 function TTestOfflineForm.ChooseGptFile(out Path:string):Boolean;
-begin Path:=GptPath; Result:=GptChoice; end;
+begin
+  if MutateOnGpt then begin
+    MutateOnGpt:=False;
+    InjectedEditOk:=Draft(gdsUser).Insert(Length(Draft(gdsUser).Records),NextRecord)=grsOk;
+  end;
+  if RebaseOnGpt then begin RebaseOnGpt:=False; SelectSide(gdsUser); NewButton.Click; end;
+  Path:=GptPath; Result:=GptChoice;
+end;
 function TTestOfflineForm.RequestGpcVersion(out Value:string):Boolean;
-begin Value:=VersionInput; Result:=VersionChoice; end;
+begin
+  if MutateOnVersion then begin
+    MutateOnVersion:=False;
+    InjectedEditOk:=Draft(gdsUser).Insert(Length(Draft(gdsUser).Records),NextRecord)=grsOk;
+  end;
+  Value:=VersionInput; Result:=VersionChoice;
+end;
 procedure TTestOfflineForm.ShowError(const MessageText:string);
 begin Inc(ErrorCalls); LastError:=MessageText; end;
 procedure TTestOfflineForm.ShowPreview;
@@ -132,6 +146,7 @@ begin
     Check(F.PlanReports=2); Check(Pos('计算机策略：无变化',F.PlanReport)>0);
     Check(Pos('用户策略：替换',F.PlanReport)>0); Check(Pos('GPT 版本：1 → 65537',F.PlanReport)>0);
     Check(Pos('LDAP versionNumber：1 → 65537',F.PlanReport)>0);
+    Check(Pos('未重新读取基线文件',F.PlanReport)>0);
     Check(F.Draft(gdsUser).Dirty and not F.Draft(gdsComputer).Dirty);
     Check(F.Draft(gdsUser).Baseline(Base)=grsOk); Check(EqualBytes(Base,Empty));
     Base[0]:=0; Check(F.Draft(gdsUser).Baseline(Base)=grsOk); Check(EqualBytes(Base,Empty));
@@ -146,6 +161,17 @@ begin
     Check(GpoLoadLocalFile(UserPath,ReadBack,E)); Check(EqualBytes(ReadBack,Empty));
     Check(GpoLoadLocalFile(MachinePath,ReadBack,E)); Check(EqualBytes(ReadBack,Empty));
     Check(GpoLoadLocalFile(GptPath,ReadBack,E)); Check(EqualBytes(ReadBack,Ini));
+    F.VersionInput:='1'; F.VersionChoice:=False; F.PlanButton.Click; Check(F.PlanReports=3);
+    F.VersionChoice:=True; F.GptChoice:=False; F.PlanButton.Click; Check(F.PlanReports=3);
+    F.GptChoice:=True; F.NextRecord:=Item('QA\DuringVersion','V',3,[3]);
+    F.InjectedEditOk:=False; F.MutateOnVersion:=True; F.PlanButton.Click;
+    Check(F.InjectedEditOk); Check(F.PlanReports=3); Check(Pos('输入期间',F.LastError)>0);
+    Check(F.Draft(gdsUser).Dirty);
+    F.NextRecord:=Item('QA\DuringGpt','V',3,[4]); F.InjectedEditOk:=False; F.MutateOnGpt:=True; F.PlanButton.Click;
+    Check(F.InjectedEditOk); Check(F.PlanReports=3); Check(Pos('输入期间',F.LastError)>0);
+    Check(F.Draft(gdsUser).Dirty);
+    F.Choice:=True; F.RebaseOnGpt:=True; F.PlanButton.Click;
+    Check(F.PlanReports=3); Check(Pos('输入期间',F.LastError)>0);
   finally
     F.Free;
     Check(SysUtils.DeleteFile(UserPath)); Check(SysUtils.DeleteFile(MachinePath));
