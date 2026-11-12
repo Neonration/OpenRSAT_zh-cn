@@ -29,6 +29,18 @@ type
     Data:TBytes;
   end;
   TGpoCapturedFiles = array[TGpoFile] of TGpoCapturedFile;
+  TGpoObservedFile = record
+    Attempted:Boolean;
+    Status:TGpoReadStatus;
+    Observation:TGpoFileObservation;
+    Data:TBytes;
+    Metadata:TGpoFileEvidence;
+  end;
+  TGpoObservedFiles = record
+    Target:TGpoPreflightTarget;
+    Captured:Boolean;
+    Items:array[TGpoFile] of TGpoObservedFile;
+  end;
   TGpoSecurityEvidence = (gseUnavailable, gseUnverified);
   TGpoLdapEvidence = record
     Target:TGpoPreflightTarget;
@@ -51,7 +63,7 @@ type
     function Search(const DN,Filter:RawUtf8; const Attributes:array of RawUtf8):TLdapResult;
   end;
   // In-memory binding only. The caller must independently verify target provenance.
-  // Even matching evidence returns EvidenceIncomplete: file metadata is not captured.
+  // Even matching evidence returns EvidenceIncomplete and never authorizes writing.
   TGpoBoundPlan = class
   private
     fTarget:TGpoPreflightTarget;
@@ -61,11 +73,15 @@ type
     fUSN:QWord;
     fFlags:Cardinal;
     fSecurityDescriptor:TBytes;
+    fFilesCaptured:Boolean;
+    fFileEvidence:array[TGpoFile] of TGpoFileEvidence;
   public
     class function Bind(const Target:TGpoPreflightTarget; const Plan:TGpoOfflinePlan;
       out Bound:TGpoBoundPlan):TGpoPreflightResult; static;
     class function BindEvidence(const Evidence:TGpoLdapEvidence; const Plan:TGpoOfflinePlan;
       out Bound:TGpoBoundPlan):TGpoPreflightResult; static;
+    class function BindWithFiles(const Evidence:TGpoLdapEvidence; const Plan:TGpoOfflinePlan;
+      const Files:TGpoObservedFiles; out Bound:TGpoBoundPlan):TGpoPreflightResult; static;
     function Compare(const Target:TGpoPreflightTarget; GpcStatus:TGpoReadStatus; GpcVersion:Cardinal;
       GptStatus:TGpoReadStatus; const Ini:TBytes;
       UserStatus:TGpoReadStatus; UserObservation:TGpoFileObservation; const UserData:TBytes;
@@ -73,6 +89,7 @@ type
     function CompareEvidence(const Evidence:TGpoLdapEvidence; GptStatus:TGpoReadStatus; const Ini:TBytes;
       UserStatus:TGpoReadStatus; UserObservation:TGpoFileObservation; const UserData:TBytes;
       MachineStatus:TGpoReadStatus; MachineObservation:TGpoFileObservation; const MachineData:TBytes):TGpoPreflightResult;
+    function CompareWithFiles(const Evidence:TGpoLdapEvidence; const Files:TGpoObservedFiles):TGpoPreflightResult;
   end;
   // Cooperative only: synchronous OS SMB calls may outlive this deadline.
   // The caller keeps this object alive until the read has returned.
@@ -112,10 +129,17 @@ function GpoCompareFileEvidence(const Before,After:TGpoFileEvidence):TGpoPreflig
 // Synchronous and read-only. Caller must first verify the target via LDAP;
 // a successful file capture still lacks metadata and never authorizes writing.
 function GpoCapturePreflightFiles(const Target:TGpoPreflightTarget; out Files:TGpoCapturedFiles):TGpoPreflightResult;
+// Currently requires all files present; missing parent evidence blocks the capture.
+function GpoCapturePreflightEvidence(const Target:TGpoPreflightTarget; out Files:TGpoObservedFiles):TGpoPreflightResult;
 // Synchronous, on the caller's serialized LDAP client. No credentials or permissions are changed.
 // Captures only owner/group/DACL; success remains evidence-incomplete.
 function GpoCaptureLdapEvidence(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
   out Evidence:TGpoLdapEvidence):TGpoPreflightResult;
+// Serialized, synchronous LDAP/SMB reads only; equality is never write authorization.
+function GpoBeginReadOnlyPreflight(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
+  const Plan:TGpoOfflinePlan; out Bound:TGpoBoundPlan):TGpoPreflightResult;
+function GpoCheckReadOnlyPreflight(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
+  Bound:TGpoBoundPlan):TGpoPreflightResult;
 // Shared capture flow; a supplied transport is not authenticated by this interface.
 function GpoCaptureLdapFromTransport(const Transport:IGpoLdapEvidenceTransport;
   const ExpectedDN,ExpectedGuid:string; out Evidence:TGpoLdapEvidence):TGpoPreflightResult;
@@ -197,6 +221,62 @@ begin
   Bound.fToken:=Token; Bound.fPlan:=Frozen; Result:=gprEvidenceIncomplete;
 end;
 
+function GpoBeginReadOnlyPreflight(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
+  const Plan:TGpoOfflinePlan; out Bound:TGpoBoundPlan):TGpoPreflightResult;
+var Before,After:TGpoLdapEvidence; Files:TGpoObservedFiles; Complete:Boolean;
+begin
+  Bound:=nil; Complete:=False;
+  try
+    try
+      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,Before); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=GpoCapturePreflightEvidence(Before.Target,Files); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=TGpoBoundPlan.BindWithFiles(Before,Plan,Files,Bound); if not Assigned(Bound) then Exit;
+      Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,After); if Result<>gprEvidenceIncomplete then Exit;
+      Result:=Bound.CompareWithFiles(After,Files); Complete:=Result=gprEvidenceIncomplete;
+    except Result:=gprReadUnavailable; end;
+  finally if not Complete then FreeAndNil(Bound); end;
+end;
+
+function GpoCheckReadOnlyPreflight(Client:TLdapClient; const ExpectedDN,ExpectedGuid:string;
+  Bound:TGpoBoundPlan):TGpoPreflightResult;
+var Before,After:TGpoLdapEvidence; Files:TGpoObservedFiles;
+begin
+  if not Assigned(Bound) then Exit(gprInvalid);
+  try
+    Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,Before); if Result<>gprEvidenceIncomplete then Exit;
+    Result:=GpoCapturePreflightEvidence(Before.Target,Files); if Result<>gprEvidenceIncomplete then Exit;
+    Result:=Bound.CompareWithFiles(Before,Files); if Result<>gprEvidenceIncomplete then Exit;
+    Result:=GpoCaptureLdapEvidence(Client,ExpectedDN,ExpectedGuid,After); if Result<>gprEvidenceIncomplete then Exit;
+    Result:=Bound.CompareWithFiles(After,Files);
+  except Result:=gprReadUnavailable; end;
+end;
+
+function GpoCapturePreflightEvidence(const Target:TGpoPreflightTarget; out Files:TGpoObservedFiles):TGpoPreflightResult;
+var Token:ILdapSessionToken; Control:TGpoReadControl; Artifact:TGpoFile; Path:string;
+begin
+  Files:=Default(TGpoObservedFiles);
+  for Artifact:=Low(TGpoFile) to High(TGpoFile) do Files.Items[Artifact].Status:=grsIoError;
+  if not Assigned(Target.Session) or not Supports(Target.Session,ILdapSessionToken,Token) or
+     not Token.IsValid then Exit(gprSessionInvalid);
+  if (Target.DN='') or (Length(Target.ObjectGuid)<>16) or SameText(Target.Domain,Target.DC) or
+     (GpoBuildSafePath(Target.FileSysPath,Target.Domain,Target.DC,Target.Guid,gfGptIni,Path)<>grsOk) then Exit(gprInvalid);
+  Control:=TGpoReadControl.Create(30000,Target.Session);
+  try
+    for Artifact:=Low(TGpoFile) to High(TGpoFile) do
+    begin
+      Files.Items[Artifact].Attempted:=True;
+      Files.Items[Artifact].Status:=GpoReadFileEvidence(Target.FileSysPath,Target.Domain,Target.DC,Target.Guid,
+        Artifact,Files.Items[Artifact].Data,Files.Items[Artifact].Observation,Files.Items[Artifact].Metadata,Control);
+      if not Token.IsValid then Exit(gprSessionInvalid);
+      if (Files.Items[Artifact].Status<>grsOk) or (Files.Items[Artifact].Observation<>gfoPresent) or
+         not Files.Items[Artifact].Metadata.Available then Exit(gprReadUnavailable);
+    end;
+    Files.Target:=Target; Files.Target.ObjectGuid:=Copy(Target.ObjectGuid); Files.Captured:=True;
+    if not Token.IsValid then begin Files.Captured:=False; Exit(gprSessionInvalid); end;
+    Result:=gprEvidenceIncomplete;
+  finally Control.Free; end;
+end;
+
 class function TGpoBoundPlan.BindEvidence(const Evidence:TGpoLdapEvidence; const Plan:TGpoOfflinePlan;
   out Bound:TGpoBoundPlan):TGpoPreflightResult;
 var SD:mormot.core.os.security.TSecurityDescriptor;
@@ -209,6 +289,43 @@ begin
   if not Assigned(Bound) then Exit;
   Bound.fUSN:=Evidence.USNChanged; Bound.fFlags:=Evidence.Flags;
   Bound.fSecurityDescriptor:=Copy(Evidence.SecurityDescriptor); Bound.fLdapCaptured:=True;
+end;
+
+function SamePreflightTarget(const A,B:TGpoPreflightTarget):Boolean;
+begin
+  Result:=Assigned(A.Session) and (A.Session=B.Session) and
+    SameText(A.Domain,B.Domain) and SameText(A.DC,B.DC) and SameText(A.DN,B.DN) and
+    SameText(A.Guid,B.Guid) and SameText(A.FileSysPath,B.FileSysPath) and
+    (Length(A.ObjectGuid)=16) and (Length(B.ObjectGuid)=16) and CompareMem(@A.ObjectGuid[0],@B.ObjectGuid[0],16);
+end;
+
+class function TGpoBoundPlan.BindWithFiles(const Evidence:TGpoLdapEvidence; const Plan:TGpoOfflinePlan;
+  const Files:TGpoObservedFiles; out Bound:TGpoBoundPlan):TGpoPreflightResult;
+var Artifact:TGpoFile; Completed:Boolean;
+begin
+  Bound:=nil;
+  if not Files.Captured then Exit(gprReadUnavailable);
+  Result:=BindEvidence(Evidence,Plan,Bound);
+  if not Assigned(Bound) then Exit;
+  Completed:=False;
+  try
+    if not SamePreflightTarget(Evidence.Target,Files.Target) then begin Result:=gprTargetMismatch; Exit; end;
+    for Artifact:=Low(TGpoFile) to High(TGpoFile) do
+      if not Files.Items[Artifact].Attempted or (Files.Items[Artifact].Status<>grsOk) or (Files.Items[Artifact].Observation<>gfoPresent) or
+         (GpoCompareFileEvidence(Files.Items[Artifact].Metadata,Files.Items[Artifact].Metadata)<>gprEvidenceIncomplete) then
+      begin Result:=gprReadUnavailable; Exit; end;
+    Result:=Bound.CompareEvidence(Evidence,Files.Items[gfGptIni].Status,Files.Items[gfGptIni].Data,
+      Files.Items[gfUserRegistry].Status,Files.Items[gfUserRegistry].Observation,Files.Items[gfUserRegistry].Data,
+      Files.Items[gfMachineRegistry].Status,Files.Items[gfMachineRegistry].Observation,Files.Items[gfMachineRegistry].Data);
+    if Result<>gprEvidenceIncomplete then Exit;
+    for Artifact:=Low(TGpoFile) to High(TGpoFile) do
+    begin
+      Bound.fFileEvidence[Artifact]:=Files.Items[Artifact].Metadata;
+      Bound.fFileEvidence[Artifact].SecurityDescriptor:=Copy(Files.Items[Artifact].Metadata.SecurityDescriptor);
+    end;
+    if not Bound.fToken.IsValid then begin Result:=gprSessionInvalid; Exit; end;
+    Bound.fFilesCaptured:=True; Completed:=True;
+  finally if not Completed then FreeAndNil(Bound); end;
 end;
 
 function TGpoBoundPlan.Compare(const Target:TGpoPreflightTarget; GpcStatus:TGpoReadStatus; GpcVersion:Cardinal;
@@ -255,6 +372,26 @@ begin
   if (Evidence.USNChanged<>fUSN) or (Evidence.Flags<>fFlags) or
      (Length(Evidence.SecurityDescriptor)<>Length(fSecurityDescriptor)) or
      not CompareMem(@Evidence.SecurityDescriptor[0],@fSecurityDescriptor[0],Length(fSecurityDescriptor)) then Exit(gprConflict);
+  if not fToken.IsValid then Exit(gprSessionInvalid);
+  Result:=gprEvidenceIncomplete;
+end;
+
+function TGpoBoundPlan.CompareWithFiles(const Evidence:TGpoLdapEvidence; const Files:TGpoObservedFiles):TGpoPreflightResult;
+var Artifact:TGpoFile;
+begin
+  if not Assigned(fToken) or not fToken.IsValid then Exit(gprSessionInvalid);
+  if not fFilesCaptured or not Files.Captured then Exit(gprReadUnavailable);
+  if not SamePreflightTarget(Evidence.Target,Files.Target) then Exit(gprTargetMismatch);
+  Result:=CompareEvidence(Evidence,Files.Items[gfGptIni].Status,Files.Items[gfGptIni].Data,
+    Files.Items[gfUserRegistry].Status,Files.Items[gfUserRegistry].Observation,Files.Items[gfUserRegistry].Data,
+    Files.Items[gfMachineRegistry].Status,Files.Items[gfMachineRegistry].Observation,Files.Items[gfMachineRegistry].Data);
+  if Result<>gprEvidenceIncomplete then Exit;
+  for Artifact:=Low(TGpoFile) to High(TGpoFile) do
+  begin
+    if not Files.Items[Artifact].Attempted or (Files.Items[Artifact].Status<>grsOk) or (Files.Items[Artifact].Observation<>gfoPresent) then Exit(gprReadUnavailable);
+    Result:=GpoCompareFileEvidence(fFileEvidence[Artifact],Files.Items[Artifact].Metadata);
+    if Result<>gprEvidenceIncomplete then Exit;
+  end;
   if not fToken.IsValid then Exit(gprSessionInvalid);
   Result:=gprEvidenceIncomplete;
 end;
