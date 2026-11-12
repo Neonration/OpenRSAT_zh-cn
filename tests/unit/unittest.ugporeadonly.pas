@@ -10,6 +10,7 @@ type
     procedure IniAndVersions;
     procedure LdapVersionSigned;
     procedure VersionPlanning;
+    procedure GptIniCandidate;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -59,6 +60,54 @@ begin
 end;
 function Bytes(const S:RawByteString):TBytes;
 begin Result:=nil; SetLength(Result,Length(S)); if Length(S)>0 then Move(S[1],Result[0],Length(S)); end;
+procedure TUnitTestGpoReadOnly.GptIniCandidate;
+var Source, Candidate, Expected:TBytes; V:Cardinal; Plan:TGpoVersionPlan; I:Integer;
+  Original, Updated:RawByteString;
+  procedure Reject(const Input:RawByteString; Status:TGptIniCandidateStatus);
+  begin
+    Candidate:=Bytes('stale'); Source:=Bytes(Input);
+    Check(GpoBuildGptIniCandidate(Source,1,2,Candidate)=Status); Check(Length(Candidate)=0);
+    Check((Length(Source)=Length(Input)) and ((Length(Input)=0) or CompareMem(@Source[0],@Input[1],Length(Input))));
+  end;
+begin
+  Original:=#239#187#191';keep'#13#10'[Other]'#10'Data=unchanged'#13'[General]'#13#10' Version = 1  '#10'Extra=abc'#13#10;
+  Updated:=#239#187#191';keep'#13#10'[Other]'#10'Data=unchanged'#13'[General]'#13#10' Version = 65537  '#10'Extra=abc'#13#10;
+  Source:=Bytes(Original); Expected:=Bytes(Updated);
+  Check(GpoPlanVersion(1,1,True,False,Plan));
+  Check(GpoBuildGptIniCandidate(Source,1,Plan.Version,Candidate)=gicOk);
+  Check((Length(Candidate)=Length(Expected)) and CompareMem(@Candidate[0],@Expected[0],Length(Expected)));
+  Check(ParseGptIni(Candidate,V)=grsOk); Check(V=Plan.Version);
+  Check(CompareMem(@Source[0],@Original[1],Length(Source)));
+  Candidate:=Bytes('stale'); Check(GpoBuildGptIniCandidate(Source,2,3,Candidate)=gicBaselineMismatch);
+  Check(Length(Candidate)=0);
+  Source:=Bytes('[general]'#10'version=0001');
+  Check(GpoBuildGptIniCandidate(Source,1,High(Cardinal),Candidate)=gicOk);
+  Expected:=Bytes('[general]'#10'version=4294967295');
+  Check((Length(Candidate)=Length(Expected)) and CompareMem(@Candidate[0],@Expected[0],Length(Expected)));
+  Check(ParseGptIni(Candidate,V)=grsOk); Check(V=High(Cardinal));
+  Reject('[General]'#10'Version=1'#10'version=1',gicInvalid);
+  Reject('[General]'#10'Version=1'#10'[general]'#10'Other=x',gicInvalid);
+  Reject('[Other]'#10'X=1'#10'x=2'#10'[General]'#10'Version=1',gicInvalid);
+  Reject('[General]'#10'Version=1 ; comment',gicInvalid);
+  Reject('[General]'#10'Version=4294967296',gicInvalid);
+  Reject(#254#255#0#65,gicUnsupported);
+  Reject(#255#254#0#0#65#0#0#0,gicUnsupported);
+  Reject('[General]'#10'Version=1'#10'Other='#195#169,gicUnsupported);
+  Source:=nil; AddWord(Source,$feff); Original:='[General]'#13#10'Version=4294967295'#13#10'Other=x';
+  for I:=1 to Length(Original) do AddWord(Source,Ord(Original[I]));
+  Check(GpoBuildGptIniCandidate(Source,High(Cardinal),0,Candidate)=gicOk);
+  Expected:=nil; AddWord(Expected,$feff); Updated:='[General]'#13#10'Version=0'#13#10'Other=x';
+  for I:=1 to Length(Updated) do AddWord(Expected,Ord(Updated[I]));
+  Check((Length(Candidate)=Length(Expected)) and CompareMem(@Candidate[0],@Expected[0],Length(Expected)));
+  Check(ParseGptIni(Candidate,V)=grsOk); Check(V=0);
+  SetLength(Source,Length(Source)+1); Candidate:=Bytes('stale');
+  Check(GpoBuildGptIniCandidate(Source,High(Cardinal),0,Candidate)=gicInvalid); Check(Length(Candidate)=0);
+  Original:='[General]'#10'Version=1'#10';';
+  SetLength(Source,GpoMaxFileBytes); FillChar(Source[0],Length(Source),Ord('x'));
+  Move(Original[1],Source[0],Length(Original)); Candidate:=Bytes('stale');
+  Check(GpoBuildGptIniCandidate(Source,1,High(Cardinal),Candidate)=gicTooLarge);
+  Check(Length(Candidate)=0);
+end;
 procedure TUnitTestGpoReadOnly.RegistryRecords;
 var B:TBytes; R:TGpoRegistryRecords; U:UnicodeString;
 begin

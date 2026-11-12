@@ -31,6 +31,8 @@ type
     Version: Cardinal;
     LdapValue, GptValue: string;
   end;
+  TGptIniCandidateStatus = (gicOk, gicInvalid, gicUnsupported,
+    gicBaselineMismatch, gicTooLarge);
 
 function GpoUserVersion(Version: Cardinal): Word;
 function GpoMachineVersion(Version: Cardinal): Word;
@@ -42,6 +44,9 @@ function GpoValidGuid(const Value: string): Boolean;
 function GpoParseLdapVersion(const Value: string; out Number: Cardinal): Boolean;
 function GpoParseUnsigned(const Value: string; out Number: Cardinal): Boolean;
 function ParseGptIni(const Data: TBytes; out Version: Cardinal): TGpoReadStatus;
+// Generates bytes only; Data and Candidate must be distinct variables.
+function GpoBuildGptIniCandidate(const Data: TBytes; ExpectedVersion, NewVersion: Cardinal;
+  out Candidate: TBytes): TGptIniCandidateStatus;
 function ParseRegistryPol(const Data: TBytes; out Records: TGpoRegistryRecords): TGpoReadStatus;
 // Preserves ordered records and raw data, including unknown types and commands.
 function SerializeRegistryPol(const Records: TGpoRegistryRecords;
@@ -202,6 +207,95 @@ begin
     Lines.Free;
     if Result <> grsOk then Version := 0;
   end;
+end;
+
+function GpoBuildGptIniCandidate(const Data: TBytes; ExpectedVersion, NewVersion: Cardinal;
+  out Candidate: TBytes): TGptIniCandidateStatus;
+var S, Line, Name, Section, Value, Digits: string;
+  Sections, Keys: TStringList; Width, Start, N, I, J, LineStart, LineEnd,
+  P, FirstDigit, LastDigit, PrefixBytes, SuffixBytes, NewSize: SizeInt;
+  Current: Cardinal; InGeneral, Found: Boolean;
+begin
+  Candidate := nil; Result := gicInvalid;
+  if Length(Data)>GpoMaxFileBytes then Exit(gicTooLarge);
+  if Length(Data)=0 then Exit;
+  if (Length(Data)>=4) and (((Data[0]=$ff) and (Data[1]=$fe) and (Data[2]=0) and (Data[3]=0)) or
+     ((Data[0]=0) and (Data[1]=0) and (Data[2]=$fe) and (Data[3]=$ff))) then Exit(gicUnsupported);
+  Width:=1; Start:=0;
+  if (Length(Data)>=2) and (Data[0]=$ff) and (Data[1]=$fe) then
+  begin Width:=2; Start:=2; if Odd(Length(Data)) then Exit; end
+  else if (Length(Data)>=2) and (Data[0]=$fe) and (Data[1]=$ff) then Exit(gicUnsupported)
+  else if (Length(Data)>=3) and (Data[0]=$ef) and (Data[1]=$bb) and (Data[2]=$bf) then Start:=3;
+  N:=(Length(Data)-Start) div Width; SetLength(S,N);
+  for I:=0 to N-1 do
+  begin
+    if (Width=2) and (Data[Start+I*2+1]<>0) then Exit(gicUnsupported);
+    J:=Data[Start+I*Width];
+    if J>127 then Exit(gicUnsupported);
+    if (J<32) and not (J in [9,10,13]) then Exit;
+    S[I+1]:=Chr(J);
+  end;
+  if ParseGptIni(Data,Current)<>grsOk then Exit;
+  Sections:=TStringList.Create; Keys:=TStringList.Create;
+  try
+    Sections.Sorted:=True; Keys.Sorted:=True;
+    Section:=''; InGeneral:=False; Found:=False; FirstDigit:=0; LastDigit:=0; I:=1;
+    while I<=N do
+    begin
+      LineStart:=I;
+      while (I<=N) and not (S[I] in [#10,#13]) do Inc(I);
+      LineEnd:=I-1;
+      if (I<=N) and (S[I]=#13) then Inc(I);
+      if (I<=N) and (S[I]=#10) then Inc(I);
+      Line:=Trim(Copy(S,LineStart,LineEnd-LineStart+1));
+      if (Line='') or (Line[1] in [';','#']) then Continue;
+      if Line[1]='[' then
+      begin
+        if Line[Length(Line)]<>']' then Exit;
+        Name:=Trim(Copy(Line,2,Length(Line)-2));
+        if Name='' then Exit;
+        for J:=1 to Length(Name) do
+          if not (Name[J] in ['A'..'Z','a'..'z','0'..'9','_',' ','-']) then Exit;
+        if Sections.IndexOf(Name)>=0 then Exit;
+        Sections.Add(Name); Keys.Clear; Section:=Name; InGeneral:=SameText(Name,'General');
+        Continue;
+      end;
+      if Section='' then Exit;
+      P:=Pos('=',Line); if P=0 then Exit;
+      Name:=Trim(Copy(Line,1,P-1)); if Name='' then Exit;
+      for J:=1 to Length(Name) do
+        if not (Name[J] in ['A'..'Z','a'..'z','0'..'9','_','-']) then Exit;
+      if Keys.IndexOf(Name)>=0 then Exit;
+      Keys.Add(Name);
+      if InGeneral and SameText(Name,'Version') then
+      begin
+        if Found then Exit;
+        J:=LineStart; while (J<=LineEnd) and (S[J]<>'=') do Inc(J);
+        Inc(J); while (J<=LineEnd) and (S[J] in [' ',#9]) do Inc(J);
+        FirstDigit:=J; while (J<=LineEnd) and (S[J] in ['0'..'9']) do Inc(J);
+        LastDigit:=J-1; Value:=Copy(S,FirstDigit,LastDigit-FirstDigit+1);
+        while (J<=LineEnd) and (S[J] in [' ',#9]) do Inc(J);
+        if (J<=LineEnd) or not GpoParseUnsigned(Value,Current) then Exit;
+        Found:=True;
+      end;
+    end;
+    if not Found then Exit;
+    if Current<>ExpectedVersion then Exit(gicBaselineMismatch);
+    Digits:=UIntToStr(NewVersion);
+    PrefixBytes:=Start+(FirstDigit-1)*Width; SuffixBytes:=Start+LastDigit*Width;
+    NewSize:=PrefixBytes+Length(Digits)*Width+Length(Data)-SuffixBytes;
+    if NewSize>GpoMaxFileBytes then Exit(gicTooLarge);
+    SetLength(Candidate,NewSize);
+    if PrefixBytes>0 then Move(Data[0],Candidate[0],PrefixBytes);
+    for J:=1 to Length(Digits) do
+    begin
+      Candidate[PrefixBytes+(J-1)*Width]:=Ord(Digits[J]);
+      if Width=2 then Candidate[PrefixBytes+(J-1)*Width+1]:=0;
+    end;
+    if Length(Data)>SuffixBytes then
+      Move(Data[SuffixBytes],Candidate[PrefixBytes+Length(Digits)*Width],Length(Data)-SuffixBytes);
+    Result:=gicOk;
+  finally Sections.Free; Keys.Free; end;
 end;
 
 // MS-GPREG 2.2.1 and Microsoft Registry Policy File Format:
