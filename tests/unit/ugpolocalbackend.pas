@@ -6,8 +6,13 @@ type
   TLocalSide=(lsMachine,lsUser);
   TLocalResult=(lrOk,lrConflict,lrUnavailable,lrUnknown,lrInvalid);
   TLocalFault=(lfNone,lfBeforeMutation,lfAfterMutation);
+  TStageFault=(sfNone,sfBeforeBackup,sfAfterBackup,sfPartialCandidate);
   TLocalSnapshot=record
     Exists:Boolean; Volume,IndexHigh,IndexLow:Cardinal; Data:TBytes;
+  end;
+  TStageEvidence=record
+    Original,Backup,Candidate:TLocalSnapshot;
+    OriginalSecurity:TBytes;
   end;
   TLocalReceipt=class
   private
@@ -21,6 +26,8 @@ type
     destructor Destroy; override;
     function Ready:Boolean;
     function Observe(Side:TLocalSide; out Snapshot:TLocalSnapshot):TLocalResult;
+    function PrepareReplacement(Side:TLocalSide; const Expected:TLocalSnapshot;
+      const Candidate:TBytes; Fault:TStageFault; out Evidence:TStageEvidence):TLocalResult;
     function Publish(Side:TLocalSide; const Expected:TLocalSnapshot; const Desired:TGpoPolicyImage;
       Fault:TLocalFault; out Receipt:TLocalReceipt):TLocalResult;
     function Restore(Receipt:TLocalReceipt; Fault:TLocalFault):TLocalResult;
@@ -40,16 +47,18 @@ function NtCreateFile(out H:THandle; Access:ACCESS_MASK; var A:TNAttrs; out Io:T
 function SetFileInformationByHandle(H:THandle; InfoClass:LongInt; Info:Pointer; Size:DWORD):LongBool;
   stdcall; external 'kernel32.dll';
 const MaxBytes=1024*1024;
-function OpenSide(Dir:THandle; Side:TLocalSide; CreateNew:Boolean; out H:THandle):LongInt;
-var Name:UnicodeString; U:TNString; A:TNAttrs; Io:TNIO; Disposition:ULONG;
+function OpenNamed(Dir:THandle; const Name:UnicodeString; CreateNew:Boolean; out H:THandle):LongInt;
+var U:TNString; A:TNAttrs; Io:TNIO; Disposition:ULONG;
 begin
-  if Side=lsMachine then Name:='machine.pol' else Name:='user.pol';
   FillChar(U,SizeOf(U),0); U.Length:=Length(Name)*2; U.MaximumLength:=U.Length+2; U.Buffer:=PWideChar(Name);
   FillChar(A,SizeOf(A),0); A.Length:=SizeOf(A); A.RootDirectory:=Dir; A.ObjectName:=@U; A.Attributes:=$1040;
   if CreateNew then Disposition:=2 else Disposition:=1;
-  Result:=NtCreateFile(H,$00110083,A,Io,nil,FILE_ATTRIBUTE_NORMAL,0,Disposition,$00200060,nil,0);
+  Result:=NtCreateFile(H,$00130083,A,Io,nil,FILE_ATTRIBUTE_NORMAL,0,Disposition,$00200060,nil,0);
   if Result<>0 then H:=INVALID_HANDLE_VALUE;
 end;
+function OpenSide(Dir:THandle; Side:TLocalSide; CreateNew:Boolean; out H:THandle):LongInt;
+begin if Side=lsMachine then Result:=OpenNamed(Dir,'machine.pol',CreateNew,H)
+  else Result:=OpenNamed(Dir,'user.pol',CreateNew,H); end;
 function Capture(H:THandle; out S:TLocalSnapshot):Boolean;
 var Info:TByHandleFileInformation; N,Extra:DWORD; Tail:Byte;
 begin
@@ -69,6 +78,19 @@ function Same(const A,B:TLocalSnapshot):Boolean;
 begin Result:=(A.Exists=B.Exists) and (A.Volume=B.Volume) and (A.IndexHigh=B.IndexHigh) and
   (A.IndexLow=B.IndexLow) and (Length(A.Data)=Length(B.Data)) and
   ((Length(A.Data)=0) or CompareMem(@A.Data[0],@B.Data[0],Length(A.Data))); end;
+function SameData(const A,B:TBytes):Boolean;
+begin Result:=(Length(A)=Length(B)) and ((Length(A)=0) or CompareMem(@A[0],@B[0],Length(A))); end;
+function SecurityBytes(H:THandle; out Data:TBytes):Boolean;
+var N,M:DWORD;
+begin
+  Result:=False; Data:=nil; N:=0;
+  if GetKernelObjectSecurity(H,OWNER_SECURITY_INFORMATION or DACL_SECURITY_INFORMATION,nil,0,@N) then Exit;
+  if (GetLastError<>ERROR_INSUFFICIENT_BUFFER) or (N=0) or (N>1024*1024) then Exit;
+  SetLength(Data,N);
+  Result:=GetKernelObjectSecurity(H,OWNER_SECURITY_INFORMATION or DACL_SECURITY_INFORMATION,
+    PSECURITY_DESCRIPTOR(@Data[0]),N,@M);
+  if not Result then Data:=nil;
+end;
 function SetContents(H:THandle; const Data:TBytes):Boolean;
 var N:DWORD;
 begin
@@ -94,6 +116,49 @@ begin
   if Cardinal(Status)=$c0000034 then Exit(lrOk);
   if Status<>0 then Exit(lrUnavailable);
   try if Capture(H,Snapshot) then Result:=lrOk else Result:=lrUnavailable; finally CloseHandle(H); end;
+end;
+function TLocalBackend.PrepareReplacement(Side:TLocalSide; const Expected:TLocalSnapshot;
+  const Candidate:TBytes; Fault:TStageFault; out Evidence:TStageEvidence):TLocalResult;
+var Original,Backup,Stage:THandle; Status:LongInt; Current,After:TLocalSnapshot;
+  SecurityAfter:TBytes; BackupName,StageName:UnicodeString; Written:DWORD;
+begin
+  Evidence:=Default(TStageEvidence); Result:=lrInvalid;
+  if not Ready or not Expected.Exists or (Length(Candidate)>MaxBytes) then Exit;
+  if Side=lsMachine then begin BackupName:='machine.backup'; StageName:='machine.candidate'; end
+  else begin BackupName:='user.backup'; StageName:='user.candidate'; end;
+  Status:=OpenSide(FDir,Side,False,Original);
+  if Cardinal(Status)=$c0000034 then Exit(lrConflict);
+  if Status<>0 then Exit(lrUnavailable);
+  try
+    if not Capture(Original,Current) or not SecurityBytes(Original,Evidence.OriginalSecurity) then Exit(lrUnavailable);
+    if not Same(Expected,Current) then Exit(lrConflict);
+    Evidence.Original:=Current; Evidence.Original.Data:=Copy(Current.Data);
+    if Fault=sfBeforeBackup then Exit(lrUnavailable);
+    Status:=OpenNamed(FDir,BackupName,True,Backup);
+    if Cardinal(Status)=$c0000035 then Exit(lrConflict);
+    if Status<>0 then Exit(lrUnavailable);
+    try
+      Result:=lrUnknown;
+      if not SetContents(Backup,Current.Data) or not Capture(Backup,Evidence.Backup) or
+        not SameData(Evidence.Backup.Data,Current.Data) then Exit;
+    finally CloseHandle(Backup); end;
+    if Fault=sfAfterBackup then Exit(lrUnavailable);
+    Status:=OpenNamed(FDir,StageName,True,Stage);
+    if Cardinal(Status)=$c0000035 then Exit(lrConflict);
+    if Status<>0 then Exit(lrUnavailable);
+    try
+      Result:=lrUnknown;
+      if Fault=sfPartialCandidate then begin
+        if Length(Candidate)>0 then WriteFile(Stage,Candidate[0],1,Written,nil);
+        Exit;
+      end;
+      if not SetContents(Stage,Candidate) or not Capture(Stage,Evidence.Candidate) or
+        not SameData(Evidence.Candidate.Data,Candidate) then Exit;
+    finally CloseHandle(Stage); end;
+    if not Capture(Original,After) or not SecurityBytes(Original,SecurityAfter) or
+      not Same(Current,After) or not SameData(Evidence.OriginalSecurity,SecurityAfter) then Exit(lrUnknown);
+    Result:=lrOk;
+  finally CloseHandle(Original); end;
 end;
 function TLocalBackend.Publish(Side:TLocalSide; const Expected:TLocalSnapshot; const Desired:TGpoPolicyImage;
   Fault:TLocalFault; out Receipt:TLocalReceipt):TLocalResult;
@@ -122,14 +187,11 @@ begin
       if not Same(Expected,Actual) then Exit(lrConflict);
       if Desired.Exists and (Length(Desired.Data)=Length(Actual.Data)) and
         ((Length(Desired.Data)=0) or CompareMem(@Desired.Data[0],@Actual.Data[0],Length(Actual.Data))) then Exit(lrOk);
+      if Desired.Exists then Exit(lrUnavailable); // No safe conditional replace implementation yet.
       if Fault=lfBeforeMutation then Exit(lrUnavailable);
       Result:=lrUnknown;
-      if Desired.Exists then begin
-        if not SetContents(H,Desired.Data) or (Fault=lfAfterMutation) or not Capture(H,After) then Exit;
-      end else begin
-        if not RemoveFileByHandle(H) or (Fault=lfAfterMutation) then Exit;
-        After:=Default(TLocalSnapshot);
-      end;
+      if not RemoveFileByHandle(H) or (Fault=lfAfterMutation) then Exit;
+      After:=Default(TLocalSnapshot);
     finally CloseHandle(H); end;
   end;
   if Desired.Exists and ((Length(After.Data)<>Length(Desired.Data)) or
@@ -142,6 +204,9 @@ function TLocalBackend.Restore(Receipt:TLocalReceipt; Fault:TLocalFault):TLocalR
 var Reverse:TGpoPolicyImage; Undo:TLocalReceipt;
 begin
   if not Assigned(Receipt) or not IsEqualGUID(Receipt.Owner,FId) or not Receipt.Active then Exit(lrInvalid);
+  if Receipt.Original.Exists and not Receipt.After.Exists then begin
+    Receipt.Active:=False; Exit(lrUnavailable); // Recreating cannot preserve the original ACL.
+  end;
   Reverse.Exists:=Receipt.Original.Exists; Reverse.Data:=Copy(Receipt.Original.Data);
   Result:=Publish(Receipt.Side,Receipt.After,Reverse,Fault,Undo);
   if Assigned(Undo) then Undo.Free;
@@ -153,6 +218,9 @@ destructor TLocalBackend.Destroy; begin inherited Destroy; end;
 function TLocalBackend.Ready:Boolean; begin Result:=False; end;
 function TLocalBackend.Observe(Side:TLocalSide; out Snapshot:TLocalSnapshot):TLocalResult;
 begin Snapshot:=Default(TLocalSnapshot); Result:=lrUnavailable; end;
+function TLocalBackend.PrepareReplacement(Side:TLocalSide; const Expected:TLocalSnapshot;
+  const Candidate:TBytes; Fault:TStageFault; out Evidence:TStageEvidence):TLocalResult;
+begin Evidence:=Default(TStageEvidence); Result:=lrUnavailable; end;
 function TLocalBackend.Publish(Side:TLocalSide; const Expected:TLocalSnapshot; const Desired:TGpoPolicyImage; Fault:TLocalFault; out Receipt:TLocalReceipt):TLocalResult;
 begin Receipt:=nil; Result:=lrUnavailable; end;
 function TLocalBackend.Restore(Receipt:TLocalReceipt; Fault:TLocalFault):TLocalResult; begin Result:=lrUnavailable; end;
