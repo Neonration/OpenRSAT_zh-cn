@@ -246,6 +246,9 @@ begin
   try
     Check(Draft.GetBaseline(SnapshotUser,SnapshotMachine));
     Check(SnapshotUser.Exists and SnapshotMachine.Exists);
+    Check(Draft.MatchesObjectGuid(T.ObjectGuid));
+    Other:=E; Other.Target.ObjectGuid:=Copy(T.ObjectGuid); Other.Target.ObjectGuid[0]:=2;
+    Check(not Draft.MatchesObjectGuid(Other.Target.ObjectGuid));
     SnapshotUser.Data[0]:=0;
     Check(Draft.GetBaseline(SnapshotUser,SnapshotMachine)); Check(SnapshotUser.Data[0]<>0);
     Check(Draft.BuildPlan(E,F,NewUser,NewMachine,Replanned)=gprEvidenceIncomplete);
@@ -282,6 +285,7 @@ begin
     F.Items[gfUserRegistry].Data:=Copy(Changed.Items[gfUserRegistry].Data);
     Token.Invalidate;
     Check(Draft.BuildPlan(E,F,NewUser,NewMachine,Replanned)=gprSessionInvalid);
+    Check(not Draft.MatchesObjectGuid(T.ObjectGuid));
     Check(Draft.BindPlan(E,F,NewUser,NewMachine,B)=gprSessionInvalid); Check(not Assigned(B));
     Check(not Draft.GetBaseline(SnapshotUser,SnapshotMachine)); Check(Length(SnapshotUser.Data)=0);
   finally Draft.Free; end;

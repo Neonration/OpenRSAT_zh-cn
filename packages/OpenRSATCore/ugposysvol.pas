@@ -104,6 +104,7 @@ type
     destructor Destroy; override;
     class function Bind(const Evidence:TGpoLdapEvidence; const Files:TGpoObservedFiles;
       out Draft:TGpoObservedDraft):TGpoPreflightResult; static;
+    function MatchesObjectGuid(const Expected:TBytes):Boolean;
     function GetBaseline(out User,Machine:TGpoPolicyImage):Boolean;
     // Candidate data must not alias fields in the output plan.
     function BuildPlan(const Evidence:TGpoLdapEvidence; const Files:TGpoObservedFiles;
@@ -434,6 +435,13 @@ destructor TGpoObservedDraft.Destroy;
 begin
   fBound.Free;
   inherited Destroy;
+end;
+
+function TGpoObservedDraft.MatchesObjectGuid(const Expected:TBytes):Boolean;
+begin
+  Result:=Assigned(fBound) and Assigned(fBound.fToken) and fBound.fToken.IsValid and
+    (Length(Expected)=16) and (Length(fBound.fTarget.ObjectGuid)=16) and
+    CompareMem(@Expected[0],@fBound.fTarget.ObjectGuid[0],16);
 end;
 
 function TGpoObservedDraft.GetBaseline(out User,Machine:TGpoPolicyImage):Boolean;

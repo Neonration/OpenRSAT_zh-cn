@@ -14,10 +14,11 @@ type
     procedure FullRecordAndEmptyStatus;
     procedure CombinedSnapshotStates;
     procedure CancelPollStates;
+    procedure BaselineJobLifecycle;
     procedure HeaderUsesSystemColors;
   end;
 implementation
-uses SysUtils, ugpoformats, ugposysvol, ufrmpropertygposettings, uproperty,
+uses Classes, SyncObjs, SysUtils, ugpoformats, ugposysvol, ufrmpropertygposettings, uproperty,
   mormot.net.ldap, mormot.net.sock
   {$IFDEF WINDOWS}, Windows, CommCtrl, Graphics, Forms{$ENDIF};
 type
@@ -26,6 +27,8 @@ type
     TestToken:IInterface;
     procedure TestAttachRead(const Job: IGpoSettingsRead);
     procedure PollNow;
+    procedure TestAttachBaseline(const Job:IGpoBaselineJob);
+    procedure PollBaselineNow;
   protected
     function CurrentSessionToken:IInterface; override;
   end;
@@ -42,6 +45,37 @@ type
     function Read(const Container: TGpoContainer; const Domain, DC: string;
       Artifact: TGpoFile; out Data: TBytes): TGpoReadStatus;
   end;
+  TBaselineProbe = class(TInterfacedObject,IGpoBaselineTransport)
+    Client:TLdapSessionProbe;
+    Revoke:Boolean;
+    Calls:Integer;
+    FirstGuid:Byte;
+    function Check(const Request:TGpoBaselineRequest; Control:TGpoReadControl):string;
+  end;
+  TBlockingBaseline = class(TInterfacedObject,IGpoBaselineTransport)
+    Entered,Release:TEvent;
+    constructor Create;
+    destructor Destroy; override;
+    function Check(const Request:TGpoBaselineRequest; Control:TGpoReadControl):string;
+  end;
+  TBaselineTestThread = class(TThread)
+    Job:IGpoBaselineJob;
+    procedure Execute; override;
+  end;
+constructor TBlockingBaseline.Create;
+begin inherited Create; Entered:=TEvent.Create(nil,True,False,''); Release:=TEvent.Create(nil,True,False,''); end;
+destructor TBlockingBaseline.Destroy;
+begin Entered.Free; Release.Free; inherited Destroy; end;
+function TBlockingBaseline.Check(const Request:TGpoBaselineRequest; Control:TGpoReadControl):string;
+begin Entered.SetEvent; Release.WaitFor(5000); Result:='late result'; end;
+procedure TBaselineTestThread.Execute;
+begin Job.Execute; end;
+function TBaselineProbe.Check(const Request:TGpoBaselineRequest; Control:TGpoReadControl):string;
+begin
+  Inc(Calls); if Length(Request.ObjectGuid)>0 then FirstGuid:=Request.ObjectGuid[0];
+  if Revoke then Client.ResetSameSocket('B');
+  Result:='simulated baseline';
+end;
 function TRevokingTransport.Read(const Container: TGpoContainer;
   const Domain, DC: string; Artifact: TGpoFile; out Data: TBytes): TGpoReadStatus;
 begin
@@ -92,6 +126,10 @@ function TTestGpoFrame.CurrentSessionToken:IInterface;
 begin Result:=TestToken; end;
 procedure TTestGpoFrame.PollNow;
 begin Poll(nil); end;
+procedure TTestGpoFrame.PollBaselineNow;
+begin PollBaseline(nil); end;
+procedure TTestGpoFrame.TestAttachBaseline(const Job:IGpoBaselineJob);
+begin if Assigned(fBaselineJob) then fBaselineJob.Cancel; fBaselineJob:=Job; end;
 procedure TTestGpoFrame.TestAttachRead(const Job: IGpoSettingsRead);
 begin
   if Assigned(fJob) then fJob.Cancel;
@@ -125,11 +163,13 @@ begin
     Frame.DetailsButton.Click; Check(not Frame.Summary.Visible);
     Check(Frame.ComputerRows.ReadOnly and Frame.UserRows.ReadOnly);
     Check(not Frame.LoadButton.Enabled);
+    Check(not Frame.BaselineButton.Enabled);
     Check(not Frame.CancelButton.Enabled);
     Frame.Update(Props);
     Check(not Props.IsModified);
     Frame.LoadButton.Click;
     Check(Pos('没有已连接的 LDAP', Frame.Summary.Text) > 0);
+    Check(not Frame.BaselineButton.Enabled,'Unbound entry must remain disabled');
     Value := Default(TGpoSettingsSnapshot);
     Value.DC := 'dc.example.test'; Value.Domain := 'example.test';
     Value.Container.Version := $00020003; Value.GptVersion := $00010003;
@@ -270,6 +310,45 @@ begin
   Check(Value.GptStatus=grsCancelled); Check(Length(Value.MachineRecords)=0);
   A:=nil; B:=nil;
   finally A:=nil; B:=nil; C:=nil; Client.Free; end;
+end;
+procedure TUnitTestGpoSettings.BaselineJobLifecycle;
+var Client:TLdapSessionProbe; Frame:TTestGpoFrame; Job,Other:IGpoBaselineJob;
+  Request:TGpoBaselineRequest; Probe:TBaselineProbe; Transport:IGpoBaselineTransport; Token:IInterface;
+  Block:TBlockingBaseline; Worker:TBaselineTestThread;
+begin
+  Client:=TLdapSessionProbe.Create; Frame:=TTestGpoFrame.Create(nil);
+  try
+    Client.ResetSameSocket('A'); Token:=Client.SessionToken; Frame.TestToken:=Token;
+    Request:=Default(TGpoBaselineRequest); Request.SessionToken:=Token; SetLength(Request.ObjectGuid,16); Request.ObjectGuid[0]:=7;
+    Probe:=TBaselineProbe.Create; Probe.Client:=Client; Transport:=Probe;
+    Job:=GpoCreateBaselineJob(Request,Transport); Request.ObjectGuid[0]:=8;
+    Check(Assigned(Job)); Check(Job.AcceptsSession(Token)); Job.Execute;
+    Check(Job.Finished); Check(Probe.FirstGuid=7); Check(Job.ResultText='simulated baseline');
+    Frame.TestAttachBaseline(Job); Client.ResetSameSocket('A'); Frame.TestToken:=Client.SessionToken;
+    Frame.PollBaselineNow; Check(Pos('丢弃',Frame.Summary.Text)>0,'Reconnect discards completed result');
+    Job:=nil; Transport:=nil;
+    Request.SessionToken:=Client.SessionToken; Probe:=TBaselineProbe.Create; Probe.Client:=Client; Probe.Revoke:=True; Transport:=Probe;
+    Job:=GpoCreateBaselineJob(Request,Transport); Job.Execute;
+    Check(Job.Finished); Check(Job.ReadStatus=grsCancelled); Check(Job.ResultText='');
+    Job:=nil; Transport:=nil;
+    Request.SessionToken:=Client.SessionToken; Job:=GpoCreateBaselineJob(Request); Other:=GpoCreateBaselineJob(Request);
+    Check(Assigned(Job) and Assigned(Other)); Check(not Assigned(GpoCreateBaselineJob(Request)));
+    Frame.TestAttachBaseline(Job); Frame.Update(nil); Check(Job.ReadStatus=grsCancelled);
+    Job:=nil; Other:=nil;
+    Job:=GpoCreateBaselineJob(Request); Frame.TestAttachBaseline(Job); Frame.Free; Frame:=nil;
+    Check(Job.ReadStatus=grsCancelled,'Closing the frame cancels the independent worker');
+    Job:=nil; Frame:=TTestGpoFrame.Create(nil); Block:=TBlockingBaseline.Create; Transport:=Block;
+    Job:=GpoCreateBaselineJob(Request,Transport); Worker:=TBaselineTestThread.Create(True);
+    Worker.Job:=Job; Worker.Start;
+    try
+      Check(Block.Entered.WaitFor(2000)=wrSignaled,'Background worker must enter transport');
+      Frame.TestAttachBaseline(Job); Frame.Free; Frame:=nil;
+      Check(Job.ReadStatus=grsCancelled); Check(not Job.Finished,'Cancellation waits for blocked call');
+      Other:=GpoCreateBaselineJob(Request); Check(Assigned(Other));
+      Check(not Assigned(GpoCreateBaselineJob(Request)),'Blocked worker retains its slot');
+    finally Block.Release.SetEvent; Worker.WaitFor; Worker.Free; end;
+    Check(Job.Finished); Check(Job.ResultText='','Late result must not be published after close');
+  finally Job:=nil; Other:=nil; Transport:=nil; Frame.Free; Client.Free; end;
 end;
 procedure TUnitTestGpoSettings.SessionChangesRejectDelayedJobs;
 var Client:TLdapSessionProbe; Job:IGpoSettingsRead; Value:TGpoSettingsSnapshot;

@@ -82,6 +82,24 @@ type
     function Finished: Boolean;
     function Snapshot: TGpoSettingsSnapshot;
   end;
+  TGpoBaselineRequest = record
+    SessionToken:IInterface;
+    DC,Port,DN,Guid,User:string;
+    ObjectGuid:TBytes;
+  end;
+  IGpoBaselineTransport = interface
+    ['{EBEB5A4F-166D-4BC9-8C6A-96D88A321D25}']
+    function Check(const Request:TGpoBaselineRequest; Control:TGpoReadControl):string;
+  end;
+  IGpoBaselineJob = interface
+    ['{EEB7F8F1-C942-4A68-B514-E00FEF58393C}']
+    procedure Execute;
+    procedure Cancel;
+    function Finished:Boolean;
+    function ReadStatus:TGpoReadStatus;
+    function AcceptsSession(const Token:IInterface):Boolean;
+    function ResultText:string;
+  end;
 
   TFrmPropertyGpoSettings = class(TPropertyFrame)
   private
@@ -89,24 +107,29 @@ type
     fSummary: TMemo;
     fState: TLabel;
     fDetails: TButton;
-    fLoad, fCancel: TButton;
+    fLoad, fCancel, fBaseline: TButton;
     fPages: TPageControl;
     fMachine, fUser: TListView;
     fComputerPane, fUserPane: TGpoRegistryPane;
-    fTimer: TTimer;
+    fTimer, fBaselineTimer: TTimer;
   protected
     fJob: IGpoSettingsRead;
+    fBaselineJob:IGpoBaselineJob;
     procedure Poll(Sender: TObject);
+    procedure PollBaseline(Sender:TObject);
     function CurrentSessionToken: IInterface; virtual;
   private
     fClient, fSocket: TObject;
     fSessionToken: IInterface;
     fTarget, fDN, fGuid, fBoundUser, fPort, fServer, fDomain: string;
+    fObjectGuid:RawByteString;
     function SameConnection: Boolean;
+    function CanCheckBaseline:Boolean;
     procedure SetSummary(const Value:string; const State:string = '');
     procedure ToggleDetails(Sender: TObject);
     procedure LoadClick(Sender: TObject);
     procedure CancelClick(Sender: TObject);
+    procedure BaselineClick(Sender:TObject);
     procedure LoadSettings;
     procedure ClearRows;
     function NewList(const Title: string; out Pane: TGpoRegistryPane): TListView;
@@ -124,11 +147,14 @@ type
     property UserPane: TGpoRegistryPane read fUserPane;
     property LoadButton: TButton read fLoad;
     property CancelButton: TButton read fCancel;
+    property BaselineButton:TButton read fBaseline;
   end;
 
 // Returns nil while two previous jobs still own their OS resources.
 function GpoCreateSettingsRead(const Value: TGpoSettingsSnapshot;
   const Transport: IGpoSettingsTransport = nil): IGpoSettingsRead;
+function GpoCreateBaselineJob(const Request:TGpoBaselineRequest;
+  const Transport:IGpoBaselineTransport=nil):IGpoBaselineJob;
 function GpoLdapFailureText(ResultCode: Integer): string;
 
 implementation
@@ -181,9 +207,106 @@ type
   public
     constructor Create(const Job: IGpoSettingsRead);
   end;
+  TGpoBaselineJob = class(TInterfacedObject,IGpoBaselineJob)
+  private
+    fRequest:TGpoBaselineRequest;
+    fControl:TGpoReadControl;
+    fTransport:IGpoBaselineTransport;
+    fDone:LongInt;
+    fSlot:Boolean;
+    fText:string;
+  public
+    constructor Create(const Request:TGpoBaselineRequest; const Transport:IGpoBaselineTransport);
+    destructor Destroy; override;
+    procedure Execute;
+    procedure Cancel;
+    function Finished:Boolean;
+    function ReadStatus:TGpoReadStatus;
+    function AcceptsSession(const Token:IInterface):Boolean;
+    function ResultText:string;
+  end;
+  TGpoBaselineThread = class(TThread)
+  private fJob:IGpoBaselineJob;
+  protected procedure Execute; override;
+  public constructor Create(const Job:IGpoBaselineJob);
+  end;
 
 var
   GpoPendingReads: LongInt;
+
+function CheckBaseline(const Request:TGpoBaselineRequest; Control:TGpoReadControl):string;
+var Client:TLdapClient; Draft:TGpoObservedDraft; Bound:TGpoBoundPlan;
+  User,Machine:TGpoPolicyImage; R:TGpoPreflightResult;
+begin
+  Result:='只读检查未完成：无法验证独立连接、目标或所需证据。';
+  if Control.Status<>grsOk then Exit;
+  Client:=TLdapClient.Create; Draft:=nil; Bound:=nil;
+  try
+    Client.Settings.TargetHost:=Request.DC; Client.Settings.TargetPort:=Request.Port;
+    Client.Settings.AutoReconnect:=False; Client.Settings.AutoBind:=lcbNone;
+    Client.Settings.KerberosSignSeal:=lksForced;
+    if not Client.Connect([lccNoDiscovery],0) or (Control.Status<>grsOk) or
+      not Client.BindSaslKerberos or (Client.Transmission<>lctEncrypted) or
+      not SameText(Client.BoundUser,Request.User) or (Control.Status<>grsOk) then Exit;
+    R:=GpoCaptureObservedDraft(Client,Request.DN,Request.Guid,Draft);
+    if (R<>gprEvidenceIncomplete) or not Assigned(Draft) or (Control.Status<>grsOk) then Exit;
+    if not Draft.MatchesObjectGuid(Request.ObjectGuid) then
+    begin Result:='只读检查已阻断：当前对象标识与打开属性时不同。'; Exit; end;
+    if not Draft.GetBaseline(User,Machine) then Exit;
+    R:=GpoBindObservedDraftPlan(Client,Request.DN,Request.Guid,Draft,User,Machine,Bound);
+    if Control.Status<>grsOk then Exit;
+    if (R=gprEvidenceIncomplete) and Assigned(Bound) then
+      Result:='当前 GPO 的双侧基线在两次只读采集中一致；安全证据仍不完整，不能授权写入。'+LineEnding+
+        '仅检查当前基线，没有检查本地草稿、其他扩展或复制，也没有修改域。'
+    else if R=gprConflict then Result:='只读检查已阻断：采集期间基线发生变化，请重新检查。'
+    else if R=gprTargetMismatch then Result:='只读检查已阻断：域控制器或目标身份不一致。';
+  finally Bound.Free; Draft.Free; Client.Free; end;
+end;
+
+constructor TGpoBaselineJob.Create(const Request:TGpoBaselineRequest; const Transport:IGpoBaselineTransport);
+begin
+  inherited Create; fRequest:=Request; fRequest.ObjectGuid:=Copy(Request.ObjectGuid);
+  fControl:=TGpoReadControl.Create(30000,Request.SessionToken); fTransport:=Transport; fSlot:=True;
+end;
+destructor TGpoBaselineJob.Destroy;
+begin
+  if fSlot then InterlockedDecrement(GpoPendingReads);
+  fControl.Free; inherited Destroy;
+end;
+procedure TGpoBaselineJob.Execute;
+begin
+  try
+    try
+      if fControl.Status=grsOk then
+        if Assigned(fTransport) then fText:=fTransport.Check(fRequest,fControl)
+        else fText:=CheckBaseline(fRequest,fControl);
+    except fText:='只读检查失败，请检查连接后重试。'; end;
+  finally
+    if fSlot then begin fSlot:=False; InterlockedDecrement(GpoPendingReads); end;
+    InterlockedExchange(fDone,1);
+  end;
+end;
+procedure TGpoBaselineJob.Cancel; begin fControl.Cancel; end;
+function TGpoBaselineJob.Finished:Boolean; begin Result:=InterlockedCompareExchange(fDone,0,0)<>0; end;
+function TGpoBaselineJob.ReadStatus:TGpoReadStatus; begin Result:=fControl.Status; end;
+function TGpoBaselineJob.AcceptsSession(const Token:IInterface):Boolean;
+begin Result:=Assigned(Token) and (Token=fRequest.SessionToken) and (fControl.Status=grsOk); end;
+function TGpoBaselineJob.ResultText:string;
+begin if Finished and (fControl.Status=grsOk) then Result:=fText else Result:=''; end;
+constructor TGpoBaselineThread.Create(const Job:IGpoBaselineJob);
+begin inherited Create(True); FreeOnTerminate:=True; fJob:=Job; Start; end;
+procedure TGpoBaselineThread.Execute; begin fJob.Execute; end;
+
+function GpoCreateBaselineJob(const Request:TGpoBaselineRequest;
+  const Transport:IGpoBaselineTransport):IGpoBaselineJob;
+begin
+  Result:=nil;
+  if not Assigned(Request.SessionToken) then Exit;
+  if InterlockedIncrement(GpoPendingReads)>GpoMaxPendingReads then
+  begin InterlockedDecrement(GpoPendingReads); Exit; end;
+  try Result:=TGpoBaselineJob.Create(Request,Transport);
+  except InterlockedDecrement(GpoPendingReads); raise; end;
+end;
 
 {$IFDEF WINDOWS}
 function GpoHeaderDraw(Window: HWND; Msg: UINT; WParam: Windows.WPARAM;
@@ -594,6 +717,9 @@ begin
   Bar:=TPanel.Create(Self); Bar.Parent:=Self; Bar.Align:=alTop; Bar.Height:=38; Bar.BevelOuter:=bvNone;
   fLoad := TButton.Create(Self); fLoad.Parent:=Bar; fLoad.Align:=alLeft; fLoad.Width:=110;
   fLoad.Caption:=SGpoSettingsLoad; fLoad.OnClick:=@LoadClick;
+  fBaseline:=TButton.Create(Self); fBaseline.Parent:=Bar; fBaseline.Align:=alLeft; fBaseline.Width:=145;
+  fBaseline.Caption:='只读基线检查'; fBaseline.OnClick:=@BaselineClick;
+  fBaseline.ShowHint:=True; fBaseline.Hint:='仅支持当前 Windows 身份的 Kerberos（无显式凭据、无 TLS），并要求对象 GUID 和有效连接。';
   fCancel := TButton.Create(Self); fCancel.Parent:=Bar; fCancel.Align:=alLeft; fCancel.Width:=90;
   fCancel.Caption:='取消读取'; fCancel.Enabled:=False; fCancel.OnClick:=@CancelClick;
   fDetails:=TButton.Create(Self); fDetails.Parent:=Bar; fDetails.Align:=alRight; fDetails.Width:=105;
@@ -619,6 +745,8 @@ begin
   fTimer.Enabled := False;
   fTimer.Interval := 100;
   fTimer.OnTimer := @Poll;
+  fBaselineTimer:=TTimer.Create(Self); fBaselineTimer.Enabled:=False;
+  fBaselineTimer.Interval:=100; fBaselineTimer.OnTimer:=@PollBaseline;
   Update(nil);
 end;
 
@@ -636,18 +764,21 @@ end;
 destructor TFrmPropertyGpoSettings.Destroy;
 begin
   if Assigned(fTimer) then fTimer.Enabled := False;
+  if Assigned(fBaselineTimer) then fBaselineTimer.Enabled:=False;
   if Assigned(fJob) then fJob.Cancel;
+  if Assigned(fBaselineJob) then fBaselineJob.Cancel;
   fJob := nil;
+  fBaselineJob:=nil;
   inherited Destroy;
 end;
 
 procedure TFrmPropertyGpoSettings.CancelClick(Sender: TObject);
 begin
-  if not Assigned(fJob) then Exit;
-  fJob.Cancel;
+  if Assigned(fJob) then fJob.Cancel
+  else if Assigned(fBaselineJob) then fBaselineJob.Cancel else Exit;
   fCancel.Enabled := False;
   ClearRows;
-  SetSummary('已请求取消，正在等待系统 SMB 调用返回；可以关闭窗口。', SGpoStateWaitingCancel);
+  SetSummary('已请求取消，正在等待系统 LDAP/SMB 调用返回；可以关闭窗口。', SGpoStateWaitingCancel);
 end;
 
 function TFrmPropertyGpoSettings.NewList(const Title: string;
@@ -667,15 +798,19 @@ procedure TFrmPropertyGpoSettings.ClearRows;
 begin fComputerPane.Bind(nil); fUserPane.Bind(nil); end;
 
 procedure TFrmPropertyGpoSettings.Update(Props: TProperty);
+var Attr:TLdapAttribute;
 begin
   fTimer.Enabled := False;
+  fBaselineTimer.Enabled:=False;
   // Stop further work after any in-flight OS call and discard obsolete results.
   if Assigned(fJob) then fJob.Cancel;
+  if Assigned(fBaselineJob) then fBaselineJob.Cancel;
   fJob := nil;
+  fBaselineJob:=nil;
   fCancel.Enabled := False;
   fProperty := Props;
   fSessionToken := nil;
-  fClient := nil; fSocket := nil; fTarget := ''; fDN := ''; fGuid := '';
+  fClient := nil; fSocket := nil; fTarget := ''; fDN := ''; fGuid := ''; fObjectGuid:='';
   fBoundUser := ''; fPort := ''; fServer := ''; fDomain := '';
   if Assigned(Props) and Assigned(Props.LdapClient) then
   begin
@@ -689,17 +824,34 @@ begin
     if Props.LdapClient.Bound then fDomain := DNToCN(Props.LdapClient.DefaultDN, True, [dnDC]);
     fDN := Props.distinguishedName;
     fGuid := Props.GetReadable('name');
+    if Assigned(Props.Attributes) then begin Attr:=Props.Attributes.Find('objectGUID'); if Assigned(Attr) then fObjectGuid:=Attr.GetRaw; end;
   end;
   ClearRows;
   SetSummary('只读查看 Registry.pol 原始记录，不显示其他扩展或最终生效策略。' + LineEnding +
     '尚未加载；点击加载前不会读取 SYSVOL。' + LineEnding +
-    'SMB 使用当前 Windows 身份，不使用保存的 LDAP 凭据。', SGpoStateInitial);
+    'SMB 使用当前 Windows 身份，不使用保存的 LDAP 凭据。' + LineEnding +
+    '基线检查仅支持当前 Windows 身份的 Kerberos（无显式凭据、无 TLS）且需要对象 GUID。', SGpoStateInitial);
   fLoad.Enabled := Assigned(Props);
+  fBaseline.Enabled:=CanCheckBaseline;
+end;
+
+function TFrmPropertyGpoSettings.CanCheckBaseline:Boolean;
+begin
+  {$ifdef windows}
+  Result:=SameConnection and (Length(fObjectGuid)=16) and (fBoundUser<>'') and
+    (fProperty.LdapClient.Settings.AutoBind=lcbKerberos) and
+    (fProperty.LdapClient.Settings.UserName='') and (fProperty.LdapClient.Settings.Password='') and
+    not fProperty.LdapClient.Settings.Tls;
+  {$else}
+  Result:=False;
+  {$endif}
 end;
 
 function TFrmPropertyGpoSettings.SameConnection: Boolean;
+var Attr:TLdapAttribute; CurrentGuid:RawByteString;
 begin
   Result := Assigned(fProperty) and Assigned(fProperty.LdapClient) and
+    Assigned(fProperty.LdapClient.Settings) and
     (fProperty.LdapClient = fClient) and Assigned(fSessionToken) and
     (fProperty.LdapClient.SessionToken = fSessionToken) and fProperty.LdapClient.Connected and fProperty.LdapClient.Bound and
     (fProperty.LdapClient.Sock = fSocket) and
@@ -708,6 +860,55 @@ begin
     (fBoundUser <> '') and (fProperty.LdapClient.BoundUser = fBoundUser) and
     Assigned(fProperty.LdapClient.Sock) and (fProperty.LdapClient.Sock.Server = fServer) and
     (fProperty.distinguishedName = fDN) and (fProperty.GetReadable('name') = fGuid);
+  if not Result then Exit;
+  CurrentGuid:='';
+  if Assigned(fProperty.Attributes) then begin Attr:=fProperty.Attributes.Find('objectGUID'); if Assigned(Attr) then CurrentGuid:=Attr.GetRaw; end;
+  Result:=CurrentGuid=fObjectGuid;
+end;
+
+procedure TFrmPropertyGpoSettings.BaselineClick(Sender:TObject);
+var Request:TGpoBaselineRequest;
+begin
+  if Assigned(fJob) or Assigned(fBaselineJob) then Exit;
+  if not SameConnection then begin SetSummary('连接或对象已变化，请重新打开属性。'); Exit; end;
+  {$ifndef windows}
+  SetSummary('当前平台不支持独立 Windows Kerberos 只读基线检查。'); Exit;
+  {$endif}
+  if not CanCheckBaseline then
+  begin SetSummary('只读基线检查仅支持当前 Windows 身份的 Kerberos 连接，并要求对象 GUID 可用；当前认证方式不受支持。'); Exit; end;
+  Request:=Default(TGpoBaselineRequest); Request.SessionToken:=fSessionToken;
+  Request.DC:=fTarget; Request.Port:=fPort; Request.DN:=fDN; Request.Guid:=fGuid; Request.User:=fBoundUser;
+  SetLength(Request.ObjectGuid,16); Move(fObjectGuid[1],Request.ObjectGuid[0],16);
+  try
+    fBaselineJob:=GpoCreateBaselineJob(Request);
+    if not Assigned(fBaselineJob) then begin SetSummary('已有读取仍在等待系统调用，请稍后重试。'); Exit; end;
+    fLoad.Enabled:=False; fBaseline.Enabled:=False; fCancel.Enabled:=True;
+    SetSummary('后台独立连接正在只读检查当前 GPO 基线；可以关闭窗口。','正在只读检查当前 GPO…');
+    TGpoBaselineThread.Create(fBaselineJob); fBaselineTimer.Enabled:=True;
+  except
+    if Assigned(fBaselineJob) then fBaselineJob.Cancel;
+    fBaselineJob:=nil; fLoad.Enabled:=Assigned(fProperty); fBaseline.Enabled:=CanCheckBaseline;
+    fCancel.Enabled:=False; SetSummary('无法启动只读检查，请稍后重试。');
+  end;
+end;
+
+procedure TFrmPropertyGpoSettings.PollBaseline(Sender:TObject);
+var Token:IInterface; S:TGpoReadStatus; MessageText:string;
+begin
+  if not Assigned(fBaselineJob) then Exit;
+  Token:=CurrentSessionToken;
+  if not fBaselineJob.AcceptsSession(Token) then fBaselineJob.Cancel;
+  if not fBaselineJob.Finished then
+  begin
+    S:=fBaselineJob.ReadStatus;
+    if S<>grsOk then begin fCancel.Enabled:=False; SetSummary('检查已取消或超时，正在等待系统 LDAP/SMB 调用返回。',SGpoStateWaitingCancel); end;
+    Exit;
+  end;
+  fBaselineTimer.Enabled:=False; fCancel.Enabled:=False;
+  if fBaselineJob.AcceptsSession(Token) then
+  begin MessageText:=fBaselineJob.ResultText; SetSummary(MessageText,MessageText); end
+  else SetSummary('结果已丢弃：检查取消、超时、连接或对象变化。');
+  fBaselineJob:=nil; fLoad.Enabled:=Assigned(fProperty); fBaseline.Enabled:=CanCheckBaseline;
 end;
 
 procedure TFrmPropertyGpoSettings.LoadClick(Sender: TObject);
@@ -723,13 +924,14 @@ begin
     fCancel.Enabled := False;
     fTimer.Enabled := False;
     fLoad.Enabled := Assigned(fProperty);
+    fBaseline.Enabled:=CanCheckBaseline;
   end;
 end;
 
 procedure TFrmPropertyGpoSettings.LoadSettings;
 var Value: TGpoSettingsSnapshot; SafePath: string; Root: TLdapResult;
 begin
-  if Assigned(fJob) or not Assigned(fProperty) then Exit;
+  if Assigned(fJob) or Assigned(fBaselineJob) or not Assigned(fProperty) then Exit;
   ClearRows;
   if not Assigned(fProperty.LdapClient) or not fProperty.LdapClient.Connected or
      not Assigned(fProperty.LdapClient.Settings) then
@@ -781,11 +983,12 @@ begin
   SetSummary('正在从域控制器读取：' + Value.DC + LineEnding +
     '只读 SMB 使用当前 Windows 身份；可以关闭窗口。', SGpoStateLoading);
   fLoad.Enabled := False;
+  fBaseline.Enabled:=False;
   fJob := GpoCreateSettingsRead(Value);
   if not Assigned(fJob) then
   begin
     SetSummary('前两次读取仍在等待系统 SMB 调用，请稍后重试。');
-    fLoad.Enabled := True; Exit;
+    fLoad.Enabled := True; fBaseline.Enabled:=CanCheckBaseline; Exit;
   end;
   fCancel.Enabled := True;
   TGpoReadThread.Create(fJob);
@@ -823,6 +1026,7 @@ begin
   else begin ClearRows; SetSummary('已丢弃读取结果：连接或对象已变化，请重新打开属性。'); end;
   fJob := nil;
   fLoad.Enabled := Assigned(fProperty);
+  fBaseline.Enabled:=CanCheckBaseline;
 end;
 
 procedure TFrmPropertyGpoSettings.ShowSnapshot(const Value: TGpoSettingsSnapshot);
