@@ -9,8 +9,10 @@ uses Classes, SysUtils, ugpoformats, mormot.core.base, mormot.net.ldap;
 type
   TGpoFile = (gfGptIni, gfMachineRegistry, gfUserRegistry);
   TGpoFileObservation = (gfoUnavailable, gfoPresent, gfoLeafAbsent);
+  TGpoEvidenceKind = (gekUnavailable, gekFile, gekParent);
   TGpoFileEvidence = record
     Available:Boolean;
+    Kind:TGpoEvidenceKind;
     VolumeSerial, FileIndexHigh, FileIndexLow, Attributes:Cardinal;
     LastWriteHigh, LastWriteLow:Cardinal;
     SecurityDescriptor:TBytes; // owner/group/DACL only; never a write authorization.
@@ -120,7 +122,7 @@ function GpoReadFile(const FileSysPath, ExpectedDomain, ConnectedDC,
 function GpoReadFileObserved(const FileSysPath, ExpectedDomain, ConnectedDC,
   Guid: string; Artifact: TGpoFile; out Data: TBytes; out Observation:TGpoFileObservation;
   Control: TGpoReadControl = nil): TGpoReadStatus;
-// Requires READ_CONTROL on the same guarded file handle; absent files have no evidence.
+// Requires READ_CONTROL; absent leaf evidence describes its guarded parent, never the missing file.
 function GpoReadFileEvidence(const FileSysPath, ExpectedDomain, ConnectedDC,
   Guid:string; Artifact:TGpoFile; out Data:TBytes; out Observation:TGpoFileObservation;
   out Evidence:TGpoFileEvidence; Control:TGpoReadControl = nil):TGpoReadStatus;
@@ -129,7 +131,7 @@ function GpoCompareFileEvidence(const Before,After:TGpoFileEvidence):TGpoPreflig
 // Synchronous and read-only. Caller must first verify the target via LDAP;
 // a successful file capture still lacks metadata and never authorizes writing.
 function GpoCapturePreflightFiles(const Target:TGpoPreflightTarget; out Files:TGpoCapturedFiles):TGpoPreflightResult;
-// Currently requires all files present; missing parent evidence blocks the capture.
+// A missing policy leaf requires guarded parent evidence; missing ancestors remain unavailable.
 function GpoCapturePreflightEvidence(const Target:TGpoPreflightTarget; out Files:TGpoObservedFiles):TGpoPreflightResult;
 // Synchronous, on the caller's serialized LDAP client. No credentials or permissions are changed.
 // Captures only owner/group/DACL; success remains evidence-incomplete.
@@ -251,6 +253,8 @@ begin
   except Result:=gprReadUnavailable; end;
 end;
 
+function ValidObservedFile(Artifact:TGpoFile; const Item:TGpoObservedFile):Boolean; forward;
+
 function GpoCapturePreflightEvidence(const Target:TGpoPreflightTarget; out Files:TGpoObservedFiles):TGpoPreflightResult;
 var Token:ILdapSessionToken; Control:TGpoReadControl; Artifact:TGpoFile; Path:string;
 begin
@@ -268,8 +272,7 @@ begin
       Files.Items[Artifact].Status:=GpoReadFileEvidence(Target.FileSysPath,Target.Domain,Target.DC,Target.Guid,
         Artifact,Files.Items[Artifact].Data,Files.Items[Artifact].Observation,Files.Items[Artifact].Metadata,Control);
       if not Token.IsValid then Exit(gprSessionInvalid);
-      if (Files.Items[Artifact].Status<>grsOk) or (Files.Items[Artifact].Observation<>gfoPresent) or
-         not Files.Items[Artifact].Metadata.Available then Exit(gprReadUnavailable);
+      if not ValidObservedFile(Artifact,Files.Items[Artifact]) then Exit(gprReadUnavailable);
     end;
     Files.Target:=Target; Files.Target.ObjectGuid:=Copy(Target.ObjectGuid); Files.Captured:=True;
     if not Token.IsValid then begin Files.Captured:=False; Exit(gprSessionInvalid); end;
@@ -299,6 +302,17 @@ begin
     (Length(A.ObjectGuid)=16) and (Length(B.ObjectGuid)=16) and CompareMem(@A.ObjectGuid[0],@B.ObjectGuid[0],16);
 end;
 
+function ValidObservedFile(Artifact:TGpoFile; const Item:TGpoObservedFile):Boolean;
+begin
+  Result:=Item.Attempted and
+    (GpoCompareFileEvidence(Item.Metadata,Item.Metadata)=gprEvidenceIncomplete) and
+    ((Item.Metadata.Attributes and $400)=0) and
+    (((Item.Status=grsOk) and (Item.Observation=gfoPresent) and (Item.Metadata.Kind=gekFile) and
+       ((Item.Metadata.Attributes and $10)=0)) or
+     ((Artifact<>gfGptIni) and (Item.Status=grsMissing) and (Item.Observation=gfoLeafAbsent) and
+       (Item.Metadata.Kind=gekParent) and ((Item.Metadata.Attributes and $10)<>0) and (Length(Item.Data)=0)));
+end;
+
 class function TGpoBoundPlan.BindWithFiles(const Evidence:TGpoLdapEvidence; const Plan:TGpoOfflinePlan;
   const Files:TGpoObservedFiles; out Bound:TGpoBoundPlan):TGpoPreflightResult;
 var Artifact:TGpoFile; Completed:Boolean;
@@ -311,8 +325,7 @@ begin
   try
     if not SamePreflightTarget(Evidence.Target,Files.Target) then begin Result:=gprTargetMismatch; Exit; end;
     for Artifact:=Low(TGpoFile) to High(TGpoFile) do
-      if not Files.Items[Artifact].Attempted or (Files.Items[Artifact].Status<>grsOk) or (Files.Items[Artifact].Observation<>gfoPresent) or
-         (GpoCompareFileEvidence(Files.Items[Artifact].Metadata,Files.Items[Artifact].Metadata)<>gprEvidenceIncomplete) then
+      if not ValidObservedFile(Artifact,Files.Items[Artifact]) then
       begin Result:=gprReadUnavailable; Exit; end;
     Result:=Bound.CompareEvidence(Evidence,Files.Items[gfGptIni].Status,Files.Items[gfGptIni].Data,
       Files.Items[gfUserRegistry].Status,Files.Items[gfUserRegistry].Observation,Files.Items[gfUserRegistry].Data,
@@ -388,7 +401,7 @@ begin
   if Result<>gprEvidenceIncomplete then Exit;
   for Artifact:=Low(TGpoFile) to High(TGpoFile) do
   begin
-    if not Files.Items[Artifact].Attempted or (Files.Items[Artifact].Status<>grsOk) or (Files.Items[Artifact].Observation<>gfoPresent) then Exit(gprReadUnavailable);
+    if not ValidObservedFile(Artifact,Files.Items[Artifact]) then Exit(gprReadUnavailable);
     Result:=GpoCompareFileEvidence(fFileEvidence[Artifact],Files.Items[Artifact].Metadata);
     if Result<>gprEvidenceIncomplete then Exit;
   end;
@@ -690,19 +703,19 @@ function ReadGuardedFile(const NativeRoot, RelativePath: UnicodeString;
   out Data: TBytes; Control: TGpoReadControl; out Observation:TGpoFileObservation;
   Evidence:Pointer = nil): TGpoReadStatus;
 var Parts: array of UnicodeString; Guards: array of THandle;
-  I, J, Start: SizeInt; Path: UnicodeString; H: THandle; IsMount: Boolean;
+  I, J, Start: SizeInt; Path: UnicodeString; H,ParentHandle: THandle; IsMount: Boolean;
   Info,AfterInfo: TByHandleFileInformation; Count, Got, NativeStatus: DWORD; Extra: Byte; Stop:TGpoReadStatus;
   SD,AfterSD:TBytes; Temp:TGpoFileEvidence;
-  function ReadSecurity(out Bytes:TBytes):TGpoReadStatus;
+  function ReadSecurity(Handle:THandle; out Bytes:TBytes):TGpoReadStatus;
   var Needed,Code:DWORD; Owner,Group:PSID; Dacl:PACL; Present,Defaulted:LongBool;
     Parsed:mormot.core.os.security.TSecurityDescriptor;
   begin
     Bytes:=nil; Needed:=0;
-    if GetKernelObjectSecurity(H,OWNER_SECURITY_INFORMATION or GROUP_SECURITY_INFORMATION or DACL_SECURITY_INFORMATION,nil,0,@Needed) then Exit(grsUnsupported);
+    if GetKernelObjectSecurity(Handle,OWNER_SECURITY_INFORMATION or GROUP_SECURITY_INFORMATION or DACL_SECURITY_INFORMATION,nil,0,@Needed) then Exit(grsUnsupported);
     Code:=GetLastError; if Code<>ERROR_INSUFFICIENT_BUFFER then Exit(FileError(Code));
     if (Needed=0) or (Needed>1024*1024) then Exit(grsUnsupported);
     SetLength(Bytes,Needed);
-    if not GetKernelObjectSecurity(H,OWNER_SECURITY_INFORMATION or GROUP_SECURITY_INFORMATION or DACL_SECURITY_INFORMATION,
+    if not GetKernelObjectSecurity(Handle,OWNER_SECURITY_INFORMATION or GROUP_SECURITY_INFORMATION or DACL_SECURITY_INFORMATION,
       PSECURITY_DESCRIPTOR(@Bytes[0]),Needed,@Needed) then begin Bytes:=nil; Exit(FileError(GetLastError)); end;
     if not Parsed.FromBinary(mormot.core.base.PByteArray(@Bytes[0]),Length(Bytes)) then begin Bytes:=nil; Exit(grsCorrupt); end;
     Owner:=nil; Group:=nil; Dacl:=nil; Present:=False; Defaulted:=False;
@@ -711,6 +724,21 @@ var Parts: array of UnicodeString; Guards: array of THandle;
        not GetSecurityDescriptorDacl(PSECURITY_DESCRIPTOR(@Bytes[0]),@Present,Dacl,@Defaulted) or not Present then
     begin Bytes:=nil; Exit(grsUnsupported); end;
     Result:=grsOk;
+  end;
+  function SameInfo(const A,B:TByHandleFileInformation):Boolean;
+  begin
+    Result:=(A.dwVolumeSerialNumber=B.dwVolumeSerialNumber) and (A.nFileIndexHigh=B.nFileIndexHigh) and
+      (A.nFileIndexLow=B.nFileIndexLow) and (A.dwFileAttributes=B.dwFileAttributes) and
+      (A.nFileSizeHigh=B.nFileSizeHigh) and (A.nFileSizeLow=B.nFileSizeLow) and
+      (A.ftLastWriteTime.dwLowDateTime=B.ftLastWriteTime.dwLowDateTime) and
+      (A.ftLastWriteTime.dwHighDateTime=B.ftLastWriteTime.dwHighDateTime);
+  end;
+  procedure StoreMetadata(Kind:TGpoEvidenceKind);
+  begin
+    Temp:=Default(TGpoFileEvidence); Temp.Kind:=Kind; Temp.VolumeSerial:=Info.dwVolumeSerialNumber;
+    Temp.FileIndexHigh:=Info.nFileIndexHigh; Temp.FileIndexLow:=Info.nFileIndexLow;
+    Temp.Attributes:=Info.dwFileAttributes; Temp.LastWriteHigh:=Info.ftLastWriteTime.dwHighDateTime;
+    Temp.LastWriteLow:=Info.ftLastWriteTime.dwLowDateTime; Temp.SecurityDescriptor:=SD; Temp.Available:=True;
   end;
   procedure KeepGuard;
   begin
@@ -737,7 +765,7 @@ begin
   try
     Result := ReadControlStatus(Control); if Result <> grsOk then Exit;
     Path := NativeRoot;
-    Result := OpenNativeReadOnly(Path,True,True,False,H,IsMount);
+    Result := OpenNativeReadOnly(Path,True,True,False,H,IsMount,nil,Assigned(Evidence) and (Length(Parts)=1));
     if Result <> grsOk then Exit;
     KeepGuard;
     if IsMount then
@@ -745,7 +773,7 @@ begin
       // Hold both checked MOUNT_POINT link and its resolved normal target root.
       // OBJ_DONT_REPARSE stays enabled; local/client symlink following fails.
       Result := ReadControlStatus(Control); if Result <> grsOk then Exit;
-      Result := OpenNativeReadOnly(Path,True,False,True,H,IsMount);
+      Result := OpenNativeReadOnly(Path,True,False,True,H,IsMount,nil,Assigned(Evidence) and (Length(Parts)=1));
       if Result <> grsOk then Exit;
       KeepGuard;
     end;
@@ -753,7 +781,7 @@ begin
     begin
       Result := ReadControlStatus(Control); if Result <> grsOk then Exit;
       Path := Path + '\' + Parts[I];
-      Result := OpenNativeReadOnly(Path,True,False,False,H,IsMount);
+      Result := OpenNativeReadOnly(Path,True,False,False,H,IsMount,nil,Assigned(Evidence) and (I=High(Parts)-1));
       if Result <> grsOk then Exit;
       KeepGuard;
     end;
@@ -764,7 +792,27 @@ begin
     begin
       Stop:=ReadControlStatus(Control); if Stop<>grsOk then begin Result:=Stop; Exit; end;
       if (Result=grsMissing) and (NativeStatus=$c0000034) then
+      begin
+        if Assigned(Evidence) then
+        begin
+          ParentHandle:=Guards[High(Guards)];
+          if not GetFileInformationByHandle(ParentHandle,Info) then Exit(FileError(GetLastError));
+          if (Info.nFileIndexHigh=0) and (Info.nFileIndexLow=0) then Exit(grsUnsupported);
+          Result:=ReadSecurity(ParentHandle,SD); if Result<>grsOk then Exit;
+          Result:=ReadControlStatus(Control); if Result<>grsOk then Exit;
+          Result:=OpenNativeReadOnly(Path,False,False,False,H,IsMount,@NativeStatus);
+          if Result=grsOk then Exit(grsIoError);
+          if (Result<>grsMissing) or (NativeStatus<>$c0000034) then Exit;
+          if not GetFileInformationByHandle(ParentHandle,AfterInfo) then Exit(FileError(GetLastError));
+          Result:=ReadSecurity(ParentHandle,AfterSD); if Result<>grsOk then Exit;
+          if not SameInfo(Info,AfterInfo) or (Length(SD)<>Length(AfterSD)) or
+             not CompareMem(@SD[0],@AfterSD[0],Length(SD)) then Exit(grsIoError);
+          Result:=ReadControlStatus(Control); if Result<>grsOk then Exit;
+          StoreMetadata(gekParent); PGpoFileEvidence(Evidence)^:=Temp;
+          Result:=grsMissing;
+        end;
         Observation:=gfoLeafAbsent;
+      end;
       Exit;
     end;
     Result := ReadControlStatus(Control); if Result <> grsOk then Exit;
@@ -773,7 +821,7 @@ begin
     if (Info.nFileSizeHigh <> 0) or (Info.nFileSizeLow > GpoMaxFileBytes) then Exit(grsTooLarge);
     if Assigned(Evidence) then begin
       if (Info.nFileIndexHigh=0) and (Info.nFileIndexLow=0) then Exit(grsUnsupported);
-      Result:=ReadSecurity(SD); if Result<>grsOk then Exit;
+      Result:=ReadSecurity(H,SD); if Result<>grsOk then Exit;
     end;
     Result := ReadControlStatus(Control); if Result <> grsOk then Exit;
     Count := Info.nFileSizeLow; SetLength(Data,Count);
@@ -788,18 +836,10 @@ begin
     if Assigned(Evidence) then
     begin
       if not GetFileInformationByHandle(H,AfterInfo) then Exit(FileError(GetLastError));
-      Result:=ReadSecurity(AfterSD); if Result<>grsOk then Exit;
-      if (Info.dwVolumeSerialNumber<>AfterInfo.dwVolumeSerialNumber) or
-         (Info.nFileIndexHigh<>AfterInfo.nFileIndexHigh) or (Info.nFileIndexLow<>AfterInfo.nFileIndexLow) or
-         (Info.dwFileAttributes<>AfterInfo.dwFileAttributes) or
-         (Info.nFileSizeHigh<>AfterInfo.nFileSizeHigh) or (Info.nFileSizeLow<>AfterInfo.nFileSizeLow) or
-         (Info.ftLastWriteTime.dwLowDateTime<>AfterInfo.ftLastWriteTime.dwLowDateTime) or
-         (Info.ftLastWriteTime.dwHighDateTime<>AfterInfo.ftLastWriteTime.dwHighDateTime) or
-         (Length(SD)<>Length(AfterSD)) or not CompareMem(@SD[0],@AfterSD[0],Length(SD)) then Exit(grsIoError);
-      Temp:=Default(TGpoFileEvidence); Temp.VolumeSerial:=Info.dwVolumeSerialNumber;
-      Temp.FileIndexHigh:=Info.nFileIndexHigh; Temp.FileIndexLow:=Info.nFileIndexLow;
-      Temp.Attributes:=Info.dwFileAttributes; Temp.LastWriteHigh:=Info.ftLastWriteTime.dwHighDateTime;
-      Temp.LastWriteLow:=Info.ftLastWriteTime.dwLowDateTime; Temp.SecurityDescriptor:=SD; Temp.Available:=True;
+      Result:=ReadSecurity(H,AfterSD); if Result<>grsOk then Exit;
+      if not SameInfo(Info,AfterInfo) or (Length(SD)<>Length(AfterSD)) or
+         not CompareMem(@SD[0],@AfterSD[0],Length(SD)) then Exit(grsIoError);
+      StoreMetadata(gekFile);
     end;
     Result := ReadControlStatus(Control);
     if Result=grsOk then begin Observation:=gfoPresent; if Assigned(Evidence) then PGpoFileEvidence(Evidence)^:=Temp; end;
@@ -880,10 +920,11 @@ end;
 function GpoCompareFileEvidence(const Before,After:TGpoFileEvidence):TGpoPreflightResult;
 begin
   if not Before.Available or not After.Available or
+     not (Before.Kind in [gekFile,gekParent]) or not (After.Kind in [gekFile,gekParent]) or
      (Length(Before.SecurityDescriptor)=0) or (Length(After.SecurityDescriptor)=0) or
      ((Before.FileIndexHigh=0) and (Before.FileIndexLow=0)) or
      ((After.FileIndexHigh=0) and (After.FileIndexLow=0)) then Exit(gprReadUnavailable);
-  if (Before.VolumeSerial<>After.VolumeSerial) or (Before.FileIndexHigh<>After.FileIndexHigh) or
+  if (Before.Kind<>After.Kind) or (Before.VolumeSerial<>After.VolumeSerial) or (Before.FileIndexHigh<>After.FileIndexHigh) or
      (Before.FileIndexLow<>After.FileIndexLow) or (Before.Attributes<>After.Attributes) or
      (Before.LastWriteHigh<>After.LastWriteHigh) or (Before.LastWriteLow<>After.LastWriteLow) or
      (Length(Before.SecurityDescriptor)<>Length(After.SecurityDescriptor)) or

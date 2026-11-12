@@ -194,7 +194,7 @@ begin
   for A:=Low(TGpoFile) to High(TGpoFile) do
   begin
     F.Items[A].Attempted:=True; F.Items[A].Status:=grsOk; F.Items[A].Observation:=gfoPresent;
-    F.Items[A].Metadata.Available:=True; F.Items[A].Metadata.FileIndexLow:=Ord(A)+1;
+    F.Items[A].Metadata.Available:=True; F.Items[A].Metadata.Kind:=gekFile; F.Items[A].Metadata.FileIndexLow:=Ord(A)+1;
     F.Items[A].Metadata.SecurityDescriptor:=Bytes(RawSD);
   end;
   F.Items[gfGptIni].Data:=Copy(Ini); F.Items[gfUserRegistry].Data:=Header; F.Items[gfMachineRegistry].Data:=Header;
@@ -235,6 +235,23 @@ begin
   Changed:=F; Changed.Items[gfUserRegistry].Status:=grsMissing; Changed.Items[gfUserRegistry].Observation:=gfoLeafAbsent;
   Changed.Items[gfUserRegistry].Data:=nil; Changed.Items[gfUserRegistry].Metadata:=Default(TGpoFileEvidence);
   Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprReadUnavailable); Check(not Assigned(B));
+  Changed.Items[gfUserRegistry].Metadata:=F.Items[gfUserRegistry].Metadata;
+  Changed.Items[gfUserRegistry].Metadata.Kind:=gekParent; Changed.Items[gfUserRegistry].Metadata.Attributes:=$10;
+  Changed.Items[gfUserRegistry].Metadata.Attributes:=$410;
+  Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprReadUnavailable); Check(not Assigned(B));
+  Changed.Items[gfUserRegistry].Metadata.Attributes:=$10;
+  Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprEvidenceIncomplete);
+  if Assigned(B) then
+  begin
+    Check(B.CompareWithFiles(E,Changed)=gprEvidenceIncomplete);
+    Inc(Changed.Items[gfUserRegistry].Metadata.FileIndexLow);
+    Check(B.CompareWithFiles(E,Changed)=gprConflict); Dec(Changed.Items[gfUserRegistry].Metadata.FileIndexLow);
+    B.Free;
+  end;
+  NewUser:=OldUser; NewMachine:=OldMachine;
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,OldUser,NewUser,OldMachine,NewMachine,P)=gopOk);
+  Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprEvidenceIncomplete);
+  if Assigned(B) then begin Check(B.CompareWithFiles(E,Changed)=gprEvidenceIncomplete); B.Free; end;
   OldUser.Exists:=True; OldUser.Data:=Header; NewUser:=Default(TGpoPolicyImage);
   OldMachine:=Default(TGpoPolicyImage); NewMachine.Exists:=True; NewMachine.Data:=Header;
   Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,OldUser,NewUser,OldMachine,NewMachine,P)=gopOk);
@@ -242,6 +259,10 @@ begin
   Changed:=F; Changed.Items[gfMachineRegistry].Status:=grsMissing; Changed.Items[gfMachineRegistry].Observation:=gfoLeafAbsent;
   Changed.Items[gfMachineRegistry].Data:=nil; Changed.Items[gfMachineRegistry].Metadata:=Default(TGpoFileEvidence);
   Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprReadUnavailable); Check(not Assigned(B));
+  Changed.Items[gfMachineRegistry].Metadata:=F.Items[gfMachineRegistry].Metadata;
+  Changed.Items[gfMachineRegistry].Metadata.Kind:=gekParent; Changed.Items[gfMachineRegistry].Metadata.Attributes:=$10;
+  Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprEvidenceIncomplete);
+  if Assigned(B) then begin Check(B.CompareWithFiles(E,Changed)=gprEvidenceIncomplete); B.Free; end;
   Check(GpoBeginReadOnlyPreflight(nil,T.DN,Guid,P,B)=gprSessionInvalid); Check(not Assigned(B));
   Check(GpoCheckReadOnlyPreflight(nil,T.DN,Guid,nil)=gprInvalid);
 end;
@@ -718,8 +739,10 @@ begin
   Check(V=0);
 end;
 {$if defined(windows) and defined(OPENRSATTESTS)}
+function GpoTestCreateDirectoryLink(LinkName,TargetName:PWideChar; Flags:Cardinal):LongBool;
+  stdcall; external 'kernel32.dll' name 'CreateSymbolicLinkW';
 procedure TUnitTestGpoReadOnly.GuardedFileObservation;
-var G:TGuid; Dir,Root,FileName:UnicodeString; B:TBytes; O:TGpoFileObservation; S:TFileStream; V:Byte; Meta,OtherMeta:TGpoFileEvidence;
+var G:TGuid; Dir,Root,FileName,LinkName:UnicodeString; B:TBytes; O:TGpoFileObservation; S:TFileStream; V:Byte; Meta,OtherMeta:TGpoFileEvidence;
 begin
   Check(CreateGUID(G)=0); Dir:=UnicodeString(GetTempDir(False)+'openrsat-observe-'+GUIDToString(G));
   if not CreateDir(Dir) then begin Check(False,'Cannot create observation fixture'); Exit; end;
@@ -734,7 +757,7 @@ begin
     Check(GpoTestReadGuardedObservation(Root,'fixture.pol',B,O)=grsOk);
     Check(O=gfoPresent); Check((Length(B)=1) and (B[0]=42));
     Check(GpoTestReadGuardedEvidence(Root,'fixture.pol',B,O,Meta)=grsOk);
-    Check(O=gfoPresent); Check(Meta.Available); Check(Length(Meta.SecurityDescriptor)>0);
+    Check(O=gfoPresent); Check(Meta.Available); Check(Meta.Kind=gekFile); Check(Length(Meta.SecurityDescriptor)>0);
     Check((Meta.FileIndexHigh<>0) or (Meta.FileIndexLow<>0));
     OtherMeta:=Meta; OtherMeta.SecurityDescriptor:=Copy(Meta.SecurityDescriptor);
     Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprEvidenceIncomplete);
@@ -742,8 +765,22 @@ begin
     OtherMeta:=Meta; OtherMeta.SecurityDescriptor:=Copy(Meta.SecurityDescriptor); OtherMeta.SecurityDescriptor[0]:=0;
     Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprConflict);
     OtherMeta.Available:=False; Check(GpoCompareFileEvidence(Meta,OtherMeta)=gprReadUnavailable);
+    S:=TFileStream.Create(FileName,fmOpenReadWrite or fmShareExclusive);
+    try
+      Check(GpoTestReadGuardedEvidence(Root,'fixture.pol',B,O,Meta)=grsIoError);
+      Check((O=gfoUnavailable) and not Meta.Available and (Length(B)=0));
+    finally S.Free; end;
     Check(GpoTestReadGuardedEvidence(Root,'absent.pol',B,O,Meta)=grsMissing);
-    Check(O=gfoLeafAbsent); Check(not Meta.Available); Check(Length(Meta.SecurityDescriptor)=0);
+    Check(O=gfoLeafAbsent); Check(Meta.Available); Check(Meta.Kind=gekParent); Check(Length(Meta.SecurityDescriptor)>0);
+    Check(GpoTestReadGuardedEvidence(Root,'missing\absent.pol',B,O,Meta)=grsMissing);
+    Check((O=gfoUnavailable) and not Meta.Available and (Length(Meta.SecurityDescriptor)=0));
+    LinkName:=Dir+'\link';
+    if GpoTestCreateDirectoryLink(PWideChar(LinkName),PWideChar(Dir),3) then
+    try
+      Check(GpoTestReadGuardedEvidence(Root,'link\absent.pol',B,O,Meta)=grsReparseBlocked);
+      Check((O=gfoUnavailable) and not Meta.Available);
+    finally Check(RemoveDir(LinkName)); end
+    else WriteLn('SKIP: local directory symlink creation is unavailable');
     Check(GpoTestReadGuardedEvidence(Root,'..\fixture.pol',B,O,Meta)=grsInvalidPath);
     Check((O=gfoUnavailable) and not Meta.Available and (Length(B)=0));
     Check(GpoTestReadGuardedObservation(Root,'..\fixture.pol',B,O)=grsInvalidPath);
