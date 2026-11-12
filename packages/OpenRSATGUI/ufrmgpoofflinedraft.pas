@@ -37,6 +37,7 @@ type
     procedure RefreshView(SelectedIndex:Integer=-1; PreserveCurrent:Boolean=True);
     function SelectedIndex:Integer;
     function Current:TGpoRegistryDraft;
+    function PreviewSummary:string;
   protected
     function ConfirmDiscard:Boolean; virtual;
     function ConfirmClose(const Branches:string):TGpoCloseChoice; virtual;
@@ -182,7 +183,7 @@ begin
   if N<Length(Data) then Result:=Result+'... ';
 end;
 
-function BuildPreview(const Changes:TGpoRegistryChanges; Page:Integer):string;
+function BuildPreview(const Changes:TGpoRegistryChanges; Page:Integer; const Summary:string):string;
 var I,J,N,First,Last,Pages:Integer; C:TGpoRegistryChange; S:TStringList; OldByte,NewByte:string;
   function Describe(const R:TGpoRegistryRecord):UnicodeString;
   begin
@@ -196,6 +197,7 @@ begin
   First:=Page*200; Last:=First+199; if Last>High(Changes) then Last:=High(Changes);
   S:=TStringList.Create;
   try
+    S.Add(Summary);
     S.Add('本地草稿原始记录位置差异；不表示最终生效策略。每条数据最多显示前 64 字节。');
     S.Add('差异数：'+IntToStr(Length(Changes))+'。中间插入/删除可能使后续行显示为修改。');
     S.Add(Format('第 %d / %d 页；每页最多 200 条差异。',[Page+1,Pages]));
@@ -225,20 +227,21 @@ type
   TGpoPreviewWindow=class(TForm)
   private
     fChanges:TGpoRegistryChanges;
+    fSummary:string;
     fPage, fPages:Integer;
     fMemo:TMemo;
     fPrevious, fNext:TButton;
     procedure Step(Sender:TObject);
     procedure Render;
   public
-    constructor CreatePreview(TheOwner:TComponent; const Changes:TGpoRegistryChanges);
+    constructor CreatePreview(TheOwner:TComponent; const Changes:TGpoRegistryChanges; const Summary:string);
   end;
 
-constructor TGpoPreviewWindow.CreatePreview(TheOwner:TComponent; const Changes:TGpoRegistryChanges);
+constructor TGpoPreviewWindow.CreatePreview(TheOwner:TComponent; const Changes:TGpoRegistryChanges; const Summary:string);
 var Bar:TPanel; Button:TButton;
 begin
   inherited CreateNew(TheOwner,0);
-  fChanges:=Changes; fPages:=(Length(Changes)+199) div 200; if fPages=0 then fPages:=1;
+  fChanges:=Changes; fSummary:=Summary; fPages:=(Length(Changes)+199) div 200; if fPages=0 then fPages:=1;
   Caption:='本地草稿：原始记录变更预览'; Width:=900; Height:=600; Position:=poScreenCenter;
   Bar:=TPanel.Create(Self); Bar.Parent:=Self; Bar.Align:=alBottom; Bar.Height:=36; Bar.BevelOuter:=bvNone;
   fPrevious:=TButton.Create(Self); fPrevious.Parent:=Bar; fPrevious.SetBounds(8,3,100,29);
@@ -256,7 +259,7 @@ begin
 end;
 procedure TGpoPreviewWindow.Render;
 begin
-  fMemo.Text:=BuildPreview(fChanges,fPage);
+  fMemo.Text:=BuildPreview(fChanges,fPage,fSummary);
   fPrevious.Enabled:=fPage>0; fNext.Enabled:=fPage<fPages-1;
 end;
 procedure TGpoPreviewWindow.Step(Sender:TObject);
@@ -425,7 +428,21 @@ function TFrmGpoOfflineDraft.CreatePreviewWindow:TForm;
 var Changes:TGpoRegistryChanges;
 begin
   Changes:=Current.Preview;
-  Result:=TGpoPreviewWindow.CreatePreview(Self,Changes);
+  Result:=TGpoPreviewWindow.CreatePreview(Self,Changes,PreviewSummary);
+end;
+
+function TFrmGpoOfflineDraft.PreviewSummary:string;
+var Side:TGpoDraftSide; SideName,State,Source:string;
+begin
+  Result:='';
+  for Side:=Low(TGpoDraftSide) to High(TGpoDraftSide) do
+  begin
+    if Side=gdsComputer then SideName:='计算机配置' else SideName:='用户配置';
+    if fDrafts[Side].Dirty then State:='有未导出修改' else State:='无未导出修改';
+    if fPaths[Side]='' then Source:='新建空草稿' else Source:='本地文件 '+fPaths[Side];
+    Result:=Result+SideName+'：'+State+'；基线：'+Source+LineEnding;
+  end;
+  Result:=Result+'域版本：未知；本地草稿没有域基线，不能生成域变更计划。';
 end;
 
 procedure TFrmGpoOfflineDraft.Closing(Sender:TObject; var CanClose:Boolean);
@@ -514,7 +531,7 @@ function TFrmGpoOfflineDraft.PreviewText(Page:Integer):string;
 var Changes:TGpoRegistryChanges;
 begin
   Changes:=Current.Preview;
-  Result:=BuildPreview(Changes,Page);
+  Result:=BuildPreview(Changes,Page,PreviewSummary);
 end;
 procedure TFrmGpoOfflineDraft.PreviewClick(Sender:TObject);
 begin ShowPreview; end;

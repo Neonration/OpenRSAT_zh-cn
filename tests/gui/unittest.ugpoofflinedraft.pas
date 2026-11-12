@@ -167,6 +167,11 @@ begin
     F.SelectSide(gdsUser); Check(not F.Draft(gdsUser).Dirty);
     F.NextRecord:=Item('User\Policy','B',3,[7]); F.AddButton.Click;
     Check(F.Draft(gdsUser).Dirty); Check(F.Draft(gdsComputer).Dirty);
+    F.PreviewButton.Click;
+    Check(Pos('计算机配置：有未导出修改',F.LastPreview)>0);
+    Check(Pos('用户配置：有未导出修改',F.LastPreview)>0);
+    Check(Pos('本地草稿没有域基线，不能生成域变更计划',F.LastPreview)>0);
+    Check(F.Draft(gdsUser).Dirty and F.Draft(gdsComputer).Dirty);
     F.Choice:=False; CanClose:=True; F.OnCloseQuery(F,CanClose); Check(not CanClose);
     F.Choice:=True; CanClose:=False; F.OnCloseQuery(F,CanClose); Check(CanClose);
     F.SelectSide(gdsComputer);
@@ -186,6 +191,10 @@ begin
     F.NextPath:=Path;
     F.SaveButton.Click; Check(FileExists(Path)); Check(not F.Draft(gdsComputer).Dirty);
     Check(GpoLoadLocalFile(Path,Data,E)); Check(EqualBytes(Prior,Data));
+    F.PreviewButton.Click;
+    Check(Pos('计算机配置：无未导出修改；基线：本地文件',F.LastPreview)>0);
+    Check(Pos(Path,F.LastPreview)>0);
+    Check(Pos('用户配置：有未导出修改',F.LastPreview)>0);
     F.NextRecord:=Item('K','Changed',3,[9]); F.AddButton.Click;
     Check(F.Draft(gdsComputer).Dirty); F.SaveButton.Click;
     Check(F.Draft(gdsComputer).Dirty); Check(Pos('已存在',F.LastError)>0);
@@ -334,6 +343,7 @@ begin
       Next:=TButton(P.FindComponent('GpoPreviewNext'));
       Previous:=TButton(P.FindComponent('GpoPreviewPrevious'));
       Check(Assigned(Memo) and Assigned(Next) and Assigned(Previous));
+      Check(Memo.ReadOnly); Check(Pos('域版本：未知',Memo.Text)>0);
       Check(not Previous.Enabled); Check(Next.Enabled);
       Check(Pos('记录 1:',Memo.Text)>0);
       Next.Click; Check(Pos('记录 201:',Memo.Text)>0);
