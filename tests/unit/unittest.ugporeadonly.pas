@@ -217,9 +217,9 @@ end;
 procedure TUnitTestGpoReadOnly.BoundPlanWithFiles;
 const Guid='{12345678-1234-1234-1234-123456789ABC}';
 var T:TGpoPreflightTarget; Token:ILdapSessionToken; TokenObj:TPreflightToken;
-  E,Other:TGpoLdapEvidence; F,Changed:TGpoObservedFiles; P:TGpoOfflinePlan; B:TGpoBoundPlan;
+  E,Other:TGpoLdapEvidence; F,Changed:TGpoObservedFiles; P,Replanned:TGpoOfflinePlan; B:TGpoBoundPlan; Draft:TGpoObservedDraft;
   SD:mormot.core.os.security.TSecurityDescriptor; RawSD:RawByteString;
-  OldUser,NewUser,OldMachine,NewMachine:TGpoPolicyImage; Ini:TBytes; A:TGpoFile;
+  OldUser,NewUser,OldMachine,NewMachine,SnapshotUser,SnapshotMachine:TGpoPolicyImage; Ini:TBytes; A:TGpoFile;
 begin
   TokenObj:=TPreflightToken.Create; TokenObj.Valid:=True; Token:=TokenObj;
   T:=Default(TGpoPreflightTarget); T.Domain:='example.test'; T.DC:='dc.example.test';
@@ -241,6 +241,39 @@ begin
     F.Items[A].Metadata.SecurityDescriptor:=Bytes(RawSD);
   end;
   F.Items[gfGptIni].Data:=Copy(Ini); F.Items[gfUserRegistry].Data:=Header; F.Items[gfMachineRegistry].Data:=Header;
+  Check(TGpoObservedDraft.Bind(E,F,Draft)=gprEvidenceIncomplete);
+  if not Assigned(Draft) then begin Check(False,'Expected target-bound draft'); Exit; end;
+  try
+    Check(Draft.GetBaseline(SnapshotUser,SnapshotMachine));
+    Check(SnapshotUser.Exists and SnapshotMachine.Exists);
+    SnapshotUser.Data[0]:=0;
+    Check(Draft.GetBaseline(SnapshotUser,SnapshotMachine)); Check(SnapshotUser.Data[0]<>0);
+    Check(Draft.BuildPlan(E,F,NewUser,NewMachine,Replanned)=gprEvidenceIncomplete);
+    Check((Replanned.UserAction=gpaNone) and (Replanned.MachineAction=gpaNone));
+    NewUser.Data:=RecordBytes('K','V',3,[1]);
+    Check(Draft.BuildPlan(E,F,NewUser,NewMachine,Replanned)=gprEvidenceIncomplete);
+    Check((Replanned.UserAction=gpaReplace) and (Replanned.MachineAction=gpaNone));
+    Check(GpoBuildObservedDraftPlan(nil,T.DN,Guid,Draft,NewUser,NewMachine,Replanned)=gprSessionInvalid);
+    Check(Length(Replanned.GptIni)=0);
+    NewUser.Data:=Bytes('broken');
+    Check(Draft.BuildPlan(E,F,NewUser,NewMachine,Replanned)=gprInvalid);
+    Check(Length(Replanned.GptIni)=0);
+    NewUser.Data:=RecordBytes('K','V',3,[1]);
+    Changed:=F; Changed.Target.DC:='dc2.example.test';
+    Check(Draft.BuildPlan(E,Changed,NewUser,NewMachine,Replanned)=gprTargetMismatch);
+    Check(Length(Replanned.GptIni)=0);
+    Other:=E; Inc(Other.USNChanged);
+    Check(Draft.BuildPlan(Other,F,NewUser,NewMachine,Replanned)=gprConflict);
+    Changed:=F; Changed.Items[gfUserRegistry].Data:=Copy(F.Items[gfUserRegistry].Data);
+    F.Items[gfUserRegistry].Data:=Copy(F.Items[gfUserRegistry].Data); F.Items[gfUserRegistry].Data[0]:=0;
+    Check(Draft.BuildPlan(E,Changed,NewUser,NewMachine,Replanned)=gprEvidenceIncomplete,'Draft owns original baseline');
+    F.Items[gfUserRegistry].Data:=Copy(Changed.Items[gfUserRegistry].Data);
+    Token.Invalidate;
+    Check(Draft.BuildPlan(E,F,NewUser,NewMachine,Replanned)=gprSessionInvalid);
+    Check(not Draft.GetBaseline(SnapshotUser,SnapshotMachine)); Check(Length(SnapshotUser.Data)=0);
+  finally Draft.Free; end;
+  TokenObj:=TPreflightToken.Create; TokenObj.Valid:=True; Token:=TokenObj; T.Session:=Token; E.Target:=T; F.Target:=T;
+  NewUser:=OldUser;
   Check(TGpoBoundPlan.BindWithFiles(E,P,F,B)=gprEvidenceIncomplete);
   if not Assigned(B) then begin Check(False,'Expected bound plan'); Exit; end;
   try
@@ -286,6 +319,15 @@ begin
   Changed.Items[gfUserRegistry].Metadata.Attributes:=$410;
   Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprReadUnavailable); Check(not Assigned(B));
   Changed.Items[gfUserRegistry].Metadata.Attributes:=$10;
+  Check(TGpoObservedDraft.Bind(E,Changed,Draft)=gprEvidenceIncomplete);
+  if Assigned(Draft) then
+  begin
+    Check(Draft.BuildPlan(E,Changed,NewUser,NewMachine,Replanned)=gprEvidenceIncomplete);
+    Check((Replanned.UserAction=gpaCreate) and (Replanned.MachineAction=gpaDelete));
+    Inc(Changed.Items[gfUserRegistry].Metadata.FileIndexLow);
+    Check(Draft.BuildPlan(E,Changed,NewUser,NewMachine,Replanned)=gprConflict);
+    Dec(Changed.Items[gfUserRegistry].Metadata.FileIndexLow); Draft.Free;
+  end;
   Check(TGpoBoundPlan.BindWithFiles(E,P,Changed,B)=gprEvidenceIncomplete);
   if Assigned(B) then
   begin
@@ -311,6 +353,8 @@ begin
   if Assigned(B) then begin Check(B.CompareWithFiles(E,Changed)=gprEvidenceIncomplete); B.Free; end;
   Check(GpoBeginReadOnlyPreflight(nil,T.DN,Guid,P,B)=gprSessionInvalid); Check(not Assigned(B));
   Check(GpoCheckReadOnlyPreflight(nil,T.DN,Guid,nil)=gprInvalid);
+  Check(GpoCaptureObservedDraft(nil,T.DN,Guid,Draft)=gprSessionInvalid); Check(not Assigned(Draft));
+  Check(GpoBuildObservedDraftPlan(nil,T.DN,Guid,nil,NewUser,NewMachine,Replanned)=gprInvalid);
 end;
 procedure TUnitTestGpoReadOnly.LdapEvidenceParsing;
 const Guid='{12345678-1234-1234-1234-123456789ABC}'; DN='CN='+Guid+',CN=Policies,CN=System,DC=example,DC=test';
