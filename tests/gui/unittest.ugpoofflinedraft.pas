@@ -186,6 +186,17 @@ procedure TUnitTestGpoOfflineDraftUI.TypeAndHexValidation;
 var B:TBytes; E:string; R:TGpoRegistryRecord;
 begin
   Check(GpoParseHex('',B,E)); Check(Length(B)=0);
+  Check(GpoEncodeFriendly(4,'4294967295',B,E)); Check((Length(B)=4) and (B[0]=$ff) and (B[3]=$ff));
+  Check(not GpoEncodeFriendly(4,'4294967296',B,E)); Check(Length(B)=0);
+  Check(not GpoEncodeFriendly(4,'-1',B,E)); Check(not GpoEncodeFriendly(4,'0x10',B,E));
+  Check(GpoEncodeFriendly(11,'18446744073709551615',B,E)); Check((Length(B)=8) and (B[7]=$ff));
+  Check(not GpoEncodeFriendly(11,'18446744073709551616',B,E)); Check(Length(B)=0);
+  Check(GpoEncodeFriendly(1,'中文😀',B,E));
+  Check((Length(B)=10) and (B[0]=$2d) and (B[1]=$4e) and (B[4]=$3d) and (B[5]=$d8) and (B[8]=0) and (B[9]=0));
+  Check(GpoEncodeFriendly(1,'',B,E)); Check((Length(B)=2) and (B[0]=0) and (B[1]=0));
+  Check(not GpoEncodeFriendly(1,'a'+#0+'b',B,E)); Check(Length(B)=0);
+  Check(not GpoEncodeFriendly(1,StringOfChar('a',32767),B,E));
+  Check(not GpoEncodeFriendly($deadbeef,'1',B,E)); Check(Length(B)=0);
   Check(GpoParseHex('00 aB'+#13#10'Ff',B,E)); Check(Length(B)=3); Check(B[1]=$ab); Check(B[2]=$ff);
   Check(not GpoParseHex('0',B,E)); Check(Length(B)=0);
   Check(not GpoParseHex('00 ZZ',B,E)); Check(Length(B)=0);

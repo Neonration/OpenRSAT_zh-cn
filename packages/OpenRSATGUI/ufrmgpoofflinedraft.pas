@@ -83,9 +83,17 @@ type
 
 function GpoParseHex(const S:string; out Data:TBytes; out Error:string):Boolean;
 function GpoValidateDraftRecord(const Item:TGpoRegistryRecord; out Error:string):Boolean;
+function GpoEncodeFriendly(ValueType:Cardinal; const Text:string; out Data:TBytes; out Error:string):Boolean;
 
 implementation
 uses Dialogs, LazUTF8, LCLType, ugpolocalfiles;
+
+type
+  TFriendlyInput = class(TComponent)
+    TypeBox:TComboBox;
+    HexMemo:TMemo;
+    procedure Click(Sender:TObject);
+  end;
 
 resourcestring
   SDirty = ' * 未导出';
@@ -195,6 +203,51 @@ begin
     Result[P+2]:=' '; Inc(P,3);
   end;
   if N<Length(Data) then Result:=Result+'... ';
+end;
+
+function GpoEncodeFriendly(ValueType:Cardinal; const Text:string; out Data:TBytes; out Error:string):Boolean;
+var I,N:Integer; V:QWord; U:UnicodeString; R:TGpoRegistryRecord;
+begin
+  Result:=False; Data:=nil; Error:='';
+  case ValueType of
+    4,11:
+    begin
+      if Text='' then begin Error:='请输入无符号十进制整数。'; Exit; end;
+      for I:=1 to Length(Text) do if not (Text[I] in ['0'..'9']) then
+      begin Error:='请输入无符号十进制整数。'; Exit; end;
+      if not TryStrToQWord(Text,V) or ((ValueType=4) and (V>High(Cardinal))) then
+      begin Error:='数值超出类型范围。'; Exit; end;
+      if ValueType=4 then N:=4 else N:=8;
+      SetLength(Data,N);
+      for I:=0 to N-1 do begin Data[I]:=Byte(V and $ff); V:=V shr 8; end;
+    end;
+    1:
+    begin
+      U:=UTF8Decode(Text);
+      if Length(U)>(GpoMaxValueBytes div 2)-1 then
+      begin Error:='文本超过数据长度限制。'; Exit; end;
+      SetLength(Data,(Length(U)+1)*2);
+      for I:=1 to Length(U) do begin Data[(I-1)*2]:=Ord(U[I]) and $ff; Data[(I-1)*2+1]:=Ord(U[I]) shr 8; end;
+      Data[Length(Data)-2]:=0; Data[Length(Data)-1]:=0;
+      R:=Default(TGpoRegistryRecord); R.Key:='K'; R.ValueType:=1; R.Data:=Data;
+      if not GpoValidateDraftRecord(R,Error) then begin Data:=nil; Exit; end;
+    end;
+    else begin Error:='此类型请继续使用原始十六进制数据。'; Exit; end;
+  end;
+  Result:=True;
+end;
+
+procedure TFriendlyInput.Click(Sender:TObject);
+var Text,Error,Prompt:string; Data:TBytes; Kind:Integer;
+begin
+  Kind:=TypeBox.ItemIndex;
+  if not (Kind in [1,4,11]) then
+  begin MessageDlg('本地草稿','仅 REG_SZ、REG_DWORD 和 REG_QWORD 支持此输入方式；其他类型请使用原始十六进制。',mtInformation,[mbOK],0); Exit; end;
+  if Kind=1 then Prompt:='输入文本（可为空）:' else Prompt:='输入无符号十进制整数:';
+  Text:=''; if not InputQuery('替换原始数据',Prompt,Text) then Exit;
+  if not GpoEncodeFriendly(Kind,Text,Data,Error) then
+  begin MessageDlg('本地草稿',Error,mtError,[mbOK],0); Exit; end;
+  HexMemo.Text:=HexPreview(Data,GpoMaxValueBytes);
 end;
 
 function BuildPreview(const Changes:TGpoRegistryChanges; Page:Integer; const Summary:string):string;
@@ -678,7 +731,7 @@ function TFrmGpoOfflineDraft.EditRecord(var Item:TGpoRegistryRecord; Adding:Bool
 const TypeNames:array[0..11] of string = ('REG_NONE','REG_SZ','REG_EXPAND_SZ','REG_BINARY',
   'REG_DWORD','REG_DWORD_BIG_ENDIAN','REG_LINK','REG_MULTI_SZ','REG_RESOURCE_LIST',
   'REG_FULL_RESOURCE_DESCRIPTOR','REG_RESOURCE_REQUIREMENTS_LIST','REG_QWORD');
-var Dialog:TForm; KeyEdit,NameEdit:TEdit; TypeBox:TComboBox; HexMemo:TMemo;
+var Dialog:TForm; KeyEdit,NameEdit:TEdit; TypeBox:TComboBox; HexMemo:TMemo; Friendly:TFriendlyInput;
   Btn:TButton; I,Choice:Integer; Candidate:TGpoRegistryRecord; Err:string;
   procedure LabelAt(const Text:string; TopValue:Integer);
   var L:TLabel;
@@ -697,9 +750,12 @@ begin
     for I:=Low(TypeNames) to High(TypeNames) do TypeBox.Items.Add(TypeNames[I]);
     if Item.ValueType<=11 then TypeBox.ItemIndex:=Item.ValueType
     else begin TypeBox.Items.Add('未知类型 '+UIntToStr(Item.ValueType)); TypeBox.ItemIndex:=12; end;
-    LabelAt('原始数据：十六进制字节（例如 DWORD 1 为 01 00 00 00）',187);
+    LabelAt('原始数据：十六进制字节',187);
     HexMemo:=TMemo.Create(Dialog); HexMemo.Parent:=Dialog; HexMemo.SetBounds(12,210,620,190);
     HexMemo.ScrollBars:=ssVertical; HexMemo.Text:=HexPreview(Item.Data,GpoMaxValueBytes);
+    Friendly:=TFriendlyInput.Create(Dialog); Friendly.TypeBox:=TypeBox; Friendly.HexMemo:=HexMemo;
+    Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(280,182,352,27);
+    Btn.Caption:='用十进制或文本替换数据…'; Btn.OnClick:=@Friendly.Click;
     Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(428,420,95,30);
     Btn.Caption:='确定'; Btn.ModalResult:=mrOk; Btn.Default:=True;
     Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(537,420,95,30);
