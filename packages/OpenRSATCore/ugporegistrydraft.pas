@@ -31,6 +31,7 @@ type
     function Replace(Index: SizeInt; const Value: TGpoRegistryRecord): TGpoReadStatus;
     function Delete(Index: SizeInt): TGpoReadStatus;
     function Export(out Data: TBytes): TGpoReadStatus;
+    function Baseline(out Data: TBytes): TGpoReadStatus;
     function Undo: Boolean; // One successful change; no-op edits keep the undo.
     procedure Reset; // Discard every edit and restore the original exact bytes.
     function Preview: TGpoRegistryChanges; // Positional raw diff, not effective policy.
@@ -129,6 +130,13 @@ begin
   Data := nil;
   if not fLoaded then Exit(grsMissing);
   Data := Copy(fCurrent); Result := grsOk;
+end;
+
+function TGpoRegistryDraft.Baseline(out Data: TBytes): TGpoReadStatus;
+begin
+  Data := nil;
+  if not fLoaded then Exit(grsMissing);
+  Data := Copy(fOriginal); Result := grsOk;
 end;
 
 function TGpoRegistryDraft.Undo: Boolean;

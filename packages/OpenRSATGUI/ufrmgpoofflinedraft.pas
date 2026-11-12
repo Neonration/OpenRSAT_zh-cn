@@ -19,7 +19,7 @@ type
     fComputerNode, fUserNode: TTreeNode;
     fPane: TGpoRegistryPane;
     fStatus: TLabel;
-    fNew, fOpen, fSave, fAdd, fEdit, fDelete, fUndo, fReset, fPreview: TButton;
+    fNew, fOpen, fSave, fAdd, fEdit, fDelete, fUndo, fReset, fPreview, fPlan: TButton;
     procedure TreeChanged(Sender:TObject; Node:TTreeNode);
     procedure RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);
     function ExportCurrent:Boolean;
@@ -32,6 +32,7 @@ type
     procedure UndoClick(Sender:TObject);
     procedure ResetClick(Sender:TObject);
     procedure PreviewClick(Sender:TObject);
+    procedure PlanClick(Sender:TObject);
     procedure RowDblClick(Sender:TObject);
     procedure Closing(Sender:TObject; var CanClose:Boolean);
     procedure RefreshView(SelectedIndex:Integer=-1; PreserveCurrent:Boolean=True);
@@ -43,9 +44,12 @@ type
     function ConfirmClose(const Branches:string):TGpoCloseChoice; virtual;
     function ConfirmRestore:Boolean; virtual;
     function ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean; virtual;
+    function ChooseGptFile(out Path:string):Boolean; virtual;
+    function RequestGpcVersion(out Value:string):Boolean; virtual;
     function EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean; virtual;
     procedure ShowError(const MessageText:string); virtual;
     procedure ShowPreview; virtual;
+    procedure ShowPlanReport(const Report:string); virtual;
   public
     constructor Create(TheOwner:TComponent); override;
     destructor Destroy; override;
@@ -65,6 +69,7 @@ type
     property UndoButton:TButton read fUndo;
     property ResetButton:TButton read fReset;
     property PreviewButton:TButton read fPreview;
+    property PlanButton:TButton read fPlan;
   end;
 
 function GpoParseHex(const S:string; out Data:TBytes; out Error:string):Boolean;
@@ -306,6 +311,7 @@ begin
   fUndo:=MakeButton('撤销一步',1,1,@UndoClick);
   fReset:=MakeButton(SRestoreBaseline,2,1,@ResetClick);
   fPreview:=MakeButton('预览记录变更',3,1,@PreviewClick);
+  fPlan:=MakeButton('本地计划预演…',4,1,@PlanClick);
   fStatus:=TLabel.Create(Self); fStatus.Parent:=Self; fStatus.Align:=alBottom;
   fStatus.AutoSize:=False; fStatus.Height:=44; fStatus.Layout:=tlCenter;
   fStatus.WordWrap:=True;
@@ -314,6 +320,72 @@ begin
   fPane.Rows.OnKeyDown:=nil; fPane.Rows.OnSelectItem:=@RowSelected; fPane.ViewButton.Visible:=False;
   fSavedIndex[gdsComputer]:=-1; fSavedIndex[gdsUser]:=-1;
   fSide:=gdsComputer; fValidSide:=True; fTree.Selected:=fComputerNode; RefreshView;
+end;
+function TFrmGpoOfflineDraft.ChooseGptFile(out Path:string):Boolean;
+var D:TOpenDialog;
+begin
+  Path:=''; D:=TOpenDialog.Create(Self);
+  try
+    D.Title:='选择本地 GPT.INI 快照'; D.Filter:='INI 文件 (*.ini)|*.ini|所有文件 (*.*)|*.*';
+    D.Options:=D.Options+[ofFileMustExist];
+    Result:=D.Execute; if Result then Path:=D.FileName;
+  finally D.Free; end;
+end;
+function TFrmGpoOfflineDraft.RequestGpcVersion(out Value:string):Boolean;
+begin
+  Value:='';
+  Result:=InputQuery('本地计划预演','输入快照中 LDAP versionNumber 的有符号十进制值：',Value);
+end;
+procedure TFrmGpoOfflineDraft.ShowPlanReport(const Report:string);
+var Window:TForm; Memo:TMemo; CloseButton:TButton;
+begin
+  Window:=TForm.CreateNew(Self,0);
+  try
+    Window.Caption:='本地计划预演（不会应用到域）'; Window.Width:=900; Window.Height:=500;
+    Window.Position:=poScreenCenter;
+    CloseButton:=TButton.Create(Window); CloseButton.Parent:=Window; CloseButton.Align:=alBottom;
+    CloseButton.Height:=36; CloseButton.Caption:='关闭'; CloseButton.ModalResult:=mrClose;
+    Memo:=TMemo.Create(Window); Memo.Parent:=Window; Memo.Align:=alClient; Memo.ReadOnly:=True;
+    Memo.ScrollBars:=ssAutoBoth; Memo.WordWrap:=False; Memo.Text:=Report;
+    Window.ShowModal;
+  finally Window.Free; end;
+end;
+procedure TFrmGpoOfflineDraft.PlanClick(Sender:TObject);
+var Input,Path,Err,Report:string; Gpc,Gpt:Cardinal;
+  Ini,OldUser,NewUser,OldMachine,NewMachine:TBytes; P:TGpoOfflinePlan; Status:TGpoOfflinePlanStatus;
+  function ActionText(Action:TGpoPolicyAction):string;
+  begin
+    case Action of
+      gpaNone:Result:='无变化'; gpaCreate:Result:='创建';
+      gpaReplace:Result:='替换'; gpaDelete:Result:='删除';
+    end;
+  end;
+begin
+  if (fPaths[gdsUser]='') or (fPaths[gdsComputer]='') then
+  begin ShowError('请先为计算机和用户两侧分别打开或导出本地 Registry.pol 基线。'); Exit; end;
+  if not RequestGpcVersion(Input) then Exit;
+  if not GpoParseLdapVersion(Input,Gpc) then begin ShowError('LDAP versionNumber 必须是有效的有符号 32 位十进制数。'); Exit; end;
+  if not ChooseGptFile(Path) then Exit;
+  if not GpoLoadLocalFile(Path,Ini,Err) then begin ShowError(Err); Exit; end;
+  if ParseGptIni(Ini,Gpt)<>grsOk then begin ShowError('无法解析本地 GPT.INI 版本。'); Exit; end;
+  if (fDrafts[gdsUser].Baseline(OldUser)<>grsOk) or (fDrafts[gdsUser].Export(NewUser)<>grsOk) or
+     (fDrafts[gdsComputer].Baseline(OldMachine)<>grsOk) or (fDrafts[gdsComputer].Export(NewMachine)<>grsOk) then
+  begin ShowError('无法读取本地草稿快照。'); Exit; end;
+  Status:=GpoBuildOfflinePlan(Gpc,Gpt,Ini,OldUser,NewUser,OldMachine,NewMachine,P);
+  if Status<>gopOk then
+  begin
+    if Status=gopBaselineMismatch then ShowError('输入的 LDAP 版本与本地 GPT.INI 版本不一致。')
+    else ShowError('本地快照无效或包含不支持的 GPT.INI 格式，无法生成预演。');
+    Exit;
+  end;
+  Report:='仅本地预演：来源未经验证，不构成域写入授权，不会应用到域。'+LineEnding+
+    '计算机基线：'+fPaths[gdsComputer]+LineEnding+'用户基线：'+fPaths[gdsUser]+LineEnding+
+    'GPT.INI 快照：'+Path+LineEnding+'输入 LDAP versionNumber：'+Input+LineEnding+
+    '计算机策略：'+ActionText(P.MachineAction)+LineEnding+'用户策略：'+ActionText(P.UserAction)+LineEnding+
+    'GPT 版本：'+UIntToStr(Gpt)+' → '+P.Version.GptValue+LineEnding+
+    'LDAP versionNumber：'+Input+' → '+P.Version.LdapValue+LineEnding+
+    '未验证文件身份、域控、权限、并发或复制；不执行写入。';
+  ShowPlanReport(Report);
 end;
 
 destructor TFrmGpoOfflineDraft.Destroy;

@@ -11,6 +11,7 @@ type
     procedure UnicodeAndConcurrentCreate;
     procedure PagedRecordEditing;
     procedure CloseAndDiffAfter64;
+    procedure LocalPlanRehearsal;
   end;
 implementation
 uses SysUtils, Classes, SyncObjs, Forms, StdCtrls, ExtCtrls, ugpoformats, ugporegistrydraft, ugpolocalfiles,
@@ -30,15 +31,20 @@ type
     PromptCalls, RestoreCalls, ErrorCalls:Integer;
     NextRecord:TGpoRegistryRecord;
     NextPath, LastError, LastPreview:string;
+    GptPath, VersionInput, PlanReport:string;
+    GptChoice, VersionChoice:Boolean; PlanReports:Integer;
     constructor Create(TheOwner:TComponent); override;
   protected
     function ConfirmDiscard:Boolean; override;
     function ConfirmClose(const Branches:string):TGpoCloseChoice; override;
     function ConfirmRestore:Boolean; override;
     function ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean; override;
+    function ChooseGptFile(out Path:string):Boolean; override;
+    function RequestGpcVersion(out Value:string):Boolean; override;
     function EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean; override;
     procedure ShowError(const MessageText:string); override;
     procedure ShowPreview; override;
+    procedure ShowPlanReport(const Report:string); override;
   end;
   TConcurrentWriter=class(TThread)
   public
@@ -77,10 +83,16 @@ begin
 end;
 function TTestOfflineForm.EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean;
 begin Result:=EditChoice; if Result then Item:=NextRecord; end;
+function TTestOfflineForm.ChooseGptFile(out Path:string):Boolean;
+begin Path:=GptPath; Result:=GptChoice; end;
+function TTestOfflineForm.RequestGpcVersion(out Value:string):Boolean;
+begin Value:=VersionInput; Result:=VersionChoice; end;
 procedure TTestOfflineForm.ShowError(const MessageText:string);
 begin Inc(ErrorCalls); LastError:=MessageText; end;
 procedure TTestOfflineForm.ShowPreview;
 begin LastPreview:=PreviewText; end;
+procedure TTestOfflineForm.ShowPlanReport(const Report:string);
+begin Inc(PlanReports); PlanReport:=Report; end;
 function Item(const Key,Name:UnicodeString; Kind:Cardinal; const Bytes:array of Byte):TGpoRegistryRecord;
 var I:Integer;
 begin
@@ -89,6 +101,60 @@ begin
 end;
 function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
+procedure TUnitTestGpoOfflineDraftUI.LocalPlanRehearsal;
+{$ifdef windows}
+var F:TTestOfflineForm; Dir,UserPath,MachinePath,GptPath,E:string;
+  Empty,Ini,ReadBack,Base:TBytes; S:RawByteString;
+begin
+  Dir:=GetTempDir(False)+'openrsat-plan-ui-'+IntToStr(GetCurrentProcessId);
+  if not CreateDir(Dir) then begin Check(False,'Cannot create fresh plan test directory'); Exit; end;
+  F:=TTestOfflineForm.Create(nil);
+  UserPath:=Dir+'\user.pol'; MachinePath:=Dir+'\machine.pol'; GptPath:=Dir+'\gpt.ini';
+  try
+    Check(SerializeRegistryPol(nil,Empty)=grsOk);
+    S:='[General]'#13#10'Version=1'#13#10; SetLength(Ini,Length(S)); Move(S[1],Ini[0],Length(S));
+    Check(GpoSaveNewLocalFile(UserPath,Empty,E)); Check(GpoSaveNewLocalFile(MachinePath,Empty,E));
+    Check(GpoSaveNewLocalFile(GptPath,Ini,E));
+    F.PlanButton.Click; Check(F.PlanReports=0); Check(Pos('请先',F.LastError)>0);
+    F.SelectChoice:=True; F.NextPath:=MachinePath; F.OpenButton.Click;
+    F.PlanButton.Click; Check(F.PlanReports=0); Check(Pos('请先',F.LastError)>0);
+    F.SelectSide(gdsUser); F.NextPath:=UserPath; F.OpenButton.Click;
+    F.PlanButton.Click; Check(F.PlanReports=0); // Cancel version input.
+    F.VersionChoice:=True; F.VersionInput:='2147483648'; F.PlanButton.Click;
+    Check(F.PlanReports=0); Check(Pos('有符号',F.LastError)>0);
+    F.VersionInput:='1'; F.GptChoice:=False; F.PlanButton.Click; Check(F.PlanReports=0);
+    F.GptChoice:=True; F.GptPath:=GptPath; F.PlanButton.Click;
+    Check(F.PlanReports=1); Check(Pos('来源未经验证',F.PlanReport)>0);
+    Check(Pos('计算机策略：无变化',F.PlanReport)>0); Check(Pos('用户策略：无变化',F.PlanReport)>0);
+    Check(Pos('GPT 版本：1 → 1',F.PlanReport)>0);
+    F.EditChoice:=True; F.NextRecord:=Item('QA\User','V',3,[1]); F.AddButton.Click;
+    Check(F.Draft(gdsUser).Dirty); F.PlanButton.Click;
+    Check(F.PlanReports=2); Check(Pos('计算机策略：无变化',F.PlanReport)>0);
+    Check(Pos('用户策略：替换',F.PlanReport)>0); Check(Pos('GPT 版本：1 → 65537',F.PlanReport)>0);
+    Check(Pos('LDAP versionNumber：1 → 65537',F.PlanReport)>0);
+    Check(F.Draft(gdsUser).Dirty and not F.Draft(gdsComputer).Dirty);
+    Check(F.Draft(gdsUser).Baseline(Base)=grsOk); Check(EqualBytes(Base,Empty));
+    Base[0]:=0; Check(F.Draft(gdsUser).Baseline(Base)=grsOk); Check(EqualBytes(Base,Empty));
+    F.SelectSide(gdsComputer); F.NextRecord:=Item('QA\Machine','V',3,[2]); F.AddButton.Click;
+    F.PlanButton.Click; Check(F.PlanReports=3);
+    Check(Pos('计算机策略：替换',F.PlanReport)>0); Check(Pos('用户策略：替换',F.PlanReport)>0);
+    Check(Pos('GPT 版本：1 → 65538',F.PlanReport)>0);
+    F.GptPath:=UserPath; F.PlanButton.Click; Check(F.PlanReports=3); Check(Pos('无法解析',F.LastError)>0);
+    F.GptPath:=GptPath; F.VersionInput:='2'; F.PlanButton.Click;
+    Check(F.PlanReports=3); Check(Pos('不一致',F.LastError)>0);
+    Check(F.Draft(gdsUser).Dirty);
+    Check(GpoLoadLocalFile(UserPath,ReadBack,E)); Check(EqualBytes(ReadBack,Empty));
+    Check(GpoLoadLocalFile(MachinePath,ReadBack,E)); Check(EqualBytes(ReadBack,Empty));
+    Check(GpoLoadLocalFile(GptPath,ReadBack,E)); Check(EqualBytes(ReadBack,Ini));
+  finally
+    F.Free;
+    Check(SysUtils.DeleteFile(UserPath)); Check(SysUtils.DeleteFile(MachinePath));
+    Check(SysUtils.DeleteFile(GptPath)); Check(RemoveDir(Dir));
+  end;
+end;
+{$else}
+begin Check(True,'Local file rehearsal is unavailable on this platform'); end;
+{$endif}
 procedure TUnitTestGpoOfflineDraftUI.TypeAndHexValidation;
 var B:TBytes; E:string; R:TGpoRegistryRecord;
 begin
