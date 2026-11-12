@@ -12,6 +12,7 @@ type
     procedure VersionPlanning;
     procedure GptIniCandidate;
     procedure OfflineChangePlan;
+    procedure OfflinePlanPresence;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -101,6 +102,49 @@ begin
   Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Empty,Empty,P)=gopInvalidIni); EmptyResult;
   Ini:=Bytes('[General]'#10'Version=1'#10'X='#195#169);
   Check(GpoBuildOfflinePlan(1,1,Ini,Empty,Empty,Empty,Empty,P)=gopUnsupportedIni); EmptyResult;
+end;
+procedure TUnitTestGpoReadOnly.OfflinePlanPresence;
+var Missing, Empty, User, Machine, Invalid, BadMissing:TGpoPolicyImage;
+  Ini:TBytes; P:TGpoOfflinePlan; V:Cardinal;
+  procedure CheckVersion(Expected:Cardinal);
+  begin Check(P.Version.Version=Expected); Check(ParseGptIni(P.GptIni,V)=grsOk); Check(V=Expected); end;
+  procedure CheckFailure;
+  begin
+    Check(not P.UserExists and not P.MachineExists and not P.UserChanged and not P.MachineChanged);
+    Check((P.UserAction=gpaNone) and (P.MachineAction=gpaNone));
+    Check((Length(P.UserPolicy)=0) and (Length(P.MachinePolicy)=0) and (Length(P.GptIni)=0));
+  end;
+begin
+  Missing:=Default(TGpoPolicyImage); Empty.Exists:=True; Empty.Data:=Header;
+  User.Exists:=True; User.Data:=RecordBytes('User','V',3,[1]);
+  Machine.Exists:=True; Machine.Data:=RecordBytes('Machine','V',3,[2]);
+  Invalid.Exists:=True; Invalid.Data:=nil;
+  BadMissing.Exists:=False; BadMissing.Data:=Header;
+  Ini:=Bytes('[General]'#10'Version=1');
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,Missing,Missing,Missing,P)=gopOk);
+  CheckVersion(1); Check((P.UserAction=gpaNone) and (P.MachineAction=gpaNone));
+  Check(not P.UserExists and not P.MachineExists);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,Empty,Missing,Missing,P)=gopOk);
+  CheckVersion($10001); Check(P.UserExists and (P.UserAction=gpaCreate)); Check(Length(P.UserPolicy)=8);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,User,Missing,Missing,P)=gopOk);
+  CheckVersion($10001); Check(P.UserAction=gpaCreate);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Empty,Missing,Missing,Missing,P)=gopOk);
+  CheckVersion($10001); Check(not P.UserExists and (P.UserAction=gpaDelete)); Check(Length(P.UserPolicy)=0);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Empty,User,Missing,Missing,P)=gopOk);
+  CheckVersion($10001); Check(P.UserAction=gpaReplace);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,User,Machine,Missing,P)=gopOk);
+  CheckVersion($10002); Check((P.UserAction=gpaCreate) and (P.MachineAction=gpaDelete));
+  Check(P.UserExists and not P.MachineExists); Check(Length(P.MachinePolicy)=0);
+  User.Data[0]:=0; Check(P.UserPolicy[0]=Ord('P'));
+  User.Data:=RecordBytes('User','V',3,[1]); P.UserPolicy[0]:=0; Check(User.Data[0]=Ord('P'));
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Invalid,Missing,Missing,Missing,P)=gopInvalidPolicy); CheckFailure;
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,Invalid,Missing,Missing,P)=gopInvalidPolicy); CheckFailure;
+  Invalid.Data:=Bytes('corrupt');
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,Missing,Invalid,Missing,P)=gopInvalidPolicy); CheckFailure;
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,Missing,Missing,Missing,Invalid,P)=gopInvalidPolicy); CheckFailure;
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,BadMissing,Missing,Missing,Missing,P)=gopInvalidPolicy); CheckFailure;
+  Check(GpoBuildOfflinePlanWithPresence(1,2,Ini,Missing,Empty,Missing,Missing,P)=gopBaselineMismatch); CheckFailure;
+  Check(GpoBuildOfflinePlanWithPresence(2,2,Ini,Missing,Empty,Missing,Missing,P)=gopBaselineMismatch); CheckFailure;
 end;
 procedure TUnitTestGpoReadOnly.GptIniCandidate;
 var Source, Candidate, Expected:TBytes; V:Cardinal; Plan:TGpoVersionPlan; I:Integer;

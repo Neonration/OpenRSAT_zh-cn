@@ -35,8 +35,14 @@ type
     gicBaselineMismatch, gicTooLarge);
   TGpoOfflinePlanStatus = (gopOk, gopInvalidPolicy, gopBaselineMismatch,
     gopInvalidIni, gopUnsupportedIni, gopTooLarge);
+  TGpoPolicyImage = record
+    Exists: Boolean;
+    Data: TBytes;
+  end;
+  TGpoPolicyAction = (gpaNone, gpaCreate, gpaReplace, gpaDelete);
   TGpoOfflinePlan = record
-    UserChanged, MachineChanged: Boolean;
+    UserChanged, MachineChanged, UserExists, MachineExists: Boolean;
+    UserAction, MachineAction: TGpoPolicyAction;
     Version: TGpoVersionPlan;
     GptIni, UserPolicy, MachinePolicy: TBytes;
   end;
@@ -57,6 +63,9 @@ function GpoBuildGptIniCandidate(const Data: TBytes; ExpectedVersion, NewVersion
 // Inputs must be distinct from Plan fields. All policies must be present and valid.
 function GpoBuildOfflinePlan(GpcVersion, GptVersion: Cardinal; const Ini,
   OldUser, NewUser, OldMachine, NewMachine: TBytes;
+  out Plan: TGpoOfflinePlan): TGpoOfflinePlanStatus;
+function GpoBuildOfflinePlanWithPresence(GpcVersion, GptVersion: Cardinal; const Ini: TBytes;
+  const OldUser, NewUser, OldMachine, NewMachine: TGpoPolicyImage;
   out Plan: TGpoOfflinePlan): TGpoOfflinePlanStatus;
 function ParseRegistryPol(const Data: TBytes; out Records: TGpoRegistryRecords): TGpoReadStatus;
 // Preserves ordered records and raw data, including unknown types and commands.
@@ -312,21 +321,45 @@ end;
 function GpoBuildOfflinePlan(GpcVersion, GptVersion: Cardinal; const Ini,
   OldUser, NewUser, OldMachine, NewMachine: TBytes;
   out Plan: TGpoOfflinePlan): TGpoOfflinePlanStatus;
+var OU,NU,OM,NM:TGpoPolicyImage;
+begin
+  OU.Exists:=True; OU.Data:=OldUser; NU.Exists:=True; NU.Data:=NewUser;
+  OM.Exists:=True; OM.Data:=OldMachine; NM.Exists:=True; NM.Data:=NewMachine;
+  Result:=GpoBuildOfflinePlanWithPresence(GpcVersion,GptVersion,Ini,OU,NU,OM,NM,Plan);
+end;
+
+function GpoBuildOfflinePlanWithPresence(GpcVersion, GptVersion: Cardinal; const Ini: TBytes;
+  const OldUser, NewUser, OldMachine, NewMachine: TGpoPolicyImage;
+  out Plan: TGpoOfflinePlan): TGpoOfflinePlanStatus;
 var Work: TGpoOfflinePlan; Records: TGpoRegistryRecords; IniStatus: TGptIniCandidateStatus;
   function EqualBytes(const A,B:TBytes):Boolean;
   begin
     Result:=Length(A)=Length(B);
     if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A));
   end;
-  function ValidPolicy(const Data:TBytes):Boolean;
-  begin Result:=ParseRegistryPol(Data,Records)=grsOk; Records:=nil; end;
+  function ValidPolicy(const Image:TGpoPolicyImage):Boolean;
+  begin
+    if not Image.Exists then Exit(Length(Image.Data)=0);
+    Result:=ParseRegistryPol(Image.Data,Records)=grsOk; Records:=nil;
+  end;
+  function PolicyAction(const OldImage,NewImage:TGpoPolicyImage):TGpoPolicyAction;
+  begin
+    if not OldImage.Exists then begin
+      if NewImage.Exists then Result:=gpaCreate else Result:=gpaNone;
+    end else if not NewImage.Exists then Result:=gpaDelete
+    else if EqualBytes(OldImage.Data,NewImage.Data) then Result:=gpaNone
+    else Result:=gpaReplace;
+  end;
 begin
   Plan:=Default(TGpoOfflinePlan); Work:=Default(TGpoOfflinePlan);
   Result:=gopInvalidPolicy;
   if not ValidPolicy(OldUser) or not ValidPolicy(NewUser) or
      not ValidPolicy(OldMachine) or not ValidPolicy(NewMachine) then Exit;
-  Work.UserChanged:=not EqualBytes(OldUser,NewUser);
-  Work.MachineChanged:=not EqualBytes(OldMachine,NewMachine);
+  Work.UserAction:=PolicyAction(OldUser,NewUser);
+  Work.MachineAction:=PolicyAction(OldMachine,NewMachine);
+  Work.UserChanged:=Work.UserAction<>gpaNone;
+  Work.MachineChanged:=Work.MachineAction<>gpaNone;
+  Work.UserExists:=NewUser.Exists; Work.MachineExists:=NewMachine.Exists;
   if not GpoPlanVersion(GpcVersion,GptVersion,Work.UserChanged,Work.MachineChanged,Work.Version) then
     Exit(gopBaselineMismatch);
   IniStatus:=GpoBuildGptIniCandidate(Ini,GptVersion,Work.Version.Version,Work.GptIni);
@@ -337,7 +370,7 @@ begin
     gicTooLarge: Exit(gopTooLarge);
   end;
   if not (Work.UserChanged or Work.MachineChanged) then Work.GptIni:=Copy(Ini);
-  Work.UserPolicy:=Copy(NewUser); Work.MachinePolicy:=Copy(NewMachine);
+  Work.UserPolicy:=Copy(NewUser.Data); Work.MachinePolicy:=Copy(NewMachine.Data);
   Plan:=Work; Result:=gopOk;
 end;
 
