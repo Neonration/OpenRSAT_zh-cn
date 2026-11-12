@@ -6,6 +6,7 @@ type
   TUnitTestGpoOfflineDraftUI=class(TSynTestCase)
   published
     procedure TypeAndHexValidation;
+    procedure RecordEditorKeyboardLayout;
     procedure LocalDraftInteraction;
     procedure LocalFileBoundaries;
     procedure UnicodeAndConcurrentCreate;
@@ -15,7 +16,7 @@ type
     procedure LocalPlanRehearsal;
   end;
 implementation
-uses SysUtils, Classes, SyncObjs, Forms, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugpolocalfiles,
+uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugpolocalfiles,
   ufrmgpoofflinedraft
   {$ifdef windows},Windows{$endif};
 {$ifdef windows}
@@ -48,6 +49,15 @@ type
     procedure ShowPreview; override;
     procedure ShowPlanReport(const Report:string); override;
   end;
+  TKeyboardOfflineForm=class(TFrmGpoOfflineDraft)
+  public
+    Seen, FirstFocus, DefaultOK, CancelOK:Boolean;
+    OrderOK:array[0..6] of Boolean;
+    LabelOK:array[0..3] of Boolean;
+    function InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
+  protected
+    function ExecuteRecordDialog(Dialog:TForm):TModalResult; override;
+  end;
   TConcurrentWriter=class(TThread)
   public
     Path, Error:string;
@@ -58,6 +68,35 @@ type
   protected
     procedure Execute; override;
   end;
+function TKeyboardOfflineForm.InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
+begin Result:=EditRecord(R,Adding); end;
+function TKeyboardOfflineForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
+const Names:array[0..6] of string=('GpoRecordKey','GpoRecordValueName','GpoRecordType',
+  'GpoRecordHex','GpoRecordFriendly','GpoRecordOK','GpoRecordCancel');
+  Keys:array[0..3] of string=('&K','&N','&T','&D');
+var I:Integer; C:TComponent; W:TWinControl; L:TLabel;
+begin
+  Seen:=True;
+  for I:=0 to High(Names) do
+  begin
+    C:=Dialog.FindComponent(Names[I]);
+    OrderOK[I]:=(C is TWinControl);
+    if not OrderOK[I] then Continue;
+    W:=TWinControl(C); OrderOK[I]:=W.TabStop and (W.TabOrder=I);
+    if I=0 then FirstFocus:=Dialog.ActiveControl=W;
+    if I<=High(LabelOK) then
+    begin
+      C:=Dialog.FindComponent(Names[I]+'Label'); LabelOK[I]:=C is TLabel;
+      if LabelOK[I] then begin L:=TLabel(C); LabelOK[I]:=(L.FocusControl=W) and
+        L.ShowAccelChar and (Pos(Keys[I],L.Caption)>0); end;
+    end;
+  end;
+  C:=Dialog.FindComponent('GpoRecordOK');
+  DefaultOK:=(C is TButton) and TButton(C).Default and (TButton(C).ModalResult=mrOk);
+  C:=Dialog.FindComponent('GpoRecordCancel');
+  CancelOK:=(C is TButton) and TButton(C).Cancel and (TButton(C).ModalResult=mrCancel);
+  Result:=mrCancel;
+end;
 constructor TTestOfflineForm.Create(TheOwner:TComponent);
 var H:PtrUInt;
 begin inherited Create(TheOwner); H:=Pane.Rows.Handle; H:=Tree.Handle; end;
@@ -116,6 +155,25 @@ begin
 end;
 function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
+procedure TUnitTestGpoOfflineDraftUI.RecordEditorKeyboardLayout;
+var F:TKeyboardOfflineForm; R:TGpoRegistryRecord; I,J:Integer;
+begin
+  F:=TKeyboardOfflineForm.Create(nil);
+  try
+    for J:=0 to 1 do
+    begin
+      R:=Item('Software\QA','Enabled',4,[1,0,0,0]);
+      F.Seen:=False;
+      Check(not F.InspectEditor(R,J=0)); Check(F.Seen); Check(F.FirstFocus);
+      Check(F.DefaultOK); Check(F.CancelOK);
+      for I:=0 to High(F.OrderOK) do Check(F.OrderOK[I]);
+      for I:=0 to High(F.LabelOK) do Check(F.LabelOK[I]);
+      Check(R.Key='Software\QA'); Check(R.ValueName='Enabled'); Check(R.ValueType=4);
+      Check(EqualBytes(R.Data,TBytes.Create(1,0,0,0)));
+      Check(not F.Draft(gdsComputer).Dirty and not F.Draft(gdsUser).Dirty);
+    end;
+  finally F.Free; end;
+end;
 procedure TUnitTestGpoOfflineDraftUI.LocalPlanRehearsal;
 {$ifdef windows}
 var F:TTestOfflineForm; Dir,UserPath,MachinePath,GptPath,E:string;

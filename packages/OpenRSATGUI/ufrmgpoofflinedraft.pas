@@ -53,6 +53,7 @@ type
     function ChooseGptFile(out Path:string):Boolean; virtual;
     function RequestGpcVersion(out Value:string):Boolean; virtual;
     function EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean; virtual;
+    function ExecuteRecordDialog(Dialog:TForm):TModalResult; virtual;
     procedure ShowError(const MessageText:string); virtual;
     procedure ShowPreview; virtual;
     procedure ShowPlanReport(const Report:string); virtual;
@@ -729,41 +730,56 @@ begin
   fFindStatus.Caption:='当前分支没有匹配的记录。';
 end;
 
+function TFrmGpoOfflineDraft.ExecuteRecordDialog(Dialog:TForm):TModalResult;
+begin Result:=Dialog.ShowModal; end;
+
 function TFrmGpoOfflineDraft.EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean;
 const TypeNames:array[0..11] of string = ('REG_NONE','REG_SZ','REG_EXPAND_SZ','REG_BINARY',
   'REG_DWORD','REG_DWORD_BIG_ENDIAN','REG_LINK','REG_MULTI_SZ','REG_RESOURCE_LIST',
   'REG_FULL_RESOURCE_DESCRIPTOR','REG_RESOURCE_REQUIREMENTS_LIST','REG_QWORD');
 var Dialog:TForm; KeyEdit,NameEdit:TEdit; TypeBox:TComboBox; HexMemo:TMemo; Friendly:TFriendlyInput;
   Btn:TButton; I,Choice:Integer; Candidate:TGpoRegistryRecord; Err:string;
-  procedure LabelAt(const Text:string; TopValue:Integer);
+  procedure LabelAt(const Text:string; TopValue:Integer; Target:TWinControl);
   var L:TLabel;
-  begin L:=TLabel.Create(Dialog); L.Parent:=Dialog; L.Caption:=Text; L.SetBounds(12,TopValue,570,22); end;
+  begin
+    L:=TLabel.Create(Dialog); L.Parent:=Dialog; L.Caption:=Text;
+    L.Name:=Target.Name+'Label'; L.FocusControl:=Target;
+    L.SetBounds(12,TopValue,570,22);
+  end;
 begin
   Result:=False; Dialog:=TForm.CreateNew(Self,0);
   try
     if Adding then Dialog.Caption:='添加本地原始注册表记录' else Dialog.Caption:='修改本地原始注册表记录';
     Dialog.Width:=660; Dialog.Height:=510; Dialog.Position:=poScreenCenter; Dialog.BorderStyle:=bsDialog;
-    LabelAt('注册表键路径（不含 HKLM/HKCU；不得为空）',12);
     KeyEdit:=TEdit.Create(Dialog); KeyEdit.Parent:=Dialog; KeyEdit.SetBounds(12,35,620,27); KeyEdit.Text:=UTF8Encode(Item.Key);
-    LabelAt('值名称（可以为空）',70);
+    KeyEdit.Name:='GpoRecordKey'; KeyEdit.TabOrder:=0;
+    LabelAt('注册表键路径(&K)（不含 HKLM/HKCU；不得为空）',12,KeyEdit);
     NameEdit:=TEdit.Create(Dialog); NameEdit.Parent:=Dialog; NameEdit.SetBounds(12,93,620,27); NameEdit.Text:=UTF8Encode(Item.ValueName);
-    LabelAt('类型',128);
+    NameEdit.Name:='GpoRecordValueName'; NameEdit.TabOrder:=1;
+    LabelAt('值名称(&N)（可以为空）',70,NameEdit);
     TypeBox:=TComboBox.Create(Dialog); TypeBox.Parent:=Dialog; TypeBox.SetBounds(12,151,620,27); TypeBox.Style:=csDropDownList;
+    TypeBox.Name:='GpoRecordType'; TypeBox.TabOrder:=2;
+    LabelAt('类型(&T)',128,TypeBox);
     for I:=Low(TypeNames) to High(TypeNames) do TypeBox.Items.Add(TypeNames[I]);
     if Item.ValueType<=11 then TypeBox.ItemIndex:=Item.ValueType
     else begin TypeBox.Items.Add('未知类型 '+UIntToStr(Item.ValueType)); TypeBox.ItemIndex:=12; end;
-    LabelAt('原始数据：十六进制字节',187);
     HexMemo:=TMemo.Create(Dialog); HexMemo.Parent:=Dialog; HexMemo.SetBounds(12,210,620,190);
     HexMemo.ScrollBars:=ssVertical; HexMemo.Text:=HexPreview(Item.Data,GpoMaxValueBytes);
+    HexMemo.Name:='GpoRecordHex'; HexMemo.TabOrder:=3;
+    LabelAt('原始数据(&D)：十六进制字节',187,HexMemo);
     Friendly:=TFriendlyInput.Create(Dialog); Friendly.TypeBox:=TypeBox; Friendly.HexMemo:=HexMemo;
     Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(280,182,352,27);
-    Btn.Caption:='用十进制或文本替换数据…'; Btn.OnClick:=@Friendly.Click;
+    Btn.Name:='GpoRecordFriendly'; Btn.TabOrder:=4;
+    Btn.Caption:='用十进制或文本替换数据(&F)…'; Btn.OnClick:=@Friendly.Click;
     Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(428,420,95,30);
-    Btn.Caption:='确定'; Btn.ModalResult:=mrOk; Btn.Default:=True;
+    Btn.Name:='GpoRecordOK'; Btn.TabOrder:=5;
+    Btn.Caption:='确定(&O)'; Btn.ModalResult:=mrOk; Btn.Default:=True;
     Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(537,420,95,30);
-    Btn.Caption:='取消'; Btn.ModalResult:=mrCancel; Btn.Cancel:=True;
+    Btn.Name:='GpoRecordCancel'; Btn.TabOrder:=6;
+    Btn.Caption:='取消(&C)'; Btn.ModalResult:=mrCancel; Btn.Cancel:=True;
+    Dialog.ActiveControl:=KeyEdit;
     repeat
-      if Dialog.ShowModal<>mrOk then Exit;
+      if ExecuteRecordDialog(Dialog)<>mrOk then Exit;
       Candidate:=Item; Candidate.Key:=UTF8Decode(KeyEdit.Text); Candidate.ValueName:=UTF8Decode(NameEdit.Text);
       Choice:=TypeBox.ItemIndex;
       if Choice<0 then begin ShowError('请选择类型。'); Continue; end;
