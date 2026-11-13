@@ -60,6 +60,7 @@ type
     procedure DomainClosed(Sender:TObject; var CloseAction:TCloseAction);
     function DomainCandidates(out User,Machine:TGpoPolicyImage):Boolean;
     function SideDirty(Side:TGpoDraftSide):Boolean;
+    function SideHasUnsavedWork(Side:TGpoDraftSide):Boolean;
     function DomainSummary(const User,Machine:TGpoPolicyImage; const BaseUser,BaseMachine:TBytes):string;
     procedure SummaryClick(Sender:TObject);
     procedure VerifyClick(Sender:TObject);
@@ -569,8 +570,12 @@ end;
 function TFrmGpoOfflineDraft.SideDirty(Side:TGpoDraftSide):Boolean;
 begin
   if fDomain then Result:=(fCandidateExists[Side]<>fDomainExists[Side]) or
-    ((fCandidateExists[Side] or fDetached) and fDrafts[Side].Dirty)
+    (fCandidateExists[Side] and fDrafts[Side].Dirty)
   else Result:=fDrafts[Side].Dirty;
+end;
+function TFrmGpoOfflineDraft.SideHasUnsavedWork(Side:TGpoDraftSide):Boolean;
+begin
+  Result:=SideDirty(Side) or (fDomain and not fCandidateExists[Side] and fDrafts[Side].Dirty);
 end;
 
 function SamePolicyImage(const A,B:TGpoPolicyImage):Boolean;
@@ -840,8 +845,8 @@ end;
 procedure TFrmGpoOfflineDraft.RefreshView(SelectedIndex:Integer; PreserveCurrent:Boolean);
 var Rows:TGpoRegistryRecords; State,SideName,Path:string; Row:Integer;
 begin
-  fComputerNode.Text:=SComputer; if SideDirty(gdsComputer) then fComputerNode.Text:=SComputer+SDirty;
-  fUserNode.Text:=SUser; if SideDirty(gdsUser) then fUserNode.Text:=SUser+SDirty;
+  fComputerNode.Text:=SComputer; if SideHasUnsavedWork(gdsComputer) then fComputerNode.Text:=SComputer+SDirty;
+  fUserNode.Text:=SUser; if SideHasUnsavedWork(gdsUser) then fUserNode.Text:=SUser+SDirty;
   fNew.Enabled:=fValidSide and not fDomain; fOpen.Enabled:=fValidSide and not fDomain; fSave.Enabled:=fValidSide;
   fAdd.Enabled:=fValidSide; fPreview.Enabled:=fValidSide; fFindButton.Enabled:=fValidSide;
   if not fValidSide then begin
@@ -858,7 +863,7 @@ begin
     if Row<fPane.Rows.Items.Count then fPane.Rows.Items[Row].Selected:=True;
   end;
   if fSide=gdsComputer then SideName:='计算机配置' else SideName:='用户配置';
-  if SideDirty(fSide) then State:='有未保存修改' else State:='无未保存修改';
+  if SideHasUnsavedWork(fSide) then State:='有未保存修改' else State:='无未保存修改';
   Path:=fPaths[fSide]; if Path='' then Path:='新建空草稿';
   fStatus.Caption:='本地离线草稿 | '+SideName+' | '+State+' | '+Path+
     '。仅原始 Registry.pol；不会应用到域。';
@@ -881,7 +886,7 @@ begin
   end;
   fEdit.Enabled:=Assigned(fPane.Rows.Selected) and (not fDomain or fCandidateExists[fSide]); fDelete.Enabled:=fEdit.Enabled;
   if fDomain then fUndo.Enabled:=fDomainUndoValid[fSide] else fUndo.Enabled:=Current.CanUndo;
-  fReset.Enabled:=SideDirty(fSide);
+  fReset.Enabled:=SideHasUnsavedWork(fSide);
 end;
 function TFrmGpoOfflineDraft.ConfirmDiscard:Boolean;
 begin
@@ -892,7 +897,7 @@ function TFrmGpoOfflineDraft.ConfirmClose(const Branches:string):TGpoCloseChoice
 var Choice:Integer;
 begin
   if fDomain then begin
-    Choice:=MessageDlg('关闭草稿','以下分支仍有候选修改：'+Branches+
+    Choice:=MessageDlg('关闭草稿','以下分支仍有未保存编辑或候选修改：'+Branches+
       '。本地导出不能保存文件存在状态。是否放弃草稿并关闭？',mtConfirmation,[mbYes,mbNo],0);
     if Choice=mrYes then Result:=gccDiscard else Result:=gccReturn;
     Exit;
@@ -1066,7 +1071,7 @@ begin
   for Side:=Low(TGpoDraftSide) to High(TGpoDraftSide) do
   begin
     if Side=gdsComputer then SideName:='计算机配置' else SideName:='用户配置';
-    if SideDirty(Side) then State:='有未导出修改' else State:='无未导出修改';
+    if SideHasUnsavedWork(Side) then State:='有未导出修改' else State:='无未导出修改';
     if fDomain then begin if fDomainExists[Side] then Source:='基线文件存在' else Source:='基线文件缺失'; end
     else if fPaths[Side]='' then Source:='新建空草稿' else Source:='本地文件 '+fPaths[Side];
     if fDomain then begin if fCandidateExists[Side] then Source:=Source+'；候选文件存在' else Source:=Source+'；候选文件缺失'; end;
@@ -1081,8 +1086,8 @@ procedure TFrmGpoOfflineDraft.Closing(Sender:TObject; var CanClose:Boolean);
 var Branches:string; Choice:TGpoCloseChoice; Side:TGpoDraftSide;
 begin
   CanClose:=False; Branches:='';
-  if SideDirty(gdsComputer) then Branches:=SComputer;
-  if SideDirty(gdsUser) then begin if Branches<>'' then Branches:=Branches+'、'; Branches:=Branches+SUser; end;
+  if SideHasUnsavedWork(gdsComputer) then Branches:=SComputer;
+  if SideHasUnsavedWork(gdsUser) then begin if Branches<>'' then Branches:=Branches+'、'; Branches:=Branches+SUser; end;
   if Branches='' then begin CanClose:=True; Exit; end;
   Choice:=ConfirmClose(Branches);
   if Choice=gccReturn then Exit;
@@ -1198,7 +1203,7 @@ begin
   RefreshView;
 end;
 procedure TFrmGpoOfflineDraft.ResetClick(Sender:TObject);
-begin if SideDirty(fSide) and ConfirmRestore then begin Current.Reset; if fDomain then begin fCandidateExists[fSide]:=fDomainExists[fSide]; fDomainUndoValid[fSide]:=False; Inc(fRevision); end; RefreshView; end; end;
+begin if SideHasUnsavedWork(fSide) and ConfirmRestore then begin Current.Reset; if fDomain then begin fCandidateExists[fSide]:=fDomainExists[fSide]; fDomainUndoValid[fSide]:=False; Inc(fRevision); end; RefreshView; end; end;
 procedure TFrmGpoOfflineDraft.RowDblClick(Sender:TObject);
 begin EditClick(Sender); end;
 function TFrmGpoOfflineDraft.PreviewText(Page:Integer):string;

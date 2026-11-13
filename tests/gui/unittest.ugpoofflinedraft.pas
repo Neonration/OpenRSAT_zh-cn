@@ -18,6 +18,7 @@ type
     procedure DomainSummaryExport;
     procedure ImportDialogRace;
     procedure SnapshotWorkflow;
+    procedure HiddenCandidateCloseProtection;
   end;
 implementation
 uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugpolocalfiles,
@@ -238,6 +239,29 @@ begin
 end;
 function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
+procedure TUnitTestGpoOfflineDraftUI.HiddenCandidateCloseProtection;
+var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; CanClose:Boolean;
+begin
+  Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job; F:=TTestOfflineForm.Create(nil);
+  try
+    Check(F.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
+    F.EditChoice:=True; F.NextRecord:=Item('Hidden','V',3,[42]); F.AddButton.Click;
+    Check(F.Draft(gdsComputer).Dirty); F.OpenButton.Click;
+    Check(Pos('候选文件缺失',F.StatusLabel.Caption)>0); Check(Length(F.Draft(gdsComputer).Records)=1);
+    F.PlanButton.Click; Check(not Job.LastMachine.Exists,'Hidden edits are not a present candidate');
+    Job.Current:=gddsResult; F.PollDomainNow;
+    F.UseCloseAction:=True; F.CloseAction:=gccReturn; CanClose:=True; F.OnCloseQuery(F,CanClose);
+    Check(not CanClose,'Closing must not silently discard hidden edits');
+    Check(Pos('计算机',F.BranchList)>0); Check(F.ResetButton.Enabled,'Hidden edits can be reset');
+    F.UndoButton.Click; Check(Pos('候选文件存在',F.StatusLabel.Caption)>0);
+    Check(F.Draft(gdsComputer).Dirty); Check(Length(F.Draft(gdsComputer).Records)=1);
+    F.OpenButton.Click; F.RestoreChoice:=True; F.ResetButton.Click;
+    Check(not F.Draft(gdsComputer).Dirty); Check(Length(F.Draft(gdsComputer).Records)=0);
+    Check(Pos('候选文件缺失',F.StatusLabel.Caption)>0); Check(not F.ResetButton.Enabled);
+    CanClose:=False; F.BranchList:=''; F.OnCloseQuery(F,CanClose);
+    Check(CanClose and (F.BranchList=''),'Reset removes the hidden unsaved work');
+  finally F.Free; Ref:=nil; end;
+end;
 procedure TUnitTestGpoOfflineDraftUI.SnapshotWorkflow;
 {$ifdef windows}
 var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; Empty,BeforeBytes,AfterBytes,Bad:TBytes;
