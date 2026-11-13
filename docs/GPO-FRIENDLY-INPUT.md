@@ -18,3 +18,7 @@ discarded.
 New draft and restore baseline also reject a confirmation if the selected side
 or its draft changed while the confirmation was open, including an edit followed
 by undo. The user can review the current draft and retry.
+The close confirmation checks both drafts and branch changes before accepting
+the choice. During export, a change to either draft or the selected branch
+cancels the current export and keeps the window open; files already exported
+remain available.

@@ -32,7 +32,7 @@ type
     fReportJob:IGpoDomainDraftJob;
     fReportRevision,fReportSideRevision:QWord;
     fSide: TGpoDraftSide;
-    fValidSide:Boolean;
+    fValidSide,fClosingQuery:Boolean;
     fAllowMalformedRecord:Boolean;
     fSideRevision:QWord;
     fSavedPage, fSavedIndex:array[TGpoDraftSide] of Integer;
@@ -1175,18 +1175,28 @@ end;
 
 procedure TFrmGpoOfflineDraft.Closing(Sender:TObject; var CanClose:Boolean);
 var Branches:string; Choice:TGpoCloseChoice; Side:TGpoDraftSide;
+  Revisions:TGpoDraftRevisions; Revision,SideRevision:QWord;
 begin
-  CanClose:=False; Branches:='';
-  if SideHasUnsavedWork(gdsComputer) then Branches:=SComputer;
-  if SideHasUnsavedWork(gdsUser) then begin if Branches<>'' then Branches:=Branches+'、'; Branches:=Branches+SUser; end;
-  if Branches='' then begin CanClose:=True; Exit; end;
-  Choice:=ConfirmClose(Branches);
-  if Choice=gccReturn then Exit;
-  if Choice=gccDiscard then begin CanClose:=True; Exit; end;
-  if fDomain then begin ShowError('本地导出不能保存域草稿的文件存在状态；请返回继续编辑，或选择放弃草稿。'); Exit; end;
-  for Side:=Low(TGpoDraftSide) to High(TGpoDraftSide) do
-    if fDrafts[Side].Dirty then begin SelectSide(Side); if not ExportCurrent then Exit; end;
-  CanClose:=True;
+  CanClose:=False; if fClosingQuery then Exit;
+  fClosingQuery:=True;
+  try
+    Branches:='';
+    if SideHasUnsavedWork(gdsComputer) then Branches:=SComputer;
+    if SideHasUnsavedWork(gdsUser) then begin if Branches<>'' then Branches:=Branches+'、'; Branches:=Branches+SUser; end;
+    if Branches='' then begin CanClose:=True; Exit; end;
+    Revisions:=DraftRevisions; Revision:=fRevision; SideRevision:=fSideRevision;
+    Choice:=ConfirmClose(Branches);
+    if Choice=gccReturn then Exit;
+    if (Revision<>fRevision) or (SideRevision<>fSideRevision) or not RevisionsMatch(Revisions) then
+    begin ShowError('确认期间草稿或分支已变化；请重新关闭。'); Exit; end;
+    if Choice=gccDiscard then begin CanClose:=True; Exit; end;
+    if fDomain then begin ShowError('本地导出不能保存域草稿的文件存在状态；请返回继续编辑，或选择放弃草稿。'); Exit; end;
+    for Side:=Low(TGpoDraftSide) to High(TGpoDraftSide) do
+      if fDrafts[Side].Dirty then begin SelectSide(Side); if not ExportCurrent then Exit; end;
+    if SideHasUnsavedWork(gdsComputer) or SideHasUnsavedWork(gdsUser) then
+    begin ShowError('导出期间草稿已变化；请重新关闭。'); Exit; end;
+    CanClose:=True;
+  finally fClosingQuery:=False; end;
 end;
 procedure TFrmGpoOfflineDraft.NewClick(Sender:TObject);
 var Empty:TBytes; Side:TGpoDraftSide; Revision,SideRevision,DomainRevision:QWord;
@@ -1223,15 +1233,17 @@ begin
 end;
 function TFrmGpoOfflineDraft.ExportCurrent:Boolean;
 var Path,Err,SideName,SourcePath:string; Data,Baseline,After,AfterBaseline:TBytes;
-  Side:TGpoDraftSide; Present:Boolean; Revision:QWord;
+  Side:TGpoDraftSide; Present:Boolean; Revision,SideRevision:QWord; Revisions:TGpoDraftRevisions;
 begin
   Result:=False;
   if fDomain and not fCandidateExists[fSide] then begin ShowError('候选文件缺失，不能导出为本地文件。'); Exit; end;
   Side:=fSide; Present:=fCandidateExists[Side]; Revision:=fRevision; SourcePath:=fPaths[Side];
+  SideRevision:=fSideRevision; Revisions:=DraftRevisions;
   if (fDrafts[Side].Export(Data)<>grsOk) or (fDrafts[Side].Baseline(Baseline)<>grsOk) then
   begin ShowError('无法读取草稿快照。'); Exit; end;
   if not ChooseLocalFile(True,Path) then Exit;
-  if (fSide<>Side) or (fCandidateExists[Side]<>Present) or (fRevision<>Revision) or
+  if not fValidSide or (fSide<>Side) or (fSideRevision<>SideRevision) or not RevisionsMatch(Revisions) or
+     (fCandidateExists[Side]<>Present) or (fRevision<>Revision) or
      (fPaths[Side]<>SourcePath) or (fDrafts[Side].Export(After)<>grsOk) or
      (fDrafts[Side].Baseline(AfterBaseline)<>grsOk) or not SameDraftBytes(Data,After) or
      not SameDraftBytes(Baseline,AfterBaseline) then

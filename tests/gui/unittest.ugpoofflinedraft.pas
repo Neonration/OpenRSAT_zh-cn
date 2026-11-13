@@ -19,6 +19,8 @@ type
     procedure DomainSummaryExport;
     procedure ImportDialogRace;
     procedure DiscardDialogRace;
+    procedure CloseDialogRace;
+    procedure CloseExportRace;
     procedure SnapshotWorkflow;
     procedure LargeSnapshotWorkflow;
     procedure MaximumSnapshotWorkflow;
@@ -50,6 +52,8 @@ type
     SwitchOnExport,MutateOnExport,MutateOnEdit,SwitchOnEdit:Boolean;
     SwitchOnImport,SwitchBackOnImport,MutateOnImport,UndoOnImport,RebaseOnImport,MutateOnConfirm:Boolean;
     SwitchOnConfirm,SwitchBackOnConfirm,UndoOnConfirm,MutateOnRestore,SwitchOnRestore:Boolean;
+    MutateOnClose,UndoOnClose,ReloadOnClose,SwitchBackOnClose,HideOnClose:Boolean;
+    ReenterOnClose,NestedCanClose,MutateSecondExport:Boolean;
     SummaryChoice,MutateOnSummary,UndoOnSummary,RebaseOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
     OpenedSnapshot:TFrmGpoOfflineDraft;
     constructor Create(TheOwner:TComponent); override;
@@ -200,8 +204,23 @@ begin
   if SwitchBackOnConfirm then begin SwitchBackOnConfirm:=False; SelectSide(gdsUser); SelectSide(gdsComputer); end;
 end;
 function TTestOfflineForm.ConfirmClose(const Branches:string):TGpoCloseChoice;
+var Data:TBytes;
 begin
   BranchList:=Branches;
+  if ReenterOnClose then begin
+    ReenterOnClose:=False; NestedCanClose:=True; OnCloseQuery(Self,NestedCanClose);
+  end;
+  if MutateOnClose then begin
+    MutateOnClose:=False;
+    InjectedEditOk:=Draft(gdsComputer).Insert(Length(Draft(gdsComputer).Records),NextRecord)=grsOk;
+    if UndoOnClose then begin UndoOnClose:=False; InjectedEditOk:=Draft(gdsComputer).Undo and InjectedEditOk; end;
+  end;
+  if ReloadOnClose then begin
+    ReloadOnClose:=False;
+    InjectedEditOk:=(Draft(gdsUser).Export(Data)=grsOk) and (Draft(gdsUser).Load(Data)=grsOk);
+  end;
+  if SwitchBackOnClose then begin SwitchBackOnClose:=False; SelectSide(gdsUser); SelectSide(gdsComputer); end;
+  if HideOnClose then begin HideOnClose:=False; OpenButton.Click; end;
   if UseCloseAction then Result:=CloseAction else if Choice then Result:=gccDiscard else Result:=gccReturn;
 end;
 function TTestOfflineForm.ConfirmRestore:Boolean;
@@ -251,6 +270,10 @@ begin
     if ExportCount>1 then begin Result:=False; Exit; end;
     Path:=ExportPaths[ExportCount]; Result:=ExportChoices[ExportCount]; Inc(ExportCount);
   end else begin Path:=NextPath; Result:=SelectChoice; end;
+  if SaveCopy and MutateSecondExport and (ExportCount=2) then begin
+    MutateSecondExport:=False;
+    InjectedEditOk:=Draft(gdsComputer).Insert(Length(Draft(gdsComputer).Records),NextRecord)=grsOk;
+  end;
   if SaveCopy and SwitchOnExport then begin SwitchOnExport:=False; SelectSide(gdsUser); end;
   if SaveCopy and MutateOnExport then begin
     MutateOnExport:=False;
@@ -881,6 +904,73 @@ end;
 {$else}
 begin end;
 {$endif}
+
+procedure TUnitTestGpoOfflineDraftUI.CloseExportRace;
+{$ifdef windows}
+var F:TTestOfflineForm; Dir,First,Second:string; Id:TGUID; CanClose:Boolean;
+begin
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-close-race-'+GUIDToString(Id);
+  Check(CreateDir(Dir)); First:=Dir+'\first.pol'; Second:=Dir+'\second.pol';
+  F:=TTestOfflineForm.Create(nil);
+  try
+    F.EditChoice:=True; F.NextRecord:=Item('Computer','V',3,[1]); F.AddButton.Click;
+    F.SelectSide(gdsUser); F.NextRecord:=Item('User','V',3,[2]); F.AddButton.Click;
+    F.NextRecord:=Item('Later','V',3,[3]); F.SelectSide(gdsComputer);
+    F.UseCloseAction:=True; F.CloseAction:=gccExport; F.QueueExports:=True;
+    F.ExportPaths[0]:=First; F.ExportPaths[1]:=Second;
+    F.ExportChoices[0]:=True; F.ExportChoices[1]:=True; F.MutateSecondExport:=True;
+    CanClose:=True; F.OnCloseQuery(F,CanClose);
+    Check(F.InjectedEditOk); Check(not CanClose); Check(FileExists(First)); Check(not FileExists(Second));
+    Check(F.Draft(gdsComputer).Dirty); Check(F.Draft(gdsUser).Dirty);
+    Check(Length(F.Draft(gdsComputer).Records)=2);
+  finally F.Free; if FileExists(First) then Check(SysUtils.DeleteFile(First));
+    if FileExists(Second) then Check(SysUtils.DeleteFile(Second)); Check(RemoveDir(Dir)); end;
+end;
+{$else}
+begin end;
+{$endif}
+
+procedure TUnitTestGpoOfflineDraftUI.CloseDialogRace;
+var F:TTestOfflineForm; CanClose:Boolean; Empty,Before,After:TBytes;
+  Job:TFakeDomainJob; Ref:IGpoDomainDraftJob;
+  procedure Prepare;
+  begin
+    Check(F.Draft(gdsComputer).Load(Empty)=grsOk); Check(F.Draft(gdsUser).Load(Empty)=grsOk);
+    F.SelectSide(gdsComputer); F.NextRecord:=Item('Computer','V',3,[1]); F.AddButton.Click;
+    F.SelectSide(gdsUser); F.NextRecord:=Item('User','V',3,[2]); F.AddButton.Click;
+    F.SelectSide(gdsComputer); F.NextRecord:=Item('Changed','V',3,[3]);
+    Check(F.Draft(gdsComputer).Export(Before)=grsOk);
+  end;
+begin
+  Check(SerializeRegistryPol(nil,Empty)=grsOk); F:=TTestOfflineForm.Create(nil);
+  try
+    F.EditChoice:=True; F.UseCloseAction:=True; F.CloseAction:=gccDiscard;
+    Prepare; F.MutateOnClose:=True; CanClose:=True; F.OnCloseQuery(F,CanClose);
+    Check(F.InjectedEditOk); Check(not CanClose); Check(Length(F.Draft(gdsComputer).Records)=2);
+    Prepare; F.MutateOnClose:=True; F.UndoOnClose:=True; CanClose:=True; F.OnCloseQuery(F,CanClose);
+    Check(F.InjectedEditOk); Check(not CanClose); Check(F.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Before,After));
+    Prepare; F.ReloadOnClose:=True; CanClose:=True; F.OnCloseQuery(F,CanClose);
+    Check(F.InjectedEditOk); Check(not CanClose); Check(F.Draft(gdsComputer).Dirty);
+    Prepare; F.SwitchBackOnClose:=True; CanClose:=True; F.OnCloseQuery(F,CanClose);
+    Check(not CanClose); Check(F.Draft(gdsComputer).Dirty and F.Draft(gdsUser).Dirty);
+    Prepare; F.CloseAction:=gccReturn; CanClose:=True; F.OnCloseQuery(F,CanClose); Check(not CanClose);
+    F.CloseAction:=gccReturn; F.ReenterOnClose:=True; CanClose:=True; F.OnCloseQuery(F,CanClose);
+    Check(not CanClose); Check(not F.NestedCanClose);
+    F.CloseAction:=gccDiscard; CanClose:=False; F.OnCloseQuery(F,CanClose); Check(CanClose);
+  finally F.Free; end;
+  Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job; F:=TTestOfflineForm.Create(nil);
+  try
+    Job.InitialMachine.Exists:=True; Job.InitialMachine.Data:=Copy(Empty);
+    Job.InitialUser.Exists:=True; Job.InitialUser.Data:=Copy(Empty);
+    Check(F.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
+    F.EditChoice:=True; F.NextRecord:=Item('Hidden','V',3,[1]); F.AddButton.Click;
+    F.UseCloseAction:=True; F.CloseAction:=gccDiscard; F.HideOnClose:=True;
+    CanClose:=True; F.OnCloseQuery(F,CanClose);
+    Check(not CanClose); Check(Length(F.Draft(gdsComputer).Records)=1);
+    Check(Pos('候选文件缺失',F.StatusLabel.Caption)>0);
+    CanClose:=False; F.OnCloseQuery(F,CanClose); Check(CanClose);
+  finally F.Free; Ref:=nil; end;
+end;
 
 procedure TUnitTestGpoOfflineDraftUI.DiscardDialogRace;
 var F:TTestOfflineForm; Before,After:TBytes; Errors:Integer;
