@@ -14,3 +14,7 @@ it validates the Registry.pol record structure but does not assert that the
 typed payload is valid. This option does not apply the record to a domain.
 If the draft or selected side changes while the editor is open, its result is
 discarded.
+
+New draft and restore baseline also reject a confirmation if the selected side
+or its draft changed while the confirmation was open, including an edit followed
+by undo. The user can review the current draft and retry.

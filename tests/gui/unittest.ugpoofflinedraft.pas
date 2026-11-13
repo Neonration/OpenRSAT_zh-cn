@@ -18,6 +18,7 @@ type
     procedure DomainDraftWorkflow;
     procedure DomainSummaryExport;
     procedure ImportDialogRace;
+    procedure DiscardDialogRace;
     procedure SnapshotWorkflow;
     procedure LargeSnapshotWorkflow;
     procedure MaximumSnapshotWorkflow;
@@ -48,6 +49,7 @@ type
     MutateOnVersion, MutateOnGpt, RebaseOnGpt, InjectedEditOk:Boolean;
     SwitchOnExport,MutateOnExport,MutateOnEdit,SwitchOnEdit:Boolean;
     SwitchOnImport,SwitchBackOnImport,MutateOnImport,UndoOnImport,RebaseOnImport,MutateOnConfirm:Boolean;
+    SwitchOnConfirm,SwitchBackOnConfirm,UndoOnConfirm,MutateOnRestore,SwitchOnRestore:Boolean;
     SummaryChoice,MutateOnSummary,UndoOnSummary,RebaseOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
     OpenedSnapshot:TFrmGpoOfflineDraft;
     constructor Create(TheOwner:TComponent); override;
@@ -192,7 +194,10 @@ begin
   if MutateOnConfirm then begin
     MutateOnConfirm:=False;
     InjectedEditOk:=Draft(gdsComputer).Insert(Length(Draft(gdsComputer).Records),NextRecord)=grsOk;
+    if UndoOnConfirm then begin UndoOnConfirm:=False; InjectedEditOk:=InjectedEditOk and Draft(gdsComputer).Undo; end;
   end;
+  if SwitchOnConfirm then begin SwitchOnConfirm:=False; SelectSide(gdsUser); end;
+  if SwitchBackOnConfirm then begin SwitchBackOnConfirm:=False; SelectSide(gdsUser); SelectSide(gdsComputer); end;
 end;
 function TTestOfflineForm.ConfirmClose(const Branches:string):TGpoCloseChoice;
 begin
@@ -200,7 +205,14 @@ begin
   if UseCloseAction then Result:=CloseAction else if Choice then Result:=gccDiscard else Result:=gccReturn;
 end;
 function TTestOfflineForm.ConfirmRestore:Boolean;
-begin Inc(RestoreCalls); Result:=RestoreChoice; end;
+begin
+  Inc(RestoreCalls); Result:=RestoreChoice;
+  if MutateOnRestore then begin
+    MutateOnRestore:=False;
+    InjectedEditOk:=Draft(gdsComputer).Insert(Length(Draft(gdsComputer).Records),NextRecord)=grsOk;
+  end;
+  if SwitchOnRestore then begin SwitchOnRestore:=False; SelectSide(gdsUser); end;
+end;
 function TTestOfflineForm.ConfirmSnapshot:Boolean;
 begin Result:=Choice; end;
 procedure TModalReportProbe.Tick(Sender:TObject);
@@ -869,6 +881,42 @@ end;
 {$else}
 begin end;
 {$endif}
+
+procedure TUnitTestGpoOfflineDraftUI.DiscardDialogRace;
+var F:TTestOfflineForm; Before,After:TBytes; Errors:Integer;
+  procedure Prepare;
+  var Empty:TBytes;
+  begin
+    Check(SerializeRegistryPol(nil,Empty)=grsOk);
+    Check(F.Draft(gdsComputer).Load(Empty)=grsOk);
+    Check(F.Draft(gdsUser).Load(Empty)=grsOk);
+    F.SelectSide(gdsComputer); F.NextRecord:=Item('Computer','Pending',3,[1]); F.AddButton.Click;
+    F.SelectSide(gdsUser); F.NextRecord:=Item('User','Pending',3,[2]); F.AddButton.Click;
+    F.SelectSide(gdsComputer); Check(F.Draft(gdsComputer).Export(Before)=grsOk);
+    F.NextRecord:=Item('During','Pending',3,[3]);
+  end;
+begin
+  F:=TTestOfflineForm.Create(nil);
+  try
+    F.Choice:=True; F.EditChoice:=True; F.RestoreChoice:=True;
+    Prepare; F.MutateOnConfirm:=True; Errors:=F.ErrorCalls; F.NewButton.Click;
+    Check(F.InjectedEditOk); Check(F.ErrorCalls=Errors+1); Check(Length(F.Draft(gdsComputer).Records)=2);
+    Prepare; F.MutateOnConfirm:=True; F.UndoOnConfirm:=True; Errors:=F.ErrorCalls; F.NewButton.Click;
+    Check(F.InjectedEditOk); Check(F.ErrorCalls=Errors+1);
+    Check(F.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Before,After));
+    Prepare; F.SwitchOnConfirm:=True; Errors:=F.ErrorCalls; F.NewButton.Click;
+    Check(F.ErrorCalls=Errors+1); Check(Length(F.Draft(gdsUser).Records)=1);
+    Prepare; F.SwitchBackOnConfirm:=True; Errors:=F.ErrorCalls; F.NewButton.Click;
+    Check(F.ErrorCalls=Errors+1); Check(Length(F.Draft(gdsComputer).Records)=1);
+    Prepare; F.MutateOnRestore:=True; Errors:=F.ErrorCalls; F.ResetButton.Click;
+    Check(F.InjectedEditOk); Check(F.ErrorCalls=Errors+1); Check(Length(F.Draft(gdsComputer).Records)=2);
+    Prepare; F.SwitchOnRestore:=True; Errors:=F.ErrorCalls; F.ResetButton.Click;
+    Check(F.ErrorCalls=Errors+1); Check(Length(F.Draft(gdsUser).Records)=1);
+    Prepare; F.RestoreChoice:=False; F.ResetButton.Click;
+    Check(F.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Before,After));
+    F.RestoreChoice:=True; F.ResetButton.Click; Check(not F.Draft(gdsComputer).Dirty);
+  finally F.Free; end;
+end;
 
 procedure TUnitTestGpoOfflineDraftUI.LocalDraftInteraction;
 var F:TTestOfflineForm; R:TGpoRegistryRecord; Rows:TGpoRegistryRecords;

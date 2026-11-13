@@ -1189,12 +1189,17 @@ begin
   CanClose:=True;
 end;
 procedure TFrmGpoOfflineDraft.NewClick(Sender:TObject);
-var Empty:TBytes;
+var Empty:TBytes; Side:TGpoDraftSide; Revision,SideRevision,DomainRevision:QWord;
 begin
-  if Current.Dirty and not ConfirmDiscard then Exit;
-  if (SerializeRegistryPol(nil,Empty)<>grsOk) or (Current.Load(Empty)<>grsOk) then
+  if not fValidSide then Exit;
+  Side:=fSide; Revision:=fDrafts[Side].Revision; SideRevision:=fSideRevision; DomainRevision:=fRevision;
+  if fDrafts[Side].Dirty and not ConfirmDiscard then Exit;
+  if not fValidSide or (fSide<>Side) or (fSideRevision<>SideRevision) or
+    (fDrafts[Side].Revision<>Revision) or (fRevision<>DomainRevision) then
+  begin ShowError('确认期间草稿或分支已变化；请重新新建草稿。'); Exit; end;
+  if (SerializeRegistryPol(nil,Empty)<>grsOk) or (fDrafts[Side].Load(Empty)<>grsOk) then
   begin ShowError('无法新建草稿。'); Exit; end;
-  fPaths[fSide]:=''; RefreshView;
+  fPaths[Side]:=''; RefreshView;
 end;
 procedure TFrmGpoOfflineDraft.OpenClick(Sender:TObject);
 var Path,Err,SourcePath:string; Data:TBytes; Status:TGpoReadStatus;
@@ -1310,7 +1315,18 @@ begin
   RefreshView;
 end;
 procedure TFrmGpoOfflineDraft.ResetClick(Sender:TObject);
-begin if SideHasUnsavedWork(fSide) and ConfirmRestore then begin Current.Reset; if fDomain then begin fCandidateExists[fSide]:=fDomainExists[fSide]; fDomainUndoValid[fSide]:=False; Inc(fRevision); end; RefreshView; end; end;
+var Side:TGpoDraftSide; Revision,SideRevision,DomainRevision:QWord;
+begin
+  if not fValidSide or not SideHasUnsavedWork(fSide) then Exit;
+  Side:=fSide; Revision:=fDrafts[Side].Revision; SideRevision:=fSideRevision; DomainRevision:=fRevision;
+  if not ConfirmRestore then Exit;
+  if not fValidSide or (fSide<>Side) or (fSideRevision<>SideRevision) or
+    (fDrafts[Side].Revision<>Revision) or (fRevision<>DomainRevision) then
+  begin ShowError('确认期间草稿或分支已变化；请重新还原。'); Exit; end;
+  fDrafts[Side].Reset;
+  if fDomain then begin fCandidateExists[Side]:=fDomainExists[Side]; fDomainUndoValid[Side]:=False; Inc(fRevision); end;
+  RefreshView;
+end;
 procedure TFrmGpoOfflineDraft.RowDblClick(Sender:TObject);
 begin EditClick(Sender); end;
 function TFrmGpoOfflineDraft.PreviewText(Page:Integer):string;
