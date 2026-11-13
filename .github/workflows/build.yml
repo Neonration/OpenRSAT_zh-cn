@@ -25,11 +25,13 @@ jobs:
           - name: linux-arm64
             os: ubuntu-24.04
           
-          # - name: macosx-intel
-          #   os: macos-latest
+          - name: macosx-intel
+            os: macos-15-intel
+            arch: x86_64
 
-          # - name: macosx-arm64
-          #   os: macos-latest
+          - name: macosx-arm64
+            os: macos-15
+            arch: arm64
 
     name: Build OpenRSAT — ${{ matrix.target.name }}
     runs-on: ${{ matrix.target.os }}
@@ -110,15 +112,15 @@ jobs:
       - name: Download windres (Macos intel)
         if: matrix.target.name == 'macosx-intel'
         run: |
-          curl -L -o windres https://github.com/osvegn/binutils/raw/refs/heads/main/darwin/intel/windres
+          curl -fL -o windres https://github.com/osvegn/binutils/raw/refs/heads/main/darwin/intel/windres
 
       - name: Download windres (Macos arm64)
         if: matrix.target.name == 'macosx-arm64'
         run: |
-          curl -L -o windres https://github.com/osvegn/binutils/raw/refs/heads/main/darwin/arm64/windres
+          curl -fL -o windres https://github.com/osvegn/binutils/raw/refs/heads/main/darwin/arm64/windres
 
       - name: Cache build windres (Ubuntu only)
-        if: matrix.target.os != 'windows-latest'
+        if: matrix.target.os == 'ubuntu-24.04'
         uses: actions/cache@v4
         with:
           path: binutils-2.45
@@ -128,13 +130,47 @@ jobs:
         if: matrix.target.os != 'windows-latest'
         run: |
           chmod 755 ./windres
-          cp ./windres /usr/local/bin/windres
+          mkdir -p "$RUNNER_TEMP/openrsat-bin"
+          cp ./windres "$RUNNER_TEMP/openrsat-bin/windres"
+          echo "$RUNNER_TEMP/openrsat-bin" >> "$GITHUB_PATH"
+
+      - name: Verify macOS runner architecture
+        if: runner.os == 'macOS'
+        run: |
+          test "$(uname -m)" = '${{ matrix.target.arch }}'
+          file ./windres
+          lipo -verify_arch '${{ matrix.target.arch }}' ./windres
+          ./windres --version
 
       - name: Install FPC and Lazarus IDE
+        if: runner.os != 'macOS'
         uses: osvegn/setup-lazarus-fpcup@v1.0.1
         with:
           laz: lazarus_4_0
           fpc: release_3_2_2
+
+      - name: Install native FPC and Lazarus (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          prefix="$RUNNER_TEMP/openrsat-fpcup"
+          if [ '${{ matrix.target.arch }}' = 'arm64' ]; then
+            installer=fpclazup-aarch64-darwin
+            compiler=ppca64
+          else
+            installer=fpclazup-x86_64-darwin
+            compiler=ppcx64
+          fi
+          curl -fL -o "$RUNNER_TEMP/fpclazup" "https://github.com/LongDirtyAnimAlf/Reiniero-fpcup/releases/download/v2.4.0f/$installer"
+          chmod +x "$RUNNER_TEMP/fpclazup"
+          lipo -verify_arch '${{ matrix.target.arch }}' "$RUNNER_TEMP/fpclazup"
+          git clone --depth 1 --branch release_3_2_2 https://gitlab.com/freepascal.org/fpc/source "$prefix/fpc"
+          git clone --depth 1 --branch lazarus_4_0 https://gitlab.com/freepascal.org/lazarus/lazarus "$prefix/lazarus"
+          "$RUNNER_TEMP/fpclazup" --only=FPCCleanOnly,FPCBuildOnly,LazarusCleanOnly,LazBuild,LazarusConfigOnly --noconfirm --verbose --installdir="$prefix"
+          compiler_path=$(find "$prefix/fpc/bin" -type f -name "$compiler" -print -quit)
+          test -n "$compiler_path"
+          file "$compiler_path"
+          lipo -verify_arch '${{ matrix.target.arch }}' "$compiler_path"
+          echo "$prefix/lazarus" >> "$GITHUB_PATH"
 
       - name: Link dependencies
         run: |
@@ -167,9 +203,27 @@ jobs:
         timeout-minutes: 5
         run: ./tests/gui/openrsattestsgui.exe --noenter
 
+      - name: Build offline console regression suite (macOS native)
+        if: runner.os == 'macOS'
+        run: lazbuild --build-mode=test tests/openrsattests.lpi
+
+      - name: Run offline console regression suite (macOS native)
+        if: runner.os == 'macOS'
+        timeout-minutes: 5
+        run: |
+          lipo -verify_arch '${{ matrix.target.arch }}' tests/openrsattests
+          ./tests/openrsattests --noenter
+
       - name: Build OpenRSAT for ${{ matrix.target.name }}
         run: |
           lazbuild --build-mode=${{ matrix.target.name }} sources/OpenRSAT.lpi
+
+      - name: Verify macOS binary architecture
+        if: runner.os == 'macOS'
+        run: |
+          file "bin/${{ matrix.target.name }}/OpenRSAT"
+          lipo -verify_arch '${{ matrix.target.arch }}' "bin/${{ matrix.target.name }}/OpenRSAT"
+          otool -L "bin/${{ matrix.target.name }}/OpenRSAT"
 
       - name: Include translations
         shell: bash
@@ -177,18 +231,13 @@ jobs:
           mkdir -p "bin/${{ matrix.target.name }}/locale"
           cp languages/OpenRSAT.*.po "bin/${{ matrix.target.name }}/locale/"
 
-      - name: Install create-dmg
-        if: matrix.target.os == 'macos-latest'
-        run: |
-          brew install create-dmg
-
       - name: Create OpenRSAT.app folder
-        if:  matrix.target.os == 'macos-latest'
+        if: runner.os == 'macOS'
         run: |
           mkdir -p OpenRSAT.app/Contents/MacOS
           mkdir -p OpenRSAT.app/Contents/Resources/locale
           cp languages/OpenRSAT.*.po OpenRSAT.app/Contents/Resources/locale/
-          echo """
+          cat > OpenRSAT.app/Contents/Info.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -213,22 +262,26 @@ jobs:
               <true/>
           </dict>
           </plist>
-          """ > OpenRSAT.app/Contents/Info.plist
+          EOF
+          plutil -lint OpenRSAT.app/Contents/Info.plist
           mv ./bin/${{ matrix.target.name }}/OpenRSAT OpenRSAT.app/Contents/MacOS
 
       - name: Create a temp dir for the DMG
-        if: matrix.target.os == 'macos-latest'
+        if: runner.os == 'macOS'
         run: |
           mkdir -p dmg
           cp -R OpenRSAT.app dmg/
 
       - name: Create the DMG file
-        if: matrix.target.os == 'macos-latest'
+        if: runner.os == 'macOS'
         run: |
-          create-dmg \
-            --volname "OpenRSAT" \
-            "OpenRSAT.dmg" \
-            "dmg/"
+          hdiutil create -volname "OpenRSAT" -srcfolder dmg -format UDZO OpenRSAT.dmg
+          hdiutil verify OpenRSAT.dmg
+          mkdir "$RUNNER_TEMP/openrsat-dmg"
+          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/openrsat-dmg" OpenRSAT.dmg
+          test -f "$RUNNER_TEMP/openrsat-dmg/OpenRSAT.app/Contents/MacOS/OpenRSAT"
+          test -f "$RUNNER_TEMP/openrsat-dmg/OpenRSAT.app/Contents/Resources/locale/OpenRSAT.zh.po"
+          hdiutil detach "$RUNNER_TEMP/openrsat-dmg"
           mv OpenRSAT.dmg ./bin/${{ matrix.target.name }}/
 
       - name: Upload binary
