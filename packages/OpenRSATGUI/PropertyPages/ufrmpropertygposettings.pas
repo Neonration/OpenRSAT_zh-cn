@@ -1322,9 +1322,8 @@ function TFrmPropertyGpoSettings.CanCheckBaseline:Boolean;
 begin
   {$ifdef windows}
   Result:=SameConnection and (Length(fObjectGuid)=16) and (fBoundUser<>'') and
-    (fProperty.LdapClient.Settings.AutoBind=lcbKerberos) and
-    (fProperty.LdapClient.Settings.UserName='') and (fProperty.LdapClient.Settings.Password='') and
-    not fProperty.LdapClient.Settings.Tls;
+    GpoSupportsBackgroundSettings(fProperty.LdapClient.BoundAs,
+      fProperty.LdapClient.Settings.Password<>'',fProperty.LdapClient.Settings.Tls);
   {$else}
   Result:=False;
   {$endif}
