@@ -814,6 +814,84 @@ begin
   fNext.Enabled := (fSelect.ItemIndex >= 0) and (fSelect.ItemIndex < fSelect.Items.Count-1);
 end;
 
+function TypedRegistryValue(const R:TGpoRegistryRecord):string;
+const PreviewLimit=4096;
+var I,N,C,Next,Items:Integer; V:QWord; U:UnicodeString; Truncated:Boolean;
+  function UnitAt(Index:Integer):Word;
+  begin Result:=Word(R.Data[Index*2]) or (Word(R.Data[Index*2+1]) shl 8); end;
+  procedure AppendUnit(Value:Word);
+  begin
+    if Length(U)>=PreviewLimit then begin Truncated:=True; Exit; end;
+    case Value of
+      9: U:=U+'\t';
+      10: U:=U+'\n';
+      13: U:=U+'\r';
+      92: U:=U+'\\';
+      else if Value<32 then U:=U+'\u'+UnicodeString(IntToHex(Value,4))
+      else U:=U+WideChar(Value);
+    end;
+  end;
+begin
+  if Copy(R.ValueName,1,2)='**' then Exit('策略指令：仅显示原始数据，不执行。');
+  case R.ValueType of
+    4,5,11:
+    begin
+      if R.ValueType=11 then N:=8 else N:=4;
+      if Length(R.Data)<>N then Exit('无效数据：整数长度不正确。');
+      V:=0;
+      if R.ValueType=5 then
+        for I:=0 to N-1 do V:=(V shl 8) or R.Data[I]
+      else
+        for I:=N-1 downto 0 do V:=(V shl 8) or R.Data[I];
+      Exit('数值：'+UIntToStr(V)+' (0x'+IntToHex(V,N*2)+')');
+    end;
+    1,2,7:
+    begin
+      if (Length(R.Data) and 1)<>0 then Exit('无效数据：UTF-16 字节数为奇数。');
+      N:=Length(R.Data) div 2;
+      if (R.ValueType=7) then begin
+        if (N<2) or (UnitAt(N-1)<>0) or (UnitAt(N-2)<>0) then
+          Exit('无效数据：MULTI_SZ 缺少双 NUL 终止符。');
+      end else if (N<1) or (UnitAt(N-1)<>0) then
+        Exit('无效数据：字符串缺少 NUL 终止符。');
+      U:=''; Truncated:=False; I:=0; Items:=0;
+      while I<N-1 do
+      begin
+        C:=UnitAt(I);
+        if C=0 then
+        begin
+          if R.ValueType<>7 then Exit('无效数据：字符串包含嵌入 NUL。');
+          if (I=0) and (N=2) then begin Inc(I); Break; end;
+          if (I=0) or (I<>N-2) and (UnitAt(I+1)=0) then
+            Exit('无效数据：MULTI_SZ 包含空项目或多余终止符。');
+          if Length(U)<PreviewLimit then U:=U+LineEnding else Truncated:=True;
+          Inc(Items); Inc(I); Continue;
+        end;
+        if (C >= $D800) and (C <= $DBFF) then
+        begin
+          if I+1>=N-1 then Exit('无效数据：UTF-16 代理项不完整。');
+          Next:=UnitAt(I+1);
+          if (Next<$DC00) or (Next>$DFFF) then Exit('无效数据：UTF-16 代理项无效。');
+          if Length(U)+2<=PreviewLimit then begin U:=U+WideChar(C)+WideChar(Next); end
+          else Truncated:=True;
+          Inc(I,2); Continue;
+        end;
+        if (C >= $DC00) and (C <= $DFFF) then Exit('无效数据：UTF-16 代理项无效。');
+        AppendUnit(C); Inc(I);
+      end;
+      if R.ValueType=7 then begin
+        if (N>2) and (I<>N-1) then Exit('无效数据：MULTI_SZ 终止符无效。');
+        Result:='项目数：'+IntToStr(Items)+LineEnding+UTF8Encode(U);
+      end else begin
+        Result:='文本：'+UTF8Encode(U);
+        if R.ValueType=2 then Result:=Result+LineEnding+'环境变量未展开。';
+      end;
+      if Truncated then Result:=Result+LineEnding+'（文本预览已截断；下方保留完整原始数据。）';
+    end;
+    else Result:='此类型仅显示原始数据。';
+  end;
+end;
+
 function TGpoRegistryPane.RecordDetails(Index: Integer): string;
 const HexChars='0123456789ABCDEF';
 var R:TGpoRegistryRecord; S:RawByteString; I,P:SizeInt;
@@ -831,7 +909,7 @@ begin
   Result:=UTF8Encode(UnicodeString('键路径：')+R.Key+LineEnding+
     UnicodeString('值名称：')+R.ValueName+LineEnding+UnicodeString('类型：')+
     UnicodeString(Format(SGpoTypeNumber,[RegistryType(R.ValueType),R.ValueType]))+LineEnding+UnicodeString('字节数：')+
-    UnicodeString(IntToStr(Length(R.Data)))+LineEnding+UnicodeString('完整数据（十六进制）：')+
+    UnicodeString(IntToStr(Length(R.Data)))+LineEnding+UTF8Decode(TypedRegistryValue(R))+LineEnding+UnicodeString('完整数据（十六进制）：')+
     LineEnding+UnicodeString(S));
 end;
 procedure TGpoRegistryPane.RowsSelected(Sender:TObject; Item:TListItem; Selected:Boolean);

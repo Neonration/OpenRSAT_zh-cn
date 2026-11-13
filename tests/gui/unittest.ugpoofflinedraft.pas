@@ -846,6 +846,9 @@ begin
     F.EditChoice:=True;
     F.AddButton.Click; Check(F.Draft(gdsComputer).Dirty);
     Check(Length(F.Draft(gdsComputer).Records)=1); Check(F.Pane.Rows.Items.Count=1);
+    F.Pane.Rows.Items[0].Selected:=True;
+    Check(F.Pane.ViewButton.Visible and F.Pane.ViewButton.Enabled);
+    Check(Pos('数值：1 (0x00000001)',F.Pane.RecordDetails(0))>0);
     Check(F.UndoButton.Enabled); Check(F.ResetButton.Enabled);
     // Ordered duplicate rows are retained, not merged.
     F.AddButton.Click; Rows:=F.Draft(gdsComputer).Records;

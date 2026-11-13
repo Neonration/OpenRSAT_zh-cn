@@ -441,7 +441,7 @@ begin
   fStatus.WordWrap:=True;
   fPane:=TGpoRegistryPane.Create(Self); fPane.Parent:=Self; fPane.Align:=alClient;
   fPane.Rows.OnDblClick:=@RowDblClick;
-  fPane.Rows.OnKeyDown:=nil; fPane.Rows.OnSelectItem:=@RowSelected; fPane.ViewButton.Visible:=False;
+  fPane.Rows.OnKeyDown:=nil; fPane.Rows.OnSelectItem:=@RowSelected;
   fSavedIndex[gdsComputer]:=-1; fSavedIndex[gdsUser]:=-1;
   fSide:=gdsComputer; fValidSide:=True; fTree.Selected:=fComputerNode; RefreshView;
 end;
@@ -869,6 +869,7 @@ end;
 procedure TFrmGpoOfflineDraft.RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);
 begin
   fFindStatus.Caption:='';
+  fPane.ViewButton.Enabled:=fValidSide and Selected;
   fEdit.Enabled:=fValidSide and Selected and (not fDomain or fCandidateExists[fSide]);
   fDelete.Enabled:=fEdit.Enabled;
 end;

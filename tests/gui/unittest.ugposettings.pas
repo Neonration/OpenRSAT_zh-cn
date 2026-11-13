@@ -12,6 +12,7 @@ type
     procedure ClosingAndReopeningCancelsRead;
     procedure RevokedSessionStopsWorkerWithoutPoll;
     procedure FullRecordAndEmptyStatus;
+    procedure TypedRecordDetails;
     procedure CombinedSnapshotStates;
     procedure CancelPollStates;
     procedure BaselineJobLifecycle;
@@ -25,6 +26,47 @@ implementation
 uses Classes, SyncObjs, SysUtils, ugpoformats, ugposysvol, ugpodiagnostic, ufrmpropertygposettings, uproperty,
   mormot.net.ldap, mormot.net.sock
   {$IFDEF WINDOWS}, Windows, CommCtrl, Graphics, Forms{$ENDIF};
+procedure TUnitTestGpoSettings.TypedRecordDetails;
+var P:TGpoRegistryPane; R:TGpoRegistryRecords; D:string; I:Integer;
+  procedure Verify(Kind:Cardinal; const Bytes:array of Byte; const Expected:string);
+  var J:Integer;
+  begin
+    R[0].ValueType:=Kind; SetLength(R[0].Data,Length(Bytes));
+    for J:=0 to High(Bytes) do R[0].Data[J]:=Bytes[J];
+    P.Bind(R); D:=P.RecordDetails(0);
+    Check(Pos(Expected,D)>0,Expected);
+    for J:=0 to High(Bytes) do Check(R[0].Data[J]=Bytes[J],'Raw bytes changed');
+  end;
+begin
+  P:=TGpoRegistryPane.Create(nil);
+  try
+    SetLength(R,1); R[0].Key:='K'; R[0].ValueName:='V';
+    Verify(4,[$78,$56,$34,$12],'305419896 (0x12345678)');
+    Verify(5,[$12,$34,$56,$78],'305419896 (0x12345678)');
+    Verify(11,[$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff],'18446744073709551615');
+    Verify(4,[1,2],'整数长度');
+    Verify(1,[$41,0,0,0],'文本：A');
+    Verify(2,[$25,0,$58,0,$25,0,0,0],'%X%');
+    Check(Pos('未展开',D)>0);
+    Verify(1,[1],'奇数');
+    Verify(1,[$41,0],'缺少 NUL');
+    Verify(1,[$41,0,0,0,$42,0,0,0],'嵌入 NUL');
+    Verify(1,[0,$d8,0,0],'代理项');
+    Verify(1,[$3d,$d8,0,$de,0,0],UTF8Encode(UnicodeString(WideChar($d83d))+WideChar($de00)));
+    Verify(7,[0,0,0,0],'项目数：0');
+    Verify(7,[$41,0,0,0,$42,0,0,0,0,0],'项目数：2');
+    Verify(7,[0,0,$41,0,0,0,0,0],'空项目');
+    Verify(7,[$41,0,0,0],'双 NUL');
+    Verify(6,[$41,0],'仅显示原始数据');
+    Verify(999,[1,2,3],'01 02 03');
+    R[0].ValueName:='**DeleteValues'; Verify(4,[1,0,0,0],'策略指令');
+    R[0].ValueName:='V'; SetLength(R[0].Data,10002);
+    for I:=0 to 4999 do begin R[0].Data[I*2]:=65; R[0].Data[I*2+1]:=0; end;
+    R[0].Data[10000]:=0; R[0].Data[10001]:=0; R[0].ValueType:=1;
+    P.Bind(R); D:=P.RecordDetails(0); Check(Pos('预览已截断',D)>0);
+    Check(Pos('41 00 41 00',D)>0); Check(Length(R[0].Data)=10002);
+  finally P.Free; end;
+end;
 procedure TUnitTestGpoSettings.SelectedGpcIdentity;
 const Guid='{12345678-1234-1234-1234-123456789ABC}';
   DN='CN='+Guid+',CN=Policies,CN=System,DC=example,DC=test';
