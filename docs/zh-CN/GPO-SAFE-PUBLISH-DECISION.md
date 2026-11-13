@@ -36,3 +36,5 @@
 [GPMC 备份与恢复接口](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/gpmc/gpo-operations-supported-by-the-gpmc)是后续实现恢复的候选：备份包含策略、标识和 ACL；恢复回原域并恢复策略与 ACL，但不修改域、站点或 OU 上的 GPO 链接。导入只覆盖目标策略设置，不恢复目标 ACL 或链接。两者都可能覆盖现有更改，不能混作只恢复单条 Registry.pol 的操作。
 
 [IGPM::GetDomain](https://learn.microsoft.com/en-us/windows/win32/api/gpmgmt/nf-gpmgmt-igpm-getdomain) 支持指定域控；[Restore-GPO](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/restore-gpo?view=windowsserver2025-ps) 也提供 `-Server` 和用于选择具体备份的 `-BackupId`。这些接口提供了目标选择和备份语义，并不证明本项目已实现恢复、各底层文件操作的实际服务器、并发条件、结果未知后的处理或复制完成。原始离线草稿不是 GPMC 备份，不能直接用于上述恢复。
+
+隔离域的一次只读查询用 `GetDomain('openrsat.test','ORSAT-DC01.openrsat.test',0)` 打开域，再按 GUID 查询默认域策略。接口返回的 `DomainController` 为 `ORSAT-DC01.openrsat.test`，策略 GUID 与名称匹配。这验证了本次管理接口的目标选择；未调用备份、恢复或 `Save`，也没有证明它们的实际文件写入路由。
