@@ -2,6 +2,7 @@ param([Parameter(Mandatory=$true)][System.Management.Automation.PSCredential]$Cr
   [switch]$ExecuteIsolatedDomainWrite)
 $ErrorActionPreference='Stop'
 if(-not $ExecuteIsolatedDomainWrite){throw 'This is a domain-writing lab prototype; explicit execution switch and required platform approvals are necessary.'}
+throw 'The COM lab is paused before object creation: the actual SYSVOL write target cannot yet be verified as the specified DC.'
 . (Join-Path $PSScriptRoot 'gpo-com-local-functions.ps1')
 $dc='ORSAT-DC01.openrsat.test'
 $domain='openrsat.test'

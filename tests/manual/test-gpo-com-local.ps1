@@ -125,6 +125,9 @@ $changed=Clone $after; $changed.Files.Machine=SampleFile $bad
 Assert (-not (Get-CodexComChecks $base $changed $true).ExactSyntheticPolicy) 'altered policy not verified'
 Assert (-not (Get-CodexComChecks $base $after $false).SaveReturned) 'unknown save cannot pass'
 $tokens=$null; $errors=$null
-[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'gpo-com-lab.ps1'),[ref]$tokens,[ref]$errors) | Out-Null
+$labAst=[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'gpo-com-lab.ps1'),[ref]$tokens,[ref]$errors)
 Assert ($errors.Count -eq 0) 'lab script parses'
+$topLevelThrows=@($labAst.EndBlock.Statements | Where-Object {$_ -is [Management.Automation.Language.ThrowStatementAst]})
+$remoteCalls=@($labAst.FindAll({param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'New-PSSession'},$true))
+Assert ($topLevelThrows.Count -eq 1 -and $remoteCalls.Count -gt 0 -and $topLevelThrows[0].Extent.StartOffset -lt $remoteCalls[0].Extent.StartOffset) 'unverified DC path blocks lab before remote access'
 "LOCAL_ONLY_PASS $count assertions; no COM methods or domain operations called"
