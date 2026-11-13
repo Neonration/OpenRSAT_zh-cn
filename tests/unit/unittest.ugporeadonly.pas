@@ -246,6 +246,13 @@ begin
   Check(Report.Items[gdrFlags].Match=gdmIncomplete);
   OldCRC:=Report.Items[gdrMachinePolicy].Observed.Data[0]; O[gdrMachinePolicy].Data[0]:=0;
   Check(Report.Items[gdrMachinePolicy].Observed.Data[0]=OldCRC,'Report must own evidence');
+  O[gdrMachinePolicy].State:=gdsUnreadable; O[gdrMachinePolicy].Data:=nil;
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+  Check(not Report.Items[gdrMachinePolicy].ObservedDiffersFromBaseline,'Unreadable observation is not divergence');
+  O[gdrMachinePolicy]:=C[gdrMachinePolicy]; B[gdrMachinePolicy].State:=gdsUnreadable;
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+  Check(not Report.Items[gdrMachinePolicy].ObservedDiffersFromBaseline,'Unreadable baseline is not divergence');
+  Check(GpoDiagnosticPlanValues(Plan,B,C)=gdtOk);
   O:=B; C[gdrMachinePolicy]:=B[gdrMachinePolicy];
   Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
   Check(Report.Items[gdrMachinePolicy].Match=gdmBoth,'No-op remains ambiguous');
@@ -256,8 +263,11 @@ begin
   Check(not Report.HasOther and (Report.Items[gdrMachinePolicy].Match=gdmIncomplete));
   O[gdrFlags].State:=gdsPresent; O[gdrFlags].Data:=Bytes('bad');
   Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtInvalid);
-  O:=B; Other:=T; Other.ObjectGuid:=Copy(T.ObjectGuid); Other.ObjectGuid[0]:=2;
+  O:=C; Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+  Check(Report.Items[gdrUserPolicy].ObservedDiffersFromBaseline);
+  Other:=T; Other.ObjectGuid:=Copy(T.ObjectGuid); Other.ObjectGuid[0]:=2;
   Check(GpoDiagnoseObservations(T,Other,B,C,O,Report)=gdtTargetMismatch);
+  for R:=Low(R) to High(R) do Check(not Report.Items[R].ObservedDiffersFromBaseline,'Mismatch clears all divergence flags');
   Other:=T; Other.DC:='dc2.example.test'; Check(GpoDiagnoseObservations(T,Other,B,C,O,Report)=gdtTargetMismatch);
   Other:=T; Other.ObjectGuid:=Copy(T.ObjectGuid); FillChar(Other.ObjectGuid[0],16,0);
   Check(GpoDiagnoseObservations(T,Other,B,C,O,Report)=gdtInvalid);
@@ -383,7 +393,7 @@ var T:TGpoPreflightTarget; Token:ILdapSessionToken; TokenObj:TPreflightToken;
   E,Other:TGpoLdapEvidence; F,Changed:TGpoObservedFiles; P,Replanned:TGpoOfflinePlan; B:TGpoBoundPlan; Draft:TGpoObservedDraft;
   SD:mormot.core.os.security.TSecurityDescriptor; RawSD:RawByteString;
   OldUser,NewUser,OldMachine,NewMachine,SnapshotUser,SnapshotMachine:TGpoPolicyImage; Ini:TBytes; A:TGpoFile;
-  Control:TGpoReadControl; Diagnostic:TGpoDiagnosticReport;
+  Control:TGpoReadControl; Diagnostic:TGpoDiagnosticReport; Resource:TGpoDiagnosticResource;
 begin
   TokenObj:=TPreflightToken.Create; TokenObj.Valid:=True; Token:=TokenObj;
   T:=Default(TGpoPreflightTarget); T.Domain:='example.test'; T.DC:='dc.example.test';
@@ -430,8 +440,12 @@ begin
       Other:=E; Inc(Other.USNChanged);
       Check(GpoDiagnoseCapturedDraft(Draft,NewUser,NewMachine,E,Other,Changed,Control,Diagnostic)=gdtChangedDuringCapture);
       Check(not Diagnostic.HasOther);
+      for Resource:=Low(Resource) to High(Resource) do
+        Check(not Diagnostic.Items[Resource].ObservedDiffersFromBaseline,'Changed capture clears divergence');
       Other:=E; Other.Target.ObjectGuid:=Copy(T.ObjectGuid); Other.Target.ObjectGuid[0]:=2;
       Check(GpoDiagnoseCapturedDraft(Draft,NewUser,NewMachine,E,Other,Changed,Control,Diagnostic)=gdtTargetMismatch);
+      for Resource:=Low(Resource) to High(Resource) do
+        Check(not Diagnostic.Items[Resource].ObservedDiffersFromBaseline,'Identity mismatch clears divergence');
       Control.Cancel;
       Check(GpoDiagnoseCapturedDraft(Draft,NewUser,NewMachine,E,E,Changed,Control,Diagnostic)=gdtReadUnavailable);
       Check(not Diagnostic.HasOther);

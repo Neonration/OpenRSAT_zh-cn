@@ -7,6 +7,7 @@ uses Classes, SysUtils, Forms, Controls, Graphics, StdCtrls, ComCtrls, ExtCtrls,
 
 type
   TGpoDraftSide = (gdsComputer, gdsUser);
+  TGpoDraftRevisions = array[TGpoDraftSide] of QWord;
   TGpoCloseChoice = (gccExport, gccDiscard, gccReturn);
   TFrmGpoOfflineDraft = class(TForm)
   private
@@ -18,6 +19,7 @@ type
     fDomainBaseline:array[TGpoDraftSide] of TBytes;
     fCandidateExists,fUndoExists,fDomainUndoValid,fUndoPresenceOnly:array[TGpoDraftSide] of Boolean;
     fRevision,fPendingRevision,fPendingSideRevision:QWord;
+    fPendingDraftRevisions,fReviewDraftRevisions,fReportDraftRevisions:TGpoDraftRevisions;
     fDomainTarget:string;
     fDomainTimer:TTimer;
     fDomainWaiting:Boolean;
@@ -76,6 +78,8 @@ type
     procedure RefreshView(SelectedIndex:Integer=-1; PreserveCurrent:Boolean=True);
     function SelectedIndex:Integer;
     function Current:TGpoRegistryDraft;
+    function DraftRevisions:TGpoDraftRevisions;
+    function RevisionsMatch(const Value:TGpoDraftRevisions):Boolean;
     function PreviewSummary:string;
   protected
     procedure PollDomainPlan(Sender:TObject);
@@ -472,6 +476,7 @@ begin
     if fDomain and Assigned(fDomainJob) then begin
       fReportMemo:=Memo; fReportJob:=fDomainJob;
       fReportRevision:=fRevision; fReportSideRevision:=fSideRevision;
+      fReportDraftRevisions:=DraftRevisions;
     end;
     Window.ShowModal;
   finally fReportMemo:=nil; fReportJob:=nil; Window.Free; end;
@@ -677,7 +682,7 @@ begin
   if not Assigned(fDomainJob) or (fDomainJob.State=gddsStopped) then Review:='会话失效，不能继续复核；之前结果不可作为当前依据。'
   else if fDomainWaiting then Review:='复核进行中，尚无本次结果。'
   else if fReviewText='' then Review:='尚未完成只读复核。'
-  else if (fReviewRevision<>fRevision) or not SamePolicyImage(User,fReviewUser) or
+  else if (fReviewRevision<>fRevision) or not RevisionsMatch(fReviewDraftRevisions) or not SamePolicyImage(User,fReviewUser) or
     not SamePolicyImage(Machine,fReviewMachine) then Review:='草稿已变化，之前复核结果已过期。'
   else Review:=fReviewText;
   Target:=fDomainTarget;
@@ -695,6 +700,7 @@ end;
 
 procedure TFrmGpoOfflineDraft.SummaryClick(Sender:TObject);
 var U,M,U2,M2:TGpoPolicyImage; Path,Err,Report,Review:string; Data,RU,RM,RU2,RM2,BU,BM,BU2,BM2:TBytes;
+  Revisions:TGpoDraftRevisions;
   Version,ReviewVersion:QWord; State:TGpoDomainDraftState; Waiting:Boolean;
 begin
   if not fDomain or not Assigned(fDomainJob) or not DomainCandidates(U,M) or
@@ -703,10 +709,10 @@ begin
   begin ShowError('无法读取域草稿。'); Exit; end;
   if not SameDraftBytes(BU,fDomainBaseline[gdsUser]) or not SameDraftBytes(BM,fDomainBaseline[gdsComputer]) then
   begin ShowError('域草稿基线不一致，不能导出审阅摘要。'); Exit; end;
-  Version:=fRevision; State:=fDomainJob.State; Waiting:=fDomainWaiting;
+  Version:=fRevision; Revisions:=DraftRevisions; State:=fDomainJob.State; Waiting:=fDomainWaiting;
   Review:=fReviewText; ReviewVersion:=fReviewRevision;
   if not ChooseSummaryFile(Path) then Exit;
-  if (Version<>fRevision) or (State<>fDomainJob.State) or (Waiting<>fDomainWaiting) or
+  if (Version<>fRevision) or not RevisionsMatch(Revisions) or (State<>fDomainJob.State) or (Waiting<>fDomainWaiting) or
     (Review<>fReviewText) or (ReviewVersion<>fReviewRevision) or not DomainCandidates(U2,M2) or
     (fDrafts[gdsUser].Export(RU2)<>grsOk) or (fDrafts[gdsComputer].Export(RM2)<>grsOk) or
     (fDrafts[gdsUser].Baseline(BU2)<>grsOk) or (fDrafts[gdsComputer].Baseline(BM2)<>grsOk) or
@@ -754,9 +760,13 @@ end;
 procedure TFrmGpoOfflineDraft.DomainPlanClick;
 begin
   if fDomainWaiting or not Assigned(fDomainJob) then Exit;
+  fPendingDraftRevisions:=DraftRevisions;
   if not DomainCandidates(fPendingUser,fPendingMachine) then begin ShowError('无法读取域草稿内容。'); Exit; end;
   if not fDomainJob.Submit(fPendingUser,fPendingMachine) then
   begin ShowError('域会话已失效或后台仍在工作；草稿可继续编辑和本地导出。'); Exit; end;
+  if not RevisionsMatch(fPendingDraftRevisions) then begin
+    fDomainJob.Cancel; fReviewText:=''; ShowError('提交期间草稿已变化，结果已丢弃。'); Exit;
+  end;
   fPendingRevision:=fRevision; fPendingSideRevision:=fSideRevision;
   fReviewText:=''; fDomainWaiting:=True; fPlan.Enabled:=False;
   fDomainStarted:=GetTickCount64;
@@ -775,7 +785,7 @@ var User,Machine:TGpoPolicyImage; MessageText:string;
 begin
   if Assigned(fReportMemo) and ((not Assigned(fDomainJob)) or (fReportJob<>fDomainJob) or
     (fReportJob.State=gddsStopped) or (fReportRevision<>fRevision) or
-    (fReportSideRevision<>fSideRevision)) then begin
+    (fReportSideRevision<>fSideRevision) or not RevisionsMatch(fReportDraftRevisions)) then begin
     fReportMemo.Text:='会话、窗口分支或草稿已变化；原结果已清除，请重新采集。';
     fReportMemo:=nil; fReportJob:=nil; fReviewText:='';
   end;
@@ -788,14 +798,15 @@ begin
   end;
   if not fDomainWaiting or (fDomainJob.State<>gddsResult) then Exit;
   fDomainWaiting:=False; fPlan.Enabled:=True;
-  if (fRevision<>fPendingRevision) or (fSideRevision<>fPendingSideRevision) or
+  if (fRevision<>fPendingRevision) or (fSideRevision<>fPendingSideRevision) or not RevisionsMatch(fPendingDraftRevisions) or
     not DomainCandidates(User,Machine) or not SamePolicyImage(User,fPendingUser) or not SamePolicyImage(Machine,fPendingMachine) then
   begin ShowError('复核期间草稿已变化，旧结果已丢弃；请重新复核。'); Exit; end;
   MessageText:=fDomainJob.ResultText;
-  if (fDomainJob.State<>gddsResult) or (fRevision<>fPendingRevision) or (fSideRevision<>fPendingSideRevision) then
+  if (fDomainJob.State<>gddsResult) or (fRevision<>fPendingRevision) or (fSideRevision<>fPendingSideRevision) or
+    not RevisionsMatch(fPendingDraftRevisions) then
   begin fReviewText:=''; ShowError('会话或草稿已变化，结果已丢弃。'); Exit; end;
   if MessageText='' then MessageText:='只读复核未完成；草稿保留。';
-  fReviewRevision:=fRevision; fReviewUser:=User; fReviewUser.Data:=Copy(User.Data);
+  fReviewRevision:=fRevision; fReviewDraftRevisions:=DraftRevisions; fReviewUser:=User; fReviewUser.Data:=Copy(User.Data);
   fReviewMachine:=Machine; fReviewMachine.Data:=Copy(Machine.Data);
   if (MessageText='候选计划与原域基线的只读复核一致；安全证据仍不完整，不能授权写入。') or
      (MessageText='域基线已变化；本次检查阻断，草稿保留，可导出后重新采集。') or
@@ -827,6 +838,12 @@ end;
 
 function TFrmGpoOfflineDraft.Current:TGpoRegistryDraft;
 begin Result:=fDrafts[fSide]; end;
+function TFrmGpoOfflineDraft.DraftRevisions:TGpoDraftRevisions;
+var Side:TGpoDraftSide;
+begin for Side:=Low(Side) to High(Side) do Result[Side]:=fDrafts[Side].Revision; end;
+function TFrmGpoOfflineDraft.RevisionsMatch(const Value:TGpoDraftRevisions):Boolean;
+begin Result:=(Value[gdsComputer]=fDrafts[gdsComputer].Revision) and
+  (Value[gdsUser]=fDrafts[gdsUser].Revision); end;
 function TFrmGpoOfflineDraft.Draft(Side:TGpoDraftSide):TGpoRegistryDraft;
 begin Result:=fDrafts[Side]; end;
 procedure TFrmGpoOfflineDraft.SelectSide(Side:TGpoDraftSide);

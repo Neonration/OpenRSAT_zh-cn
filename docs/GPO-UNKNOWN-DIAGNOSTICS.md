@@ -53,6 +53,8 @@ also check their input sizes before copying. The domain draft's read-only review
 uses its existing background job to capture LDAP, files, then LDAP again. It
 discards the result if the two LDAP observations differ, the target or session
 changes, the operation is cancelled, or the draft or selected side changes.
+Both draft revision counters are checked even if an edit is later undone and the
+candidate bytes become identical again; an open report is cleared on such a change.
 Matching observations do not exclude changes that occur and revert between reads,
 or changes after the read. The report shows each resource and explicitly leaves
 unknown candidate metadata uncollected. It is not connected to a write executor

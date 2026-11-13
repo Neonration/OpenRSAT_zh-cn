@@ -47,7 +47,7 @@ type
     MutateOnVersion, MutateOnGpt, RebaseOnGpt, InjectedEditOk:Boolean;
     SwitchOnExport,MutateOnExport:Boolean;
     SwitchOnImport,SwitchBackOnImport,MutateOnImport,UndoOnImport,RebaseOnImport,MutateOnConfirm:Boolean;
-    SummaryChoice,MutateOnSummary,RebaseOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
+    SummaryChoice,MutateOnSummary,UndoOnSummary,RebaseOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
     OpenedSnapshot:TFrmGpoOfflineDraft;
     constructor Create(TheOwner:TComponent); override;
     procedure PollDomainNow;
@@ -79,7 +79,7 @@ type
   end;
   TModalReportProbe=class(TFrmGpoOfflineDraft)
   public
-    Job:IGpoDomainDraftJob; Timer:TTimer; Stage:Integer; SawCleared:Boolean;
+    Job:IGpoDomainDraftJob; Timer:TTimer; Stage:Integer; SawCleared,MutateThenUndo,MutationOk:Boolean;
     procedure Tick(Sender:TObject);
     procedure RunReport;
   end;
@@ -174,10 +174,16 @@ begin Inc(RestoreCalls); Result:=RestoreChoice; end;
 function TTestOfflineForm.ConfirmSnapshot:Boolean;
 begin Result:=Choice; end;
 procedure TModalReportProbe.Tick(Sender:TObject);
-var I:Integer; C:TComponent;
+var I:Integer; C:TComponent; R:TGpoRegistryRecord;
 begin
   Inc(Stage);
-  if Stage=1 then begin Job.Cancel; Exit; end;
+  if Stage=1 then begin
+    if MutateThenUndo then begin
+      R:=Default(TGpoRegistryRecord); R.Key:='K'; R.ValueName:='V'; R.ValueType:=3;
+      MutationOk:=(Draft(gdsComputer).Insert(0,R)=grsOk) and Draft(gdsComputer).Undo;
+    end else Job.Cancel;
+    Exit;
+  end;
   for I:=0 to Screen.FormCount-1 do begin
     C:=Screen.Forms[I].FindComponent('GpoPlanReport');
     if (C is TMemo) and (Pos('原结果已清除',TMemo(C).Text)>0) then begin
@@ -226,6 +232,7 @@ begin
   if MutateOnSummary then begin
     MutateOnSummary:=False;
     InjectedEditOk:=Draft(gdsUser).Insert(Length(Draft(gdsUser).Records),NextRecord)=grsOk;
+    if UndoOnSummary then begin UndoOnSummary:=False; InjectedEditOk:=Draft(gdsUser).Undo and InjectedEditOk; end;
   end;
   if RebaseOnSummary then begin
     RebaseOnSummary:=False; SetLength(Records,1); Records[0]:=NextRecord;
@@ -270,7 +277,7 @@ function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
 procedure TUnitTestGpoOfflineDraftUI.DiagnosticPresentationLifecycle;
 var F:TTestOfflineForm; Modal:TModalReportProbe; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; Report:TGpoDiagnosticReport;
-  Text:string; Errors:Integer; Empty:TBytes;
+  Text:string; Errors:Integer; Empty,CurrentBytes:TBytes;
 begin
   Report:=Default(TGpoDiagnosticReport); Report.Summary:=gduIncomplete; Report.HasOther:=True;
   Report.Items[gdrMachinePolicy].Baseline.State:=gdsPresent;
@@ -293,6 +300,17 @@ begin
     F.PlanButton.Click; Check(Job.Current=gddsChecking); F.PlanButton.Click;
     F.SelectSide(gdsUser); Job.Text:=Text; Job.Current:=gddsResult; Errors:=F.ErrorCalls;
     F.PollDomainNow; Check(F.ErrorCalls=Errors+1); Check(F.PlanReports=0,'Side changes discard pending results');
+    F.PlanButton.Click; Check(Job.Current=gddsChecking);
+    F.NextRecord:=Item('Revision','V',3,[1]);
+    Check(F.Draft(gdsComputer).Insert(0,F.NextRecord)=grsOk); Check(F.Draft(gdsComputer).Undo);
+    Job.Current:=gddsResult; Errors:=F.ErrorCalls; F.PollDomainNow;
+    Check(F.ErrorCalls=Errors+1,'Edit then undo during capture must discard stale result');
+    Check(F.PlanReports=0);
+    F.PlanButton.Click; Check(F.Draft(gdsUser).Export(CurrentBytes)=grsOk);
+    Check(F.Draft(gdsUser).Load(CurrentBytes)=grsOk);
+    Job.Current:=gddsResult; Errors:=F.ErrorCalls; F.PollDomainNow;
+    Check(F.ErrorCalls=Errors+1,'Reloading identical bytes during capture must discard stale result');
+    Check(F.PlanReports=0);
     F.PlanButton.Click; Check(Job.Current=gddsChecking); Job.Current:=gddsResult; F.PollDomainNow;
     Check(F.PlanReports=1); Check(Pos('其他值（冲突）',F.PlanReport)>0);
     F.PlanButton.Click; Job.Cancel; F.PollDomainNow;
@@ -303,6 +321,12 @@ begin
     Job.InitialMachine.Exists:=True; Job.InitialMachine.Data:=Empty; Modal.Job:=Ref;
     Check(Modal.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
     Modal.RunReport; Check(Modal.SawCleared,'Open report must clear when its session is revoked');
+  finally Modal.Free; Ref:=nil; end;
+  Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job; Modal:=TModalReportProbe.Create(nil);
+  try
+    Job.InitialMachine.Exists:=True; Job.InitialMachine.Data:=Empty; Modal.Job:=Ref; Modal.MutateThenUndo:=True;
+    Check(Modal.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
+    Modal.RunReport; Check(Modal.MutationOk); Check(Modal.SawCleared,'Open report must clear after edit and undo');
   finally Modal.Free; Ref:=nil; end;
 end;
 procedure TUnitTestGpoOfflineDraftUI.LargeSnapshotWorkflow;
@@ -585,6 +609,11 @@ begin
     Job.Current:=gddsResult; F.PollDomainNow;
     F.SummaryPath:=Name(4); F.SummaryButton.Click; Report:=ReadReport(4);
     Check(Pos('只读复核一致',Report)>0); Check(Pos('不能授权写入',Report)>0);
+    F.SummaryPath:=Name(15); F.MutateOnSummary:=True; F.UndoOnSummary:=True;
+    F.SummaryButton.Click; Check(F.InjectedEditOk); Check(not FileExists(Name(15)));
+    Check(Pos('状态已变化',F.LastError)>0,'Edit and undo during export must cancel');
+    F.SummaryPath:=Name(14); F.SummaryButton.Click; Report:=ReadReport(14);
+    Check(Pos('结果已过期',Report)>0,'Edit and undo invalidates an earlier review');
     F.PlanButton.Click; Job.Text:='域基线已变化；本次检查阻断，草稿保留，可导出后重新采集。';
     Job.Current:=gddsResult; F.PollDomainNow; F.SummaryPath:=Name(9); F.SummaryButton.Click; Report:=ReadReport(9);
     Check(Pos('域基线已变化',Report)>0); Check(Pos('只读复核一致',Report)=0);
@@ -609,7 +638,7 @@ begin
     Check(F.Draft(gdsUser).Dirty,'summary exports must retain the draft');
   finally
     F.Free; Ref:=nil;
-    for I:=1 to 13 do begin Path:=Name(I); if GetFileAttributesW(PWideChar(UTF8Decode(Path)))<>INVALID_FILE_ATTRIBUTES then
+    for I:=1 to 15 do begin Path:=Name(I); if GetFileAttributesW(PWideChar(UTF8Decode(Path)))<>INVALID_FILE_ATTRIBUTES then
       Check(DeleteFileW(PWideChar(UTF8Decode(Path))),'remove summary'); end;
     Check(RemoveDir(Dir),'summary test directory cleaned');
   end;
