@@ -22,6 +22,11 @@ the conflict. Missing is reserved for confirmed missing policy files; unreadable
 and not collected are different states. There is no conclusion for a failed
 identity, session, shape or size check.
 
+When baseline and observation are both available, a separate indicator reports
+whether they differ even if the candidate is unknown. In that case it is not a
+candidate conflict or evidence that a write occurred. The background job releases
+the raw report copies after formatting, including on exceptions and cancellation.
+
 Adapted file values retain their original read status and file observation;
 extension values retain the returned/not-returned/unavailable status. These
 details are evidence, not comparison keys: the match uses state and bytes. A

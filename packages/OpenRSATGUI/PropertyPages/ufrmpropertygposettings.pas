@@ -317,9 +317,14 @@ begin
   if Report.Summary=gduIncomplete then Result:='逐项诊断：信息不完整。' else Result:='逐项诊断：可比较的证据已列出。';
   if Report.HasOther then Result:=Result+' 发现其他值冲突。';
   Result:=Result+LineEnding;
-  for R:=Low(R) to High(R) do Result:=Result+Names[R]+'：基线='+States[Report.Items[R].Baseline.State]+
+  for R:=Low(R) to High(R) do begin
+    Result:=Result+Names[R]+'：基线='+States[Report.Items[R].Baseline.State]+
     '；候选='+States[Report.Items[R].Candidate.State]+'；观察='+States[Report.Items[R].Observed.State]+
-    '；比较='+Matches[Report.Items[R].Match]+LineEnding;
+    '；比较='+Matches[Report.Items[R].Match];
+    if Report.Items[R].ObservedDiffersFromBaseline then
+      Result:=Result+'；观察与基线不同（不代表写入结果）';
+    Result:=Result+LineEnding;
+  end;
   Result:=Result+'匹配仅表示采集时状态及字节相符，不证明内容有效、操作成功、执行者或持久化；不授权重试、回滚或写入。';
 end;
 
@@ -440,11 +445,13 @@ begin
         Diagnostics:=nil; DiagnosticText:='';
         try
           if Supports(fBackend,IGpoDomainDiagnosticBackend,Diagnostics) then begin
-            DStatus:=Diagnostics.Diagnose(U,M,Control,Report);
-            if DStatus=gdtOk then DiagnosticText:=GpoDiagnosticReportText(Report)
-            else if DStatus=gdtTargetMismatch then DiagnosticText:='域控或目标身份已变化；本次检查阻断，草稿保留。'
-            else if DStatus=gdtChangedDuringCapture then DiagnosticText:='采集期间 LDAP 状态已变化；本次结果已丢弃。'
-            else DiagnosticText:='只读复核未完成，证据不足或会话失效；草稿保留。';
+            try
+              DStatus:=Diagnostics.Diagnose(U,M,Control,Report);
+              if DStatus=gdtOk then DiagnosticText:=GpoDiagnosticReportText(Report)
+              else if DStatus=gdtTargetMismatch then DiagnosticText:='域控或目标身份已变化；本次检查阻断，草稿保留。'
+              else if DStatus=gdtChangedDuringCapture then DiagnosticText:='采集期间 LDAP 状态已变化；本次结果已丢弃。'
+              else DiagnosticText:='只读复核未完成，证据不足或会话失效；草稿保留。';
+            finally Report:=Default(TGpoDiagnosticReport); end;
           end else R:=fBackend.Check(U,M,Control);
           Ok:=Control.Status=grsOk;
         finally EndOperation; end;

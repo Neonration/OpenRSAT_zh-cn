@@ -81,6 +81,8 @@ type
     procedure Execute; override;
   end;
   TDomainDiagnosticProbe = class(TDomainProbe,IGpoDomainDiagnosticBackend)
+    Evidence:TBytes;
+    FailAfter:Boolean;
     function Diagnose(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl;
       out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
   end;
@@ -104,7 +106,11 @@ function TDomainDiagnosticProbe.Diagnose(const User,Machine:TGpoPolicyImage; Con
 begin
   Report:=Default(TGpoDiagnosticReport); Report.Summary:=gduIncomplete; Report.HasOther:=True;
   Report.Items[gdrMachinePolicy].Match:=gdmOther;
-  Entered.SetEvent; Release.WaitFor(5000); Result:=gdtOk;
+  SetLength(Evidence,1024*1024); Evidence[0]:=42;
+  Report.Items[gdrMachinePolicy].Observed.Data:=Evidence;
+  Entered.SetEvent; Release.WaitFor(5000);
+  if FailAfter then raise Exception.Create('Synthetic diagnostic failure');
+  Result:=gdtOk;
 end;
 procedure TDomainTestThread.Execute; begin Job.Execute; end;
 constructor TBlockingBaseline.Create;
@@ -445,7 +451,7 @@ end;
 procedure TUnitTestGpoSettings.DiagnosticBackendLifecycle;
 var Client:TLdapSessionProbe; Request:TGpoBaselineRequest; Probe:TDomainDiagnosticProbe;
   Backend:IGpoDomainDraftBackend; Job:IGpoDomainDraftJob; Worker:TDomainTestThread;
-  User,Machine:TGpoPolicyImage; I:Integer;
+  User,Machine:TGpoPolicyImage; I,Mode:Integer; Original:Pointer;
 begin
   Client:=TLdapSessionProbe.Create; Worker:=nil; Job:=nil;
   try
@@ -460,9 +466,27 @@ begin
     for I:=1 to 200 do begin if Job.State=gddsResult then Break; Sleep(10); end;
     Check(Job.State=gddsResult); Check(Pos('信息不完整',Job.ResultText)>0);
     Check(Pos('其他值（冲突）',Job.ResultText)>0);
+    Original:=Pointer(Probe.Evidence); SetLength(Probe.Evidence,Length(Probe.Evidence));
+    Check(Pointer(Probe.Evidence)=Original,'Idle job must release raw report evidence');
     Client.ResetSameSocket('B'); Check(Job.State=gddsStopped);
     Check(Pos('失效',Job.ResultText)>0,'Revoked session cannot expose diagnostics');
     Worker.WaitFor; FreeAndNil(Worker);
+    Job:=nil; Backend:=nil;
+    for Mode:=0 to 1 do begin
+      Request.SessionToken:=Client.SessionToken;
+      Probe:=TDomainDiagnosticProbe.Create; Probe.FailAfter:=Mode=1; Backend:=Probe;
+      Job:=GpoCreateDomainDraftJob(Request,Backend); Worker:=TDomainTestThread.Create(True);
+      Worker.Job:=Job; Worker.Start;
+      for I:=1 to 200 do begin if Job.State=gddsReady then Break; Sleep(10); end;
+      Check(Job.Initial(User,Machine)); Check(Job.Submit(User,Machine));
+      Check(Probe.Entered.WaitFor(2000)=wrSignaled);
+      if Mode=0 then Job.Cancel;
+      Probe.Release.SetEvent; Worker.WaitFor; FreeAndNil(Worker);
+      Check(Job.State=gddsStopped);
+      Original:=Pointer(Probe.Evidence); SetLength(Probe.Evidence,Length(Probe.Evidence));
+      Check(Pointer(Probe.Evidence)=Original,'Cancelled or failed job releases raw evidence');
+      Job:=nil; Backend:=nil;
+    end;
   finally
     if Assigned(Job) then Job.Cancel;
     if Assigned(Worker) then begin Probe.Release.SetEvent; Worker.WaitFor; Worker.Free; end;

@@ -421,6 +421,12 @@ begin
       Check(Diagnostic.Items[gdrUserPolicy].Match=gdmOther);
       Check(Diagnostic.Items[gdrMachinePolicy].Observed.State=gdsUnreadable);
       Check(Diagnostic.Items[gdrFlags].Candidate.State=gdsNotCollected);
+      Other:=E; Inc(Other.Flags);
+      Check(GpoDiagnoseCapturedDraft(Draft,NewUser,NewMachine,Other,Other,Changed,Control,Diagnostic)=gdtOk);
+      Check((Diagnostic.Items[gdrFlags].Match=gdmIncomplete) and
+        Diagnostic.Items[gdrFlags].ObservedDiffersFromBaseline,
+        'Known baseline divergence remains visible with an unknown candidate');
+      Check(Diagnostic.HasOther,'Separate complete resource conflict remains visible');
       Other:=E; Inc(Other.USNChanged);
       Check(GpoDiagnoseCapturedDraft(Draft,NewUser,NewMachine,E,Other,Changed,Control,Diagnostic)=gdtChangedDuringCapture);
       Check(not Diagnostic.HasOther);

@@ -26,6 +26,7 @@ type
   TGpoDiagnosticItem = record
     Baseline, Candidate, Observed: TGpoDiagnosticValue;
     Match: TGpoDiagnosticMatch;
+    ObservedDiffersFromBaseline: Boolean;
   end;
   TGpoDiagnosticSummary = (gduIncomplete, gduComparable);
   TGpoDiagnosticReport = record
@@ -154,6 +155,9 @@ begin
     Temp.Items[R].Baseline:=Baseline[R]; Temp.Items[R].Baseline.Data:=Copy(Baseline[R].Data);
     Temp.Items[R].Candidate:=Candidate[R]; Temp.Items[R].Candidate.Data:=Copy(Candidate[R].Data);
     Temp.Items[R].Observed:=Observed[R]; Temp.Items[R].Observed.Data:=Copy(Observed[R].Data);
+    Temp.Items[R].ObservedDiffersFromBaseline:=
+      (Baseline[R].State in [gdsMissing,gdsPresent]) and
+      (Observed[R].State in [gdsMissing,gdsPresent]) and not SameValue(Baseline[R],Observed[R]);
     if (Baseline[R].State in [gdsNotCollected,gdsUnreadable]) or
        (Candidate[R].State in [gdsNotCollected,gdsUnreadable]) or
        (Observed[R].State in [gdsNotCollected,gdsUnreadable]) then begin

@@ -278,10 +278,14 @@ begin
   Report.Items[gdrMachinePolicy].Observed.State:=gdsPresent;
   Report.Items[gdrMachinePolicy].Match:=gdmOther;
   Report.Items[gdrUserPolicy].Observed.State:=gdsUnreadable;
+  Report.Items[gdrFlags].Baseline.State:=gdsPresent;
+  Report.Items[gdrFlags].Observed.State:=gdsPresent;
+  Report.Items[gdrFlags].ObservedDiffersFromBaseline:=True;
   Text:=GpoDiagnosticReportText(Report);
   Check(Pos('信息不完整',Text)>0); Check(Pos('其他值冲突',Text)>0);
   Check(Pos('其他值（冲突）',Text)>0); Check(Pos('不可读',Text)>0);
   Check(Pos('候选=未采集',Text)>0); Check(Pos('不授权重试、回滚或写入',Text)>0);
+  Check(Pos('观察与基线不同（不代表写入结果）',Text)>0);
   Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job; F:=TTestOfflineForm.Create(nil);
   try
     Check(SerializeRegistryPol(nil,Empty)=grsOk); Job.InitialMachine.Exists:=True; Job.InitialMachine.Data:=Empty;
