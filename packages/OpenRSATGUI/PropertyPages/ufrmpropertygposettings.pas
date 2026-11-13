@@ -820,16 +820,18 @@ var I,N,C,Next,Items:Integer; V:QWord; U:UnicodeString; Truncated:Boolean;
   function UnitAt(Index:Integer):Word;
   begin Result:=Word(R.Data[Index*2]) or (Word(R.Data[Index*2+1]) shl 8); end;
   procedure AppendUnit(Value:Word);
+  var Fragment:UnicodeString;
   begin
-    if Length(U)>=PreviewLimit then begin Truncated:=True; Exit; end;
     case Value of
-      9: U:=U+'\t';
-      10: U:=U+'\n';
-      13: U:=U+'\r';
-      92: U:=U+'\\';
-      else if Value<32 then U:=U+'\u'+UnicodeString(IntToHex(Value,4))
-      else U:=U+WideChar(Value);
+      9: Fragment:='\t';
+      10: Fragment:='\n';
+      13: Fragment:='\r';
+      92: Fragment:='\\';
+      else if Value<32 then Fragment:='\u'+UnicodeString(IntToHex(Value,4))
+      else Fragment:=WideChar(Value);
     end;
+    if Truncated or (Length(U)+Length(Fragment)>PreviewLimit) then Truncated:=True
+    else U:=U+Fragment;
   end;
 begin
   if Copy(R.ValueName,1,2)='**' then Exit('策略指令：仅显示原始数据，不执行。');
@@ -864,7 +866,8 @@ begin
           if (I=0) and (N=2) then begin Inc(I); Break; end;
           if (I=0) or (I<>N-2) and (UnitAt(I+1)=0) then
             Exit('无效数据：MULTI_SZ 包含空项目或多余终止符。');
-          if Length(U)<PreviewLimit then U:=U+LineEnding else Truncated:=True;
+          if Truncated or (Length(U)+Length(LineEnding)>PreviewLimit) then Truncated:=True
+          else U:=U+LineEnding;
           Inc(Items); Inc(I); Continue;
         end;
         if (C >= $D800) and (C <= $DBFF) then
@@ -872,7 +875,7 @@ begin
           if I+1>=N-1 then Exit('无效数据：UTF-16 代理项不完整。');
           Next:=UnitAt(I+1);
           if (Next<$DC00) or (Next>$DFFF) then Exit('无效数据：UTF-16 代理项无效。');
-          if Length(U)+2<=PreviewLimit then begin U:=U+WideChar(C)+WideChar(Next); end
+          if not Truncated and (Length(U)+2<=PreviewLimit) then begin U:=U+WideChar(C)+WideChar(Next); end
           else Truncated:=True;
           Inc(I,2); Continue;
         end;
