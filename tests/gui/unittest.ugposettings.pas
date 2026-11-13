@@ -17,12 +17,35 @@ type
     procedure BaselineJobLifecycle;
     procedure DomainDraftJobLifecycle;
     procedure DiagnosticBackendLifecycle;
+    procedure SelectedGpcIdentity;
     procedure HeaderUsesSystemColors;
   end;
 implementation
 uses Classes, SyncObjs, SysUtils, ugpoformats, ugposysvol, ugpodiagnostic, ufrmpropertygposettings, uproperty,
   mormot.net.ldap, mormot.net.sock
   {$IFDEF WINDOWS}, Windows, CommCtrl, Graphics, Forms{$ENDIF};
+procedure TUnitTestGpoSettings.SelectedGpcIdentity;
+const Guid='{12345678-1234-1234-1234-123456789ABC}';
+  DN='CN='+Guid+',CN=Policies,CN=System,DC=example,DC=test';
+var E:TLdapResult; Original,Replacement:RawByteString;
+begin
+  Original:=#1+StringOfChar(#0,15); Replacement:=#2+StringOfChar(#0,15);
+  Check(not GpoMatchesSelectedObject(nil,DN,Guid,Original));
+  E:=TLdapResult.Create;
+  try
+    E.ObjectName:=DN; E.Attributes.Add('name',Guid);
+    Check(not GpoMatchesSelectedObject(E,DN,Guid,Original),'Missing objectGUID must fail');
+    E.Attributes.Add('objectGUID',Original);
+    Check(GpoMatchesSelectedObject(E,DN,Guid,Original));
+    Check(not GpoMatchesSelectedObject(E,DN,Guid,Replacement),'Recreated object must fail');
+    Check(not GpoMatchesSelectedObject(E,DN,Guid,StringOfChar(#0,16)),'Zero GUID must fail');
+    Check(not GpoMatchesSelectedObject(E,DN,Guid,Copy(Original,1,15)));
+    Check(not GpoMatchesSelectedObject(E,'CN=other,DC=example,DC=test',Guid,Original));
+    Check(not GpoMatchesSelectedObject(E,DN,'invalid',Original));
+    E.Attributes.Add('objectGUID',Replacement,aoReplaceValue);
+    Check(not GpoMatchesSelectedObject(E,DN,Guid,Original),'Fresh changed GUID must fail');
+  finally E.Free; end;
+end;
 type
   TTestGpoFrame = class(TFrmPropertyGpoSettings)
   public

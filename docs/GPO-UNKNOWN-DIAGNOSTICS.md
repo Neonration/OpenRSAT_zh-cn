@@ -60,6 +60,12 @@ or changes after the read. The report shows each resource and explicitly leaves
 unknown candidate metadata uncollected. It is not connected to a write executor
 and performs no LDAP or filesystem writes.
 
+The standard GPO settings view also checks the fresh LDAP object's nonzero
+objectGUID against the selected object's identity before it reads SYSVOL. Its
+RootDSE and GPC LDAP requests still run on the UI thread; cancellation and the
+background read budget begin only after those requests return. This identity
+check does not remove that responsiveness limitation.
+
 Offline draft snapshots are written directly to a newly created destination.
 CRC detects accidental corruption on reopen; it does not authenticate the file.
 A crash or power loss can leave a partial file. Disk-full and flush failures are

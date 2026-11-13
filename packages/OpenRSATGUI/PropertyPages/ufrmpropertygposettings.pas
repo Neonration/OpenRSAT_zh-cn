@@ -5,7 +5,7 @@ unit ufrmpropertygposettings;
 interface
 
 uses Classes, SysUtils, Forms, Controls, Graphics, StdCtrls, ComCtrls, ExtCtrls,
-  upropertyframe, uproperty, ugpoformats, ugposysvol, ugpodiagnostic;
+  upropertyframe, uproperty, ugpoformats, ugposysvol, ugpodiagnostic, mormot.net.ldap;
 
 const
   GpoRegistryPageSize = 200;
@@ -185,10 +185,11 @@ function GpoCreateDomainDraftJob(const Request:TGpoBaselineRequest;
   const Backend:IGpoDomainDraftBackend=nil):IGpoDomainDraftJob;
 function GpoLdapFailureText(ResultCode: Integer): string;
 function GpoDiagnosticReportText(const Report:TGpoDiagnosticReport):string;
+function GpoMatchesSelectedObject(Entry:TLdapResult; const DN,Guid:string; const ObjectGuid:RawByteString):Boolean;
 
 implementation
 
-uses mormot.net.ldap, Dialogs, SyncObjs, ufrmgpoofflinedraft
+uses Dialogs, SyncObjs, ufrmgpoofflinedraft
   {$IFDEF WINDOWS}, Windows, CommCtrl{$ENDIF};
 
 {$R *.lfm}
@@ -857,6 +858,19 @@ begin
   end;
 end;
 
+function GpoMatchesSelectedObject(Entry:TLdapResult; const DN,Guid:string; const ObjectGuid:RawByteString):Boolean;
+var NameAttr,GuidAttr:TLdapAttribute; I:Integer; Nonzero:Boolean;
+begin
+  Result:=False;
+  if not Assigned(Entry) or (DN='') or not GpoValidGuid(Guid) or (Length(ObjectGuid)<>16) then Exit;
+  Nonzero:=False;
+  for I:=1 to Length(ObjectGuid) do if ObjectGuid[I]<>#0 then Nonzero:=True;
+  if not Nonzero or not SameText(Entry.ObjectName,DN) then Exit;
+  NameAttr:=Entry.Find('name'); GuidAttr:=Entry.Find('objectGUID');
+  Result:=Assigned(NameAttr) and (NameAttr.Count=1) and SameText(NameAttr.GetReadable,Guid) and
+    Assigned(GuidAttr) and (GuidAttr.Count=1) and (GuidAttr.GetRaw=ObjectGuid);
+end;
+
 constructor TGpoSettingsRead.Create(const Value: TGpoSettingsSnapshot;
   const Transport: IGpoSettingsTransport);
 begin
@@ -1258,6 +1272,8 @@ begin
   begin SetSummary('无法读取：没有已连接的 LDAP 会话。'); Exit; end;
   if not SameConnection then
   begin SetSummary('连接或对象已变化，请重新打开属性。'); Exit; end;
+  if Length(fObjectGuid)<>16 then
+  begin SetSummary('无法读取：所选 GPO 缺少有效的对象 GUID，请重新打开属性。'); Exit; end;
   Value := Default(TGpoSettingsSnapshot);
   Value.SessionToken := fSessionToken;
   Value.Container.Guid := fGuid;
@@ -1278,13 +1294,12 @@ begin
   begin SetSummary('无法读取：LDAP 未标识具体域控制器。'); Exit; end;
   // Fresh committed values, never the editable property's staged attributes.
   Root := fProperty.LdapClient.SearchObject(fDN, '(objectClass=groupPolicyContainer)',
-    ['name', 'displayName', 'gPCFileSysPath', 'versionNumber', 'flags']);
+    ['name', 'objectGUID', 'displayName', 'gPCFileSysPath', 'versionNumber', 'flags']);
   if not SameConnection then
   begin SetSummary('无法读取：读取 GPC 期间连接已变化。'); Exit; end;
   if not Assigned(Root) then
   begin SetSummary(GpoLdapFailureText(fProperty.LdapClient.ResultCode)); Exit; end;
-  if not Assigned(Root.Find('name')) or not SameText(Root.Find('name').GetReadable, fGuid) or
-     not SameText(Root.ObjectName, fDN) then
+  if not GpoMatchesSelectedObject(Root,fDN,fGuid,fObjectGuid) then
   begin SetSummary('无法读取：返回的 GPC 身份与所选对象不一致。'); Exit; end;
   if not Assigned(Root.Find('gPCFileSysPath')) or not Assigned(Root.Find('versionNumber')) or
      not Assigned(Root.Find('flags')) then
