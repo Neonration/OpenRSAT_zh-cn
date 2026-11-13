@@ -60,11 +60,16 @@ or changes after the read. The report shows each resource and explicitly leaves
 unknown candidate metadata uncollected. It is not connected to a write executor
 and performs no LDAP or filesystem writes.
 
-The standard GPO settings view also checks the fresh LDAP object's nonzero
-objectGUID against the selected object's identity before it reads SYSVOL. Its
-RootDSE and GPC LDAP requests still run on the UI thread; cancellation and the
-background read budget begin only after those requests return. This identity
-check does not remove that responsiveness limitation.
+The standard GPO settings view runs its RootDSE, GPC and SYSVOL reads in a
+background job using a separate LDAP client. It checks the selected nonzero
+objectGUID, domain and controller before reading files and repeats the LDAP
+checks afterward; changed identity or metadata discards the result. This is not
+an atomic snapshot and cannot rule out changes that revert between checks.
+The background connection currently supports Windows Kerberos using the current
+identity, without explicit credentials or TLS; other authentication modes and
+platforms are explicitly unavailable. The independent Kerberos connection forces
+signing and sealing. Cancellation is cooperative: a blocked LDAP or SMB system
+call may continue until it returns or times out, retaining its worker slot.
 
 Offline draft snapshots are written directly to a newly created destination.
 CRC detects accidental corruption on reopen; it does not authenticate the file.

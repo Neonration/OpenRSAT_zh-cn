@@ -18,6 +18,7 @@ type
     procedure DomainDraftJobLifecycle;
     procedure DiagnosticBackendLifecycle;
     procedure SelectedGpcIdentity;
+    procedure BackgroundMetadataLifecycle;
     procedure HeaderUsesSystemColors;
   end;
 implementation
@@ -51,6 +52,7 @@ type
   public
     TestToken:IInterface;
     procedure TestAttachRead(const Job: IGpoSettingsRead);
+    function HasRead(const Job:IGpoSettingsRead):Boolean;
     procedure PollNow;
     procedure TestAttachBaseline(const Job:IGpoBaselineJob);
     procedure PollBaselineNow;
@@ -70,6 +72,17 @@ type
     RevokeOnFirstRead: Boolean;
     function Read(const Container: TGpoContainer; const Domain, DC: string;
       Artifact: TGpoFile; out Data: TBytes): TGpoReadStatus;
+  end;
+  TSettingsMetadataProbe = class(TInterfacedObject,IGpoSettingsTransport,IGpoSettingsMetadataTransport)
+    Entered,Release:TEvent; PrepareCalls,ReadCalls,Mode:Integer;
+    constructor Create;
+    destructor Destroy; override;
+    function Prepare(var Value:TGpoSettingsSnapshot; Control:TGpoReadControl):TGpoReadStatus;
+    function Read(const Container:TGpoContainer; const Domain,DC:string; Artifact:TGpoFile; out Data:TBytes):TGpoReadStatus;
+  end;
+  TSettingsTestThread=class(TThread)
+    Job:IGpoSettingsRead;
+    procedure Execute; override;
   end;
   TBaselineProbe = class(TInterfacedObject,IGpoBaselineTransport)
     Client:TLdapSessionProbe;
@@ -157,6 +170,95 @@ begin
   if RevokeOnFirstRead and (Calls=1) then Client.ResetSameSocket('B');
   Result:=grsMissing;
 end;
+constructor TSettingsMetadataProbe.Create;
+begin inherited Create; Entered:=TEvent.Create(nil,True,False,''); Release:=TEvent.Create(nil,True,False,''); end;
+destructor TSettingsMetadataProbe.Destroy;
+begin Entered.Free; Release.Free; inherited Destroy; end;
+function TSettingsMetadataProbe.Prepare(var Value:TGpoSettingsSnapshot; Control:TGpoReadControl):TGpoReadStatus;
+begin
+  Inc(PrepareCalls);
+  if (Mode in [1,4,5,7]) and (PrepareCalls=1) then begin Entered.SetEvent; Release.WaitFor(5000); end;
+  if (Mode=9) and (PrepareCalls=2) then begin Entered.SetEvent; Release.WaitFor(5000); end;
+  if (Mode=2) and (PrepareCalls=1) then Exit(grsIoError);
+  if (Mode=3) and (PrepareCalls=2) then Value.ObjectGuid:=#2+StringOfChar(#0,15);
+  if (Mode=6) and (PrepareCalls=2) then Value.DC:='other.example.test';
+  if (Mode=8) and (PrepareCalls=2) then Exit(grsIoError);
+  Value.Container.FileSysPath:='\\example.test\SYSVOL\example.test\Policies\{12345678-1234-1234-1234-123456789ABC}';
+  Result:=Control.Status;
+end;
+function TSettingsMetadataProbe.Read(const Container:TGpoContainer; const Domain,DC:string;
+  Artifact:TGpoFile; out Data:TBytes):TGpoReadStatus;
+var Rows:TGpoRegistryRecords;
+begin
+  Data:=nil; Inc(ReadCalls); Result:=grsMissing;
+  if (Mode in [3,6,8,9]) and (Artifact=gfMachineRegistry) then begin
+    SetLength(Rows,1); Rows[0].Key:='K'; Rows[0].ValueName:='V'; Rows[0].ValueType:=3;
+    Result:=SerializeRegistryPol(Rows,Data);
+  end;
+end;
+procedure TSettingsTestThread.Execute; begin Job.Execute; end;
+
+procedure TUnitTestGpoSettings.BackgroundMetadataLifecycle;
+var Client:TLdapSessionProbe; Frame:TTestGpoFrame; Value,Snapshot:TGpoSettingsSnapshot;
+  Probe:TSettingsMetadataProbe; Transport:IGpoSettingsTransport; Job:IGpoSettingsRead;
+  Worker:TSettingsTestThread; Other:IGpoSettingsRead; Mode:Integer;
+begin
+  Check(GpoSupportsBackgroundSettings(lcbKerberos,False,False,False));
+  Check(not GpoSupportsBackgroundSettings(lcbPlain,False,False,False));
+  Check(not GpoSupportsBackgroundSettings(lcbDigest,False,False,False));
+  Check(not GpoSupportsBackgroundSettings(lcbKerberos,True,False,False));
+  Check(not GpoSupportsBackgroundSettings(lcbKerberos,False,True,False));
+  Check(not GpoSupportsBackgroundSettings(lcbKerberos,False,False,True));
+  Client:=TLdapSessionProbe.Create;
+  try
+    for Mode:=0 to 9 do begin
+      Value:=Default(TGpoSettingsSnapshot); Value.SessionToken:=Client.SessionToken;
+      Value.NeedsMetadata:=True; Value.ObjectGuid:=#1+StringOfChar(#0,15);
+      Value.Domain:='example.test'; Value.DC:='dc.example.test';
+      Value.Container.Guid:='{12345678-1234-1234-1234-123456789ABC}';
+      Probe:=TSettingsMetadataProbe.Create; Probe.Mode:=Mode; Transport:=Probe;
+      Job:=GpoCreateSettingsRead(Value,Transport); Worker:=TSettingsTestThread.Create(True); Worker.Job:=Job;
+      Frame:=nil;
+      try
+        Worker.Start;
+        if Mode in [1,4,5,7,9] then begin
+          Check(Probe.Entered.WaitFor(2000)=wrSignaled); Check(not Job.Finished);
+          Frame:=TTestGpoFrame.Create(nil); Frame.TestAttachRead(Job);
+          Frame.LoadButton.Enabled:=True; Frame.LoadButton.Click;
+          Check(Frame.HasRead(Job),'Repeated load must not replace the active job');
+          if Mode=1 then begin Frame.Free; Frame:=nil; end
+          else if Mode=4 then Frame.Update(nil)
+          else if Mode in [5,9] then Client.ResetSameSocket('Changed')
+          else begin Frame.CancelButton.Enabled:=True; Frame.CancelButton.Click; end;
+          Check(Job.ReadStatus=grsCancelled); Check(not Job.Finished,'Blocked LDAP must not delay frame destruction');
+          Other:=GpoCreateSettingsRead(Value); Check(Assigned(Other));
+          Check(not Assigned(GpoCreateSettingsRead(Value)),'Blocked LDAP keeps its resource slot');
+          Other:=nil;
+          Probe.Release.SetEvent;
+        end;
+        Worker.WaitFor; Snapshot:=Job.Snapshot;
+        case Mode of
+          0:begin Check(Probe.PrepareCalls=2); Check(Probe.ReadCalls=3); Check(Snapshot.MetadataStatus=grsOk); end;
+          1:begin Check(Probe.ReadCalls=0); Check(Snapshot.MetadataStatus=grsCancelled); end;
+          2:begin
+            Check(Probe.ReadCalls=0,'Failed identity check must start no SYSVOL reads');
+            Check(Snapshot.MetadataStatus=grsIoError);
+            Frame:=TTestGpoFrame.Create(nil); Frame.ShowSnapshot(Snapshot);
+            Check(Frame.ComputerRows.Items.Count=0); Check(Pos('后台 LDAP',Frame.Summary.Text)>0);
+          end;
+          3:begin Check(Probe.PrepareCalls=2); Check(Probe.ReadCalls=3); Check(Snapshot.MetadataStatus=grsIoError);
+            Check((Snapshot.MachineStatus=grsIoError) and (Length(Snapshot.MachineRecords)=0)); end;
+          4,5,7:begin Check(Probe.ReadCalls=0); Check(Snapshot.MetadataStatus=grsCancelled); end;
+          6:begin Check(Probe.PrepareCalls=2); Check(Probe.ReadCalls=3); Check(Snapshot.MetadataStatus=grsIoError); end;
+          8:begin Check(Probe.PrepareCalls=2); Check(Probe.ReadCalls=3); Check(Snapshot.MetadataStatus=grsIoError);
+            Check(Pos('无法再次核验',Snapshot.MetadataError)>0); Check(Length(Snapshot.UserRecords)=0); end;
+          9:begin Check(Probe.ReadCalls=3); Check(Snapshot.MetadataStatus=grsCancelled);
+            Check(Length(Snapshot.MachineRecords)=0); end;
+        end;
+      finally Probe.Release.SetEvent; Worker.WaitFor; Worker.Free; Frame.Free; Job:=nil; Transport:=nil; end;
+    end;
+  finally Client.Free; end;
+end;
 
 procedure TUnitTestGpoSettings.HeaderUsesSystemColors;
 {$IFDEF WINDOWS}
@@ -211,6 +313,8 @@ begin
   if Assigned(fJob) then fJob.Cancel;
   fJob:=Job;
 end;
+function TTestGpoFrame.HasRead(const Job:IGpoSettingsRead):Boolean;
+begin Result:=fJob=Job; end;
 constructor TLdapSessionProbe.Create;
 begin
   inherited Create;

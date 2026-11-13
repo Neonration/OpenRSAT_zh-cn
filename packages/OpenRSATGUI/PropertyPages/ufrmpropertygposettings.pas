@@ -61,7 +61,11 @@ type
   TGpoSettingsSnapshot = record
     SessionToken: IInterface;
     Container: TGpoContainer;
-    Domain, DC: string;
+    Domain, DC, Port, BoundUser: string;
+    ObjectGuid: RawByteString;
+    NeedsMetadata: Boolean;
+    MetadataStatus: TGpoReadStatus;
+    MetadataError: string;
     GptVersion: Cardinal;
     GptStatus, MachineStatus, UserStatus: TGpoReadStatus;
     MachineRecords, UserRecords: TGpoRegistryRecords;
@@ -72,6 +76,10 @@ type
     ['{11C98BD0-264D-463F-B301-BF2E0B8D001E}']
     function Read(const Container: TGpoContainer; const Domain, DC: string;
       Artifact: TGpoFile; out Data: TBytes): TGpoReadStatus;
+  end;
+  IGpoSettingsMetadataTransport = interface
+    ['{8BD81EC1-7EB6-4BA7-9E73-3D4E1A9D9E2F}']
+    function Prepare(var Value:TGpoSettingsSnapshot; Control:TGpoReadControl):TGpoReadStatus;
   end;
   IGpoSettingsRead = interface
     ['{4E0CCB3C-9EC9-4C28-8D53-A22C229A95FD}']
@@ -186,6 +194,7 @@ function GpoCreateDomainDraftJob(const Request:TGpoBaselineRequest;
 function GpoLdapFailureText(ResultCode: Integer): string;
 function GpoDiagnosticReportText(const Report:TGpoDiagnosticReport):string;
 function GpoMatchesSelectedObject(Entry:TLdapResult; const DN,Guid:string; const ObjectGuid:RawByteString):Boolean;
+function GpoSupportsBackgroundSettings(BoundAs:TLdapClientBound; ExplicitUser,Password,UsesTls:Boolean):Boolean;
 
 implementation
 
@@ -871,6 +880,9 @@ begin
     Assigned(GuidAttr) and (GuidAttr.Count=1) and (GuidAttr.GetRaw=ObjectGuid);
 end;
 
+function GpoSupportsBackgroundSettings(BoundAs:TLdapClientBound; ExplicitUser,Password,UsesTls:Boolean):Boolean;
+begin Result:=(BoundAs=lcbKerberos) and not ExplicitUser and not Password and not UsesTls; end;
+
 constructor TGpoSettingsRead.Create(const Value: TGpoSettingsSnapshot;
   const Transport: IGpoSettingsTransport);
 begin
@@ -905,8 +917,75 @@ end;
 function TGpoSettingsRead.AcceptsSession(const Token: IInterface): Boolean;
 begin Result := Assigned(Token) and (Token = fValue.SessionToken); end;
 
+function ReadSettingsMetadata(var Value:TGpoSettingsSnapshot; Control:TGpoReadControl):TGpoReadStatus;
+var Client:TLdapClient; Root:TLdapResult; Domain,DC,SafePath:string;
+begin
+  Result:=grsIoError; Value.MetadataError:='无法完成后台 LDAP 只读查询。';
+  if Control.Status<>grsOk then Exit(Control.Status);
+  Client:=TLdapClient.Create;
+  try
+    Client.Settings.TargetHost:=Value.DC; Client.Settings.TargetPort:=Value.Port;
+    Client.Settings.AutoReconnect:=False; Client.Settings.AutoBind:=lcbNone;
+    Client.Settings.KerberosSignSeal:=lksForced;
+    if not Client.Connect([lccNoDiscovery],0) then Exit;
+    if Control.Status<>grsOk then Exit(Control.Status);
+    if not Client.BindSaslKerberos or (Client.Transmission<>lctEncrypted) or
+      not SameText(Client.BoundUser,Value.BoundUser) then begin
+      Value.MetadataError:='后台 Kerberos 身份或加密连接不匹配。'; Exit;
+    end;
+    if Control.Status<>grsOk then Exit(Control.Status);
+    Root:=Client.SearchObject('','',['dnsHostName','defaultNamingContext']);
+    if Control.Status<>grsOk then Exit(Control.Status);
+    if not Assigned(Root) or not Assigned(Root.Find('dnsHostName')) or
+      not Assigned(Root.Find('defaultNamingContext')) then begin
+      Value.MetadataError:='无法读取域控制器身份。'; Exit;
+    end;
+    Domain:=DNToCN(Root.Find('defaultNamingContext').GetReadable,True,[dnDC]);
+    DC:=Root.Find('dnsHostName').GetReadable;
+    if (DC='') or SameText(DC,Domain) or not SameText(DC,Value.DC) or
+      not SameText(Domain,Value.Domain) then begin
+      Value.MetadataError:='域或域控制器身份不匹配。'; Exit;
+    end;
+    Root:=Client.SearchObject(Value.Container.DistinguishedName,'(objectClass=groupPolicyContainer)',
+      ['name','objectGUID','displayName','gPCFileSysPath','versionNumber','flags']);
+    if Control.Status<>grsOk then Exit(Control.Status);
+    if not Assigned(Root) then begin Value.MetadataError:=GpoLdapFailureText(Client.ResultCode); Exit; end;
+    if not GpoMatchesSelectedObject(Root,Value.Container.DistinguishedName,Value.Container.Guid,Value.ObjectGuid) then begin
+      Value.MetadataError:='返回的 GPO 对象身份不匹配。'; Exit;
+    end;
+    if not Assigned(Root.Find('gPCFileSysPath')) or not Assigned(Root.Find('versionNumber')) or
+      not Assigned(Root.Find('flags')) then begin Value.MetadataError:='GPO 必要属性缺失。'; Exit; end;
+    if Assigned(Root.Find('displayName')) then Value.Container.DisplayName:=Root.Find('displayName').GetReadable;
+    Value.Container.FileSysPath:=Root.Find('gPCFileSysPath').GetReadable;
+    if not GpoParseLdapVersion(Root.Find('versionNumber').GetReadable,Value.Container.Version) or
+      not GpoParseUnsigned(Root.Find('flags').GetReadable,Value.Container.Flags) or
+      (GpoBuildSafePath(Value.Container.FileSysPath,Value.Domain,Value.DC,Value.Container.Guid,gfGptIni,SafePath)<>grsOk) then begin
+      Value.MetadataError:='GPO 版本、标志或 SYSVOL 路径无效。'; Exit;
+    end;
+    if Control.Status<>grsOk then Exit(Control.Status);
+    Value.MetadataError:=''; Result:=grsOk;
+  finally Client.Free; end;
+end;
+
 procedure TGpoSettingsRead.Execute;
-var Data: TBytes; Status: TGpoReadStatus;
+var Data: TBytes; Status: TGpoReadStatus; Metadata:IGpoSettingsMetadataTransport; After:TGpoSettingsSnapshot;
+  function Prepare(var Value:TGpoSettingsSnapshot):TGpoReadStatus;
+  begin
+    if Assigned(fTransport) then begin
+      if Supports(fTransport,IGpoSettingsMetadataTransport,Metadata) then Result:=Metadata.Prepare(Value,fControl)
+      else begin Value.MetadataError:='后台元数据读取不可用。'; Result:=grsUnsupported; end;
+    end else Result:=ReadSettingsMetadata(Value,fControl);
+    if fControl.Status<>grsOk then Result:=fControl.Status;
+  end;
+  function SameMetadata(const A,B:TGpoSettingsSnapshot):Boolean;
+  begin
+    Result:=SameText(A.Domain,B.Domain) and SameText(A.DC,B.DC) and
+      SameText(A.Container.DistinguishedName,B.Container.DistinguishedName) and
+      SameText(A.Container.Guid,B.Container.Guid) and (A.ObjectGuid=B.ObjectGuid) and
+      (A.Container.DisplayName=B.Container.DisplayName) and
+      SameText(A.Container.FileSysPath,B.Container.FileSysPath) and
+      (A.Container.Version=B.Container.Version) and (A.Container.Flags=B.Container.Flags);
+  end;
   function ReadArtifact(Artifact: TGpoFile): TGpoReadStatus;
   var Stop: TGpoReadStatus;
   begin
@@ -923,16 +1002,39 @@ var Data: TBytes; Status: TGpoReadStatus;
   end;
 begin
   try
-    fValue.GptStatus := ReadArtifact(gfGptIni);
-    if fValue.GptStatus = grsOk then
-      fValue.GptStatus := ParseGptIni(Data, fValue.GptVersion);
-    fValue.MachineStatus := ReadArtifact(gfMachineRegistry);
-    if fValue.MachineStatus = grsOk then
-      fValue.MachineStatus := ParseRegistryPol(Data, fValue.MachineRecords);
-    fValue.UserStatus := ReadArtifact(gfUserRegistry);
-    if fValue.UserStatus = grsOk then
-      fValue.UserStatus := ParseRegistryPol(Data, fValue.UserRecords);
+    if fValue.NeedsMetadata then begin
+      fValue.MetadataStatus:=Prepare(fValue);
+      if fValue.MetadataStatus<>grsOk then begin
+        fValue.GptStatus:=fValue.MetadataStatus; fValue.MachineStatus:=fValue.MetadataStatus;
+        fValue.UserStatus:=fValue.MetadataStatus;
+      end;
+    end;
+    if not fValue.NeedsMetadata or (fValue.MetadataStatus=grsOk) then begin
+      fValue.GptStatus := ReadArtifact(gfGptIni);
+      if fValue.GptStatus = grsOk then
+        fValue.GptStatus := ParseGptIni(Data, fValue.GptVersion);
+      fValue.MachineStatus := ReadArtifact(gfMachineRegistry);
+      if fValue.MachineStatus = grsOk then
+        fValue.MachineStatus := ParseRegistryPol(Data, fValue.MachineRecords);
+      fValue.UserStatus := ReadArtifact(gfUserRegistry);
+      if fValue.UserStatus = grsOk then
+        fValue.UserStatus := ParseRegistryPol(Data, fValue.UserRecords);
+      if fValue.NeedsMetadata and (fControl.Status=grsOk) then begin
+        After:=fValue; After.MachineRecords:=nil; After.UserRecords:=nil;
+        After.MetadataStatus:=Prepare(After);
+        if (After.MetadataStatus<>grsOk) or not SameMetadata(fValue,After) then begin
+          fValue.MetadataStatus:=After.MetadataStatus;
+          if fValue.MetadataStatus=grsOk then begin
+            fValue.MetadataStatus:=grsIoError;
+            fValue.MetadataError:='读取期间 GPO 身份或元数据变化，结果已丢弃。';
+          end else fValue.MetadataError:='读取后无法再次核验 GPO 身份，结果已丢弃。';
+          fValue.GptStatus:=fValue.MetadataStatus; fValue.MachineStatus:=fValue.MetadataStatus;
+          fValue.UserStatus:=fValue.MetadataStatus; fValue.MachineRecords:=nil; fValue.UserRecords:=nil;
+        end;
+      end;
+    end;
   except
+    if fValue.NeedsMetadata then begin fValue.MetadataStatus:=grsIoError; fValue.MetadataError:='后台读取失败。'; end;
     fValue.GptStatus := grsIoError;
     fValue.MachineStatus := grsIoError;
     fValue.UserStatus := grsIoError;
@@ -943,6 +1045,7 @@ begin
   fCompletedStatus := Status;
   if Status <> grsOk then
   begin
+    if fValue.NeedsMetadata then fValue.MetadataStatus:=Status;
     fValue.GptStatus := Status; fValue.MachineStatus := Status; fValue.UserStatus := Status;
     fValue.MachineRecords := nil; fValue.UserRecords := nil;
   end;
@@ -964,6 +1067,7 @@ begin
   // Cancellation can arrive after the worker publishes completion, before Poll.
   if fControl.Cancelled or not fControl.SessionValid then
   begin
+    if Result.NeedsMetadata then Result.MetadataStatus:=grsCancelled;
     Result.GptStatus := grsCancelled; Result.MachineStatus := grsCancelled;
     Result.UserStatus := grsCancelled;
     Result.MachineRecords := nil; Result.UserRecords := nil;
@@ -1263,7 +1367,7 @@ begin
 end;
 
 procedure TFrmPropertyGpoSettings.LoadSettings;
-var Value: TGpoSettingsSnapshot; SafePath: string; Root: TLdapResult;
+var Value: TGpoSettingsSnapshot; I:Integer; Nonzero:Boolean;
 begin
   if Assigned(fJob) or Assigned(fBaselineJob) or Assigned(fDomainDraftJob) or not Assigned(fProperty) then Exit;
   ClearRows;
@@ -1274,56 +1378,35 @@ begin
   begin SetSummary('连接或对象已变化，请重新打开属性。'); Exit; end;
   if Length(fObjectGuid)<>16 then
   begin SetSummary('无法读取：所选 GPO 缺少有效的对象 GUID，请重新打开属性。'); Exit; end;
+  Nonzero:=False; for I:=1 to 16 do if fObjectGuid[I]<>#0 then Nonzero:=True;
+  if not Nonzero then begin SetSummary('无法读取：所选 GPO 的对象 GUID 无效，请重新打开属性。'); Exit; end;
+  {$ifdef windows}
+  if not GpoSupportsBackgroundSettings(fProperty.LdapClient.BoundAs,
+    fProperty.LdapClient.Settings.UserName<>'',fProperty.LdapClient.Settings.Password<>'',
+    fProperty.LdapClient.Settings.Tls) then begin
+    SetSummary('后台只读加载仅支持当前 Windows 身份的 Kerberos 连接；当前认证方式暂不支持。'); Exit;
+  end;
+  {$else}
+  SetSummary('当前平台暂不支持安全的后台 GPO 只读加载。'); Exit;
+  {$endif}
   Value := Default(TGpoSettingsSnapshot);
   Value.SessionToken := fSessionToken;
   Value.Container.Guid := fGuid;
   Value.Container.DistinguishedName := fDN;
-  // Ask the bound LDAP peer, not a domain alias or the untrusted GPC path.
-  Root := fProperty.LdapClient.SearchObject('', '', ['dnsHostName', 'defaultNamingContext']);
-  if not Assigned(Root) or not SameConnection then
-  begin SetSummary('无法读取：无法从 RootDSE 验证当前域控制器。'); Exit; end;
-  if not Assigned(Root.Find('dnsHostName')) or not Assigned(Root.Find('defaultNamingContext')) then
-  begin SetSummary('无法读取：RootDSE 身份属性缺失。'); Exit; end;
-  Value.Domain := DNToCN(Root.Find('defaultNamingContext').GetReadable, True, [dnDC]);
-  Value.DC := Root.Find('dnsHostName').GetReadable;
-  if not SameText(Value.Domain, fDomain) then
-  begin SetSummary('无法读取：域身份已变化，请重新打开属性。'); Exit; end;
-  if not SameText(Value.DC, fTarget) then
-  begin SetSummary('无法读取：请使用与 RootDSE dnsHostName 一致的域控制器完整名称。'); Exit; end;
-  if (Value.DC = '') or SameText(Value.DC, Value.Domain) then
-  begin SetSummary('无法读取：LDAP 未标识具体域控制器。'); Exit; end;
-  // Fresh committed values, never the editable property's staged attributes.
-  Root := fProperty.LdapClient.SearchObject(fDN, '(objectClass=groupPolicyContainer)',
-    ['name', 'objectGUID', 'displayName', 'gPCFileSysPath', 'versionNumber', 'flags']);
-  if not SameConnection then
-  begin SetSummary('无法读取：读取 GPC 期间连接已变化。'); Exit; end;
-  if not Assigned(Root) then
-  begin SetSummary(GpoLdapFailureText(fProperty.LdapClient.ResultCode)); Exit; end;
-  if not GpoMatchesSelectedObject(Root,fDN,fGuid,fObjectGuid) then
-  begin SetSummary('无法读取：返回的 GPC 身份与所选对象不一致。'); Exit; end;
-  if not Assigned(Root.Find('gPCFileSysPath')) or not Assigned(Root.Find('versionNumber')) or
-     not Assigned(Root.Find('flags')) then
-  begin SetSummary('无法读取：缺少必要的 GPC 属性。'); Exit; end;
-  if Assigned(Root.Find('displayName')) then Value.Container.DisplayName := Root.Find('displayName').GetReadable;
-  Value.Container.FileSysPath := Root.Find('gPCFileSysPath').GetReadable;
-  if not GpoParseLdapVersion(Root.Find('versionNumber').GetReadable, Value.Container.Version) or
-     not GpoParseUnsigned(Root.Find('flags').GetReadable, Value.Container.Flags) then
-  begin SetSummary('无法读取：GPC versionNumber 或 flags 无效。'); Exit; end;
-  if GpoBuildSafePath(Value.Container.FileSysPath, Value.Domain, Value.DC,
-      Value.Container.Guid, gfGptIni, SafePath) <> grsOk then
-  begin SetSummary('无法读取：SYSVOL 路径或域控制器不符合安全要求。'); Exit; end;
+  Value.Domain:=fDomain; Value.DC:=fTarget; Value.Port:=fPort; Value.BoundUser:=fBoundUser;
+  Value.ObjectGuid:=fObjectGuid; Value.NeedsMetadata:=True; Value.MetadataStatus:=grsIoError;
   Value.GptStatus := grsIoError;
   Value.MachineStatus := grsIoError;
   Value.UserStatus := grsIoError;
-  SetSummary('正在从域控制器读取：' + Value.DC + LineEnding +
-    '只读 SMB 使用当前 Windows 身份；可以关闭窗口。', SGpoStateLoading);
+  SetSummary('正在后台从域控制器读取：' + Value.DC + LineEnding +
+    '使用当前 Windows 身份；取消后系统调用可能仍需等待返回。', SGpoStateLoading);
   fLoad.Enabled := False;
   fBaseline.Enabled:=False;
   fDomainDraft.Enabled:=False;
   fJob := GpoCreateSettingsRead(Value);
   if not Assigned(fJob) then
   begin
-    SetSummary('前两次读取仍在等待系统 SMB 调用，请稍后重试。');
+    SetSummary('前两次读取仍在等待系统 LDAP/SMB 调用，请稍后重试。');
     fLoad.Enabled := True; fBaseline.Enabled:=CanCheckBaseline; fDomainDraft.Enabled:=CanCheckBaseline; Exit;
   end;
   fCancel.Enabled := True;
@@ -1349,9 +1432,9 @@ begin
     begin
       fCancel.Enabled := False;
       if fJob.ReadStatus=grsTimedOut then
-        SetSummary(GpoLocalStatus(fJob.ReadStatus)+'：正在等待系统 SMB 调用返回；可以关闭窗口。', SGpoStateWaitingTimeout)
+        SetSummary(GpoLocalStatus(fJob.ReadStatus)+'：正在等待系统 LDAP/SMB 调用返回；可以关闭窗口。', SGpoStateWaitingTimeout)
       else
-        SetSummary(GpoLocalStatus(fJob.ReadStatus)+'：正在等待系统 SMB 调用返回；可以关闭窗口。', SGpoStateWaitingCancel);
+        SetSummary(GpoLocalStatus(fJob.ReadStatus)+'：正在等待系统 LDAP/SMB 调用返回；可以关闭窗口。', SGpoStateWaitingCancel);
     end;
     Exit;
   end;
@@ -1384,6 +1467,13 @@ procedure TFrmPropertyGpoSettings.ShowSnapshot(const Value: TGpoSettingsSnapshot
   begin if Value then Result:='是' else Result:='否'; end;
 begin
   ClearRows;
+  if Value.NeedsMetadata and (Value.MetadataStatus<>grsOk) then begin
+    if Value.MetadataStatus=grsCancelled then SetSummary('后台读取已取消。',SGpoStateCancelled)
+    else if Value.MetadataStatus=grsTimedOut then SetSummary('后台读取已超时。',SGpoStateTimeout)
+    else if Value.MetadataError<>'' then SetSummary(Value.MetadataError)
+    else SetSummary('后台 LDAP 读取未完成。');
+    Exit;
+  end;
   fSummary.Lines.BeginUpdate;
   try
     fSummary.Clear;
