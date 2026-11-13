@@ -21,11 +21,39 @@ type
     procedure SelectedGpcIdentity;
     procedure BackgroundMetadataLifecycle;
     procedure HeaderUsesSystemColors;
+    procedure GeneralPageRefreshPreservesProperties;
   end;
 implementation
-uses Classes, SyncObjs, SysUtils, ugpoformats, ugposysvol, ugpodiagnostic, ufrmpropertygposettings, uproperty,
+uses Classes, SyncObjs, SysUtils, ugpoformats, ugposysvol, ugpodiagnostic, ufrmpropertygposettings, ufrmpropertygeneralgpo, uproperty,
   mormot.net.ldap, mormot.net.sock
   {$IFDEF WINDOWS}, Windows, CommCtrl, Graphics, Forms{$ENDIF};
+procedure TUnitTestGpoSettings.GeneralPageRefreshPreservesProperties;
+var F:TFrmPropertyGeneralGPO; Host:TForm; A,B:TProperty; Attributes:TLdapAttributeList; H:PtrUInt;
+begin
+  Host:=TForm.CreateNew(nil); F:=TFrmPropertyGeneralGPO.Create(Host); F.Parent:=Host;
+  A:=TProperty.Create; B:=TProperty.Create;
+  try
+    H:=F.Edit1.Handle; H:=F.Edit_Description.Handle; H:=F.ComboBox1.Handle;
+    Attributes:=TLdapAttributeList.Create;
+    try
+      Attributes.Add('name','one'); Attributes.Add('displayName','First');
+      Attributes.Add('description','First description'); Attributes.Add('flags','3'); A.Attributes:=Attributes;
+      Attributes.Clear; Attributes.Add('name','two'); Attributes.Add('flags','8'); B.Attributes:=Attributes;
+    finally Attributes.Free; end;
+    F.Update(A); Check(not A.IsModified); Check(F.ComboBox1.ItemIndex=3);
+    F.Update(B); Check(not B.IsModified,'Refreshing missing values must not stage changes');
+    Check(F.Edit1.Text=''); Check(F.Edit_Description.Text='');
+    Check(F.ComboBox1.ItemIndex=-1,'Unknown flags must not retain another GPO status');
+    F.ComboBox1Change(F.ComboBox1); Check(not B.IsModified,'Invalid selection must not stage flags');
+    F.Edit_Description.Text:='New description'; Check(B.IsModified('description'));
+    Check(B.GetReadable('description')='New description'); Check(B.GetReadable('flags')='8');
+    F.ComboBox1.ItemIndex:=2; F.ComboBox1Change(F.ComboBox1);
+    Check(B.IsModified('flags')); Check(B.GetReadable('flags')='2');
+    F.Update(B); Check(F.ComboBox1.ItemIndex=2); Check(F.Edit_Description.Text='New description');
+    Check(B.IsModified('description') and B.IsModified('flags'));
+    F.Update(nil); Check(F.Edit1.Text=''); Check(F.ComboBox1.ItemIndex=-1);
+  finally B.Free; A.Free; Host.Free; end;
+end;
 procedure TUnitTestGpoSettings.TypedRecordDetails;
 var P:TGpoRegistryPane; R:TGpoRegistryRecords; D:string; I:Integer;
   procedure Verify(Kind:Cardinal; const Bytes:array of Byte; const Expected:string);

@@ -46,6 +46,7 @@ type
   private
     fLog: TSynLogClass;
     fProperty: TProperty;
+    fUpdating: Boolean;
   public
     constructor Create(TheOwner: TComponent); override;
     procedure Update(Props: TProperty); override;
@@ -59,17 +60,19 @@ implementation
 
 procedure TFrmPropertyGeneralGPO.ComboBox1Change(Sender: TObject);
 begin
-  fProperty.Add('flags', IntToStr(ComboBox1.ItemIndex));
+  if not fUpdating and Assigned(fProperty) and
+    (ComboBox1.ItemIndex >= 0) and (ComboBox1.ItemIndex < ComboBox1.Items.Count) then
+    fProperty.Add('flags', IntToStr(ComboBox1.ItemIndex));
 end;
 
 procedure TFrmPropertyGeneralGPO.Edit1Change(Sender: TObject);
 begin
-  fProperty.Add('displayName', Edit1.Text);
+  if not fUpdating and Assigned(fProperty) then fProperty.Add('displayName', Edit1.Text);
 end;
 
 procedure TFrmPropertyGeneralGPO.Edit_DescriptionChange(Sender: TObject);
 begin
-  fProperty.Add('description', Edit_Description.Text);
+  if not fUpdating and Assigned(fProperty) then fProperty.Add('description', Edit_Description.Text);
 end;
 
 procedure TFrmPropertyGeneralGPO.Label4Click(Sender: TObject);
@@ -105,14 +108,21 @@ begin
   if Assigned(fLog) then
     fLog.Add.Log(sllTrace, 'Update', Self);
 
-  fProperty := Props;
-
-  Edit_Name.Text := Props.name;
-  Edit_Description.Text := Props.description;
-  Edit1.Text := Props.GetReadable('displayName');
-  Label4.Caption := Props.GetReadable('gPCFileSysPath');
-  if TryStrToInt(Props.GetReadable('flags'), flags) then
-    ComboBox1.ItemIndex := flags;
+  fUpdating:=True;
+  try
+    fProperty := Props;
+    Panel_Content.Enabled:=Assigned(Props);
+    Edit_Name.Text:=''; Edit_Description.Text:=''; Edit1.Text:='';
+    Label4.Caption:=''; ComboBox1.ItemIndex:=-1;
+    if not Assigned(Props) then Exit;
+    Edit_Name.Text := Props.name;
+    Edit_Description.Text := Props.description;
+    Edit1.Text := Props.GetReadable('displayName');
+    Label4.Caption := Props.GetReadable('gPCFileSysPath');
+    if TryStrToInt(Props.GetReadable('flags'), flags) and
+       (flags >= 0) and (flags < ComboBox1.Items.Count) then
+      ComboBox1.ItemIndex := flags;
+  finally fUpdating:=False; end;
 end;
 
 end.
