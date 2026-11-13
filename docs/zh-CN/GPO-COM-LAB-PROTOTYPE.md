@@ -8,7 +8,11 @@
 
 隔离域的只读域控枚举仅返回 ORSAT-DC01；检查时没有现存 SYSVOL SMB 连接。这说明本次实验的域控拓扑，但不能证明一次尚未发生的 `Save` 会选择哪个 DFS 目标，也不能代表多域控环境。
 
-随后一次原本声明为只读的清理预检，由于 PowerShell 远程参数将关闭开关传成非空字符串，意外执行了已获用户授权的临时 GPO 清理；这是执行错误，不是成功的只读预检。有问题的临时脚本已移除。独立只读复核确认该测试对象、同名对象及其 SYSVOL 目录均已不存在，域和站点链接数为零；两条默认 GPO 的已记录元数据及文件哈希与实验前一致。该结果不能证明域发布、恢复或所有目录元数据未变化。实验记录保存在本地忽略提交的 `.tools/gpo-com-lab-*` 和 `.tools/gpo-continuation` 目录。
+2026-11-13 后续排查使用只读标志打开默认域策略：输入的 LDAP 路径指定 `ORSAT-DC01.openrsat.test`，但 `GetPath` 和 `GetDSPath` 都返回不含服务器的 LDAP 路径，`GetFileSysPath` 返回 `\\openrsat.test\sysvol\...`。读取该策略的 `GPT.INI` 时，DFS 缓存中的活动目标及同时存在的 SYSVOL SMB 连接均指向 ORSAT-DC01；文件句柄返回的路径仍是域名路径。这些是该次读取的观察，[DFS 缓存的目标提示可能变化](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsc/0f9ef683-b497-47d0-8c2c-e56e34fde2e3)，不能据此保证后续写入的目标。
+
+为检查追踪的可行性，在域控的独立临时目录经其 `C$` 共享写入了四个合成字节，没有访问 SYSVOL。一次有界的 `Microsoft-Windows-Kernel-File` 追踪同时捕获客户端和服务端的创建及写入事件，相关 SMB 连接指向 ORSAT-DC01；`tracerpt` 报告丢失事件数为零。临时文件及追踪在实验后清理。该结果只校准了这次合成 SMB 写入：循环追踪可能覆盖旧事件，FileObject 可复用，未捕获事件不代表操作未发生，也不能证明官方 `Save` 或其他环境的写入目标。排查后，两条默认 GPO 的已记录属性、owner/group/DACL 和三个指定文件的存在状态、长度与哈希仍与实验前一致。
+
+此前，一次原本声明为只读的清理预检，由于 PowerShell 远程参数将关闭开关传成非空字符串，意外执行了已获用户授权的临时 GPO 清理；这是执行错误，不是成功的只读预检。有问题的临时脚本已移除。独立只读复核确认该测试对象、同名对象及其 SYSVOL 目录均已不存在，域和站点链接数为零；两条默认 GPO 的已记录元数据及文件哈希与实验前一致。该结果不能证明域发布、恢复或所有目录元数据未变化。实验记录保存在本地忽略提交的 `.tools/gpo-com-lab-*` 和 `.tools/gpo-continuation` 目录。
 
 `tests/manual/gpo-com-probe.cs` 使用固定域控 `ORSAT-DC01.openrsat.test` 和固定域 `openrsat.test` 构造目标路径；只接受 `Codex-COMSave-` 加 12 位小写十六进制名称，并拒绝空 GUID 和两条默认策略 GUID。COM 调用在 STA 线程执行；同步 COM 调用没有硬超时，不能将等待等同于未执行。打开后要求返回的 GPO 名称、显示名、LDAP 路径和 SYSVOL 路径与预期完全匹配，才允许继续。策略数据仅为计算机侧合成 DWORD；独立的纯函数按完整 Registry.pol 字节验证该记录，而不是查找孤立子串。严格路径和文件格式可能拒绝微软接口返回的其他合法表示，不能为使测试通过而放宽目标保护。
 

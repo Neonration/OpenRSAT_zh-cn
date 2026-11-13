@@ -295,7 +295,8 @@ begin
     else Temp[FileResources[A]].State:=gdsUnreadable;
     Temp[FileResources[A]].ReadStatus:=Files.Items[A].Status;
     Temp[FileResources[A]].FileObservation:=Files.Items[A].Observation;
-    if not MetadataValue(Files.Items[A].Metadata,Temp[MetaResources[A]]) then Exit(gdtInvalid);
+    if Temp[FileResources[A]].State=gdsUnreadable then Temp[MetaResources[A]].State:=gdsUnreadable
+    else if not MetadataValue(Files.Items[A].Metadata,Temp[MetaResources[A]]) then Exit(gdtInvalid);
   end;
   Total:=0;
   for R:=Low(R) to High(R) do begin

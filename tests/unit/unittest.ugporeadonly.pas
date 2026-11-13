@@ -288,6 +288,7 @@ begin
   F.Items[gfUserRegistry].Attempted:=True; F.Items[gfUserRegistry].Status:=grsAccessDenied;
   Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
   Check(Adapter[gdrMachinePolicy].State=gdsMissing);
+  Check(Adapter[gdrMachineMetadata].State=gdsPresent,'Valid parent metadata remains available');
   Check(Adapter[gdrUserPolicy].State=gdsUnreadable); Check(Adapter[gdrGptIni].State=gdsNotCollected);
   Check(Adapter[gdrMachineExtensions].State=gdsUnreadable,'LDAP not returned is unknown, not absence');
   Check(Adapter[gdrUserExtensions].State=gdsPresent);
@@ -305,7 +306,25 @@ begin
   F.Items[gfMachineRegistry].Metadata.Available:=False;
   Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
   Check(Adapter[gdrMachinePolicy].State=gdsUnreadable,'Missing requires parent evidence');
+  Check(Adapter[gdrMachineMetadata].State=gdsUnreadable,'Unavailable metadata cannot be compared');
   F.Items[gfMachineRegistry].Metadata.Available:=True;
+  F.Items[gfMachineRegistry].Metadata.SecurityDescriptor:=Bytes('bad');
+  Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
+  Check((Adapter[gdrMachineMetadata].State=gdsUnreadable) and
+    (Length(Adapter[gdrMachineMetadata].Data)=0),'Malformed security evidence cannot be compared');
+  F.Items[gfMachineRegistry].Metadata.SecurityDescriptor:=Bytes(RawSD);
+  F.Items[gfMachineRegistry].Metadata.FileIndexLow:=0;
+  Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
+  Check(Adapter[gdrMachineMetadata].State=gdsUnreadable,'Missing file identity cannot be compared');
+  F.Items[gfMachineRegistry].Metadata.FileIndexLow:=1;
+  F.Items[gfMachineRegistry].Metadata.Kind:=gekFile;
+  Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
+  Check(Adapter[gdrMachineMetadata].State=gdsUnreadable,'Missing leaf requires parent metadata');
+  F.Items[gfMachineRegistry].Metadata.Kind:=gekParent;
+  F.Items[gfMachineRegistry].Status:=grsAccessDenied;
+  Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
+  Check(Adapter[gdrMachineMetadata].State=gdsUnreadable,'Failed reads cannot expose stale metadata');
+  F.Items[gfMachineRegistry].Status:=grsMissing;
   F.Target.DC:='dc2.example.test'; Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtTargetMismatch);
   Check(Adapter[gdrGpcVersion].State=gdsNotCollected,'Failed adapter leaves no evidence');
   F.Target:=T; E.Target:=Other; Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtSessionInvalid);

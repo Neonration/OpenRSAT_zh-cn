@@ -30,3 +30,9 @@
 3. **受控写入服务。** 建立单一写入者并在组织层面限制其他写入入口，管理可信备份、身份、操作日志、条件验证和恢复。需要实际部署、权限模型和故障验证；ACL/服务配置可能影响其他工具，必须单独审批。服务只能控制其信任边界内的写入，不能自动获得跨 LDAP/SMB 的原子性，管理员、已有映射和外部绕过仍须处理。
 
 任何自动发布方案上线前至少需要：经验证的目标身份和条件发布机制、受保护且防回滚的独立备份/日志、原 ACL 与其他元数据处理、已存在映射和非协作者的策略、固定 DC 的未知结果查证、崩溃/网络故障注入及复制检查。若平台无法提供所需条件，应明确采用经用户认可的协作风险模型；不能用 CRC、`rrVerified` 或一次本地替换成功代替这些条件。
+
+## 官方恢复接口的适用范围
+
+[GPMC 备份与恢复接口](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/gpmc/gpo-operations-supported-by-the-gpmc)是后续实现恢复的候选：备份包含策略、标识和 ACL；恢复回原域并恢复策略与 ACL，但不修改域、站点或 OU 上的 GPO 链接。导入只覆盖目标策略设置，不恢复目标 ACL 或链接。两者都可能覆盖现有更改，不能混作只恢复单条 Registry.pol 的操作。
+
+[IGPM::GetDomain](https://learn.microsoft.com/en-us/windows/win32/api/gpmgmt/nf-gpmgmt-igpm-getdomain) 支持指定域控；[Restore-GPO](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/restore-gpo?view=windowsserver2025-ps) 也提供 `-Server` 和用于选择具体备份的 `-BackupId`。这些接口提供了目标选择和备份语义，并不证明本项目已实现恢复、各底层文件操作的实际服务器、并发条件、结果未知后的处理或复制完成。原始离线草稿不是 GPMC 备份，不能直接用于上述恢复。

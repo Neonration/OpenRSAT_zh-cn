@@ -45,8 +45,10 @@ its kind, volume and file identifiers, attributes, timestamp and length-framed
 security descriptor. A missing policy requires a successful leaf-absence result
 and valid parent evidence. Interrupted file collection retains its target and
 per-file attempted states, while `Captured` still means the complete collection
-passed its existing checks. These records do not authenticate the evidence
-provider, rule out concurrent changes or replace a fresh same-target read.
+passed its existing checks. When an attempted file observation is unreadable or
+inconsistent, its metadata is also unreadable rather than comparable. These
+records do not authenticate the evidence provider, rule out concurrent changes
+or replace a fresh same-target read.
 
 Values are capped at 16 MiB per resource and 128 MiB per comparison; adapters
 also check their input sizes before copying. The domain draft's read-only review
