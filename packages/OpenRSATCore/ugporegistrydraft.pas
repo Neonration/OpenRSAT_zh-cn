@@ -28,6 +28,7 @@ type
   public
     // Invalid input preserves the existing draft. Missing is NOT an empty file.
     function Load(const Data: TBytes): TGpoReadStatus;
+    function Restore(const Original, Current: TBytes): TGpoReadStatus;
     function Insert(Index: SizeInt; const Value: TGpoRegistryRecord): TGpoReadStatus;
     function Replace(Index: SizeInt; const Value: TGpoRegistryRecord): TGpoReadStatus;
     function Delete(Index: SizeInt): TGpoReadStatus;
@@ -76,6 +77,19 @@ begin
   Result := ParseRegistryPol(Data,Parsed);
   if Result <> grsOk then Exit;
   fOriginal := Copy(Data); fCurrent := Copy(Data); fRecords := Parsed;
+  fUndo := nil; fCanUndo := False; fLoaded := True;
+  Inc(fRevision);
+end;
+
+function TGpoRegistryDraft.Restore(const Original, Current: TBytes): TGpoReadStatus;
+var OriginalRows, CurrentRows: TGpoRegistryRecords; OriginalCopy, CurrentCopy: TBytes;
+begin
+  Result := ParseRegistryPol(Original, OriginalRows);
+  if Result <> grsOk then Exit;
+  Result := ParseRegistryPol(Current, CurrentRows);
+  if Result <> grsOk then Exit;
+  OriginalCopy := Copy(Original); CurrentCopy := Copy(Current);
+  fOriginal := OriginalCopy; fCurrent := CurrentCopy; fRecords := CurrentRows;
   fUndo := nil; fCanUndo := False; fLoaded := True;
   Inc(fRevision);
 end;

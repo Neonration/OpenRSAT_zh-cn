@@ -181,6 +181,10 @@
         <Filename Value="ugporegistrydraft.pas"/>
         <UnitName Value="ugporegistrydraft"/>
       </Item>
+      <Item>
+        <Filename Value="ugposnapshot.pas"/>
+        <UnitName Value="ugposnapshot"/>
+      </Item>
     </Files>
     <i18n>
       <OutDir Value="languages"/>

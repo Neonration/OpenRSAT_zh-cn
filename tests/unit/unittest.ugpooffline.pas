@@ -1,16 +1,103 @@
 unit unittest.ugpooffline;
 {$mode ObjFPC}{$H+}
 interface
-uses SysUtils, mormot.core.test, ugpoformats, ugporegistrydraft, ugposysvol;
+uses SysUtils, mormot.core.test, mormot.core.base, ugpoformats, ugporegistrydraft, ugposysvol, ugposnapshot;
 type
   TUnitTestGpoOffline = class(TSynTestCase)
   published
     procedure LosslessSerialization;
     procedure SerializationBounds;
     procedure DraftValidationUndoAndOwnership;
+    procedure SnapshotRoundTrip;
     procedure CooperativeReadControl;
   end;
 implementation
+
+function EqualBytes(const A,B:TBytes):Boolean; forward;
+
+procedure TUnitTestGpoOffline.SnapshotRoundTrip;
+var S, Decoded: TGpoSnapshot; Drafts: TGpoSnapshotDrafts; Side: TGpoSnapshotSide;
+  Empty, Edited, Encoded, Bad, BeforeBytes: TBytes; Rows: TGpoRegistryRecords;
+  D: TGpoRegistryDraft; N, I: Integer; Revision, Started: QWord; CRC: Cardinal;
+begin
+  Check(SerializeRegistryPol(nil, Empty)=grsOk);
+  SetLength(Rows,1); Rows[0].Key:='Unknown'; Rows[0].ValueName:='Value';
+  Rows[0].ValueType:=$deadbeef; SetLength(Rows[0].Data,1); Rows[0].Data[0]:=42;
+  Check(SerializeRegistryPol(Rows,Edited)=grsOk);
+  for N:=0 to 15 do begin
+    S:=Default(TGpoSnapshot);
+    for Side:=Low(Side) to High(Side) do begin
+      S[Side].Baseline.Exists:=(N and (1 shl (Ord(Side)*2)))<>0;
+      S[Side].Candidate.Exists:=(N and (2 shl (Ord(Side)*2)))<>0;
+      if S[Side].Baseline.Exists then S[Side].Baseline.Data:=Copy(Empty);
+      if S[Side].Candidate.Exists then S[Side].Candidate.Data:=Copy(Edited)
+      else S[Side].Hidden:=Copy(Edited);
+    end;
+    Check(GpoEncodeSnapshot(S,Encoded)=grsOk);
+    Check(GpoDecodeSnapshot(Encoded,Decoded)=grsOk);
+    Check(GpoRestoreSnapshot(Decoded,Drafts)=grsOk);
+    for Side:=Low(Side) to High(Side) do begin
+      Check(S[Side].Baseline.Exists=Decoded[Side].Baseline.Exists);
+      Check(S[Side].Candidate.Exists=Decoded[Side].Candidate.Exists);
+      Check(Drafts[Side].Export(BeforeBytes)=grsOk); Check(EqualBytes(BeforeBytes,Edited));
+      Check(not Drafts[Side].CanUndo); Drafts[Side].Free;
+    end;
+    if Decoded[gssMachine].Candidate.Exists then begin
+      Decoded[gssMachine].Candidate.Data[0]:=0;
+      Check(S[gssMachine].Candidate.Data[0]<>0,'Decoded candidate must not alias source');
+    end else begin
+      Decoded[gssMachine].Hidden[0]:=0;
+      Check(S[gssMachine].Hidden[0]<>0,'Decoded hidden content must not alias source');
+    end;
+  end;
+  S:=Default(TGpoSnapshot); S[gssMachine].Candidate.Exists:=True;
+  S[gssMachine].Candidate.Data:=Copy(Empty); S[gssMachine].Hidden:=Copy(Edited);
+  Check(GpoEncodeSnapshot(S,Encoded)=grsCorrupt); Check(Length(Encoded)=0);
+  S[gssMachine].Hidden:=nil; Check(GpoEncodeSnapshot(S,Encoded)=grsOk);
+  for I:=0 to High(Encoded)-1 do begin
+    Bad:=Copy(Encoded,0,I); Check(GpoDecodeSnapshot(Bad,Decoded)<>grsOk);
+  end;
+  Bad:=Copy(Encoded); Bad[0]:=Bad[0] xor 1; Check(GpoDecodeSnapshot(Bad,Decoded)=grsCorrupt);
+  Bad:=Copy(Encoded); SetLength(Bad,Length(Bad)+1); Check(GpoDecodeSnapshot(Bad,Decoded)=grsCorrupt);
+  Bad:=Copy(Encoded); SetLength(Bad,Length(Bad)+1); CRC:=crc32c(0,@Bad[0],Length(Bad)-4);
+  for I:=0 to 3 do Bad[Length(Bad)-4+I]:=Byte(CRC shr (8*I));
+  Check(GpoDecodeSnapshot(Bad,Decoded)=grsCorrupt,'Valid checksum cannot permit trailing bytes');
+  Bad:=Copy(Encoded); Bad[16]:=255; CRC:=crc32c(0,@Bad[0],Length(Bad)-4);
+  for I:=0 to 3 do Bad[Length(Bad)-4+I]:=Byte(CRC shr (8*I));
+  Check(GpoDecodeSnapshot(Bad,Decoded)=grsCorrupt);
+  Bad:=Copy(Encoded); Bad[36]:=4; CRC:=crc32c(0,@Bad[0],Length(Bad)-4);
+  for I:=0 to 3 do Bad[Length(Bad)-4+I]:=Byte(CRC shr (8*I));
+  Check(GpoDecodeSnapshot(Bad,Decoded)=grsCorrupt,'Invalid second side must not return success');
+  Bad:=Copy(Encoded); Bad[23]:=1; CRC:=crc32c(0,@Bad[0],Length(Bad)-4);
+  for I:=0 to 3 do Bad[Length(Bad)-4+I]:=Byte(CRC shr (8*I));
+  Check(GpoDecodeSnapshot(Bad,Decoded)<>grsOk,'Oversized member must be rejected');
+  SetLength(Bad,GpoMaxFileBytes); FillChar(Bad[0],Length(Bad),$5a);
+  Started:=GetTickCount64; CRC:=crc32c(0,@Bad[0],Length(Bad));
+  WriteLn('Snapshot CRC32C 16 MiB: ',GetTickCount64-Started,' ms (',CRC,')');
+  D:=TGpoRegistryDraft.Create;
+  try
+    Check(D.Load(Empty)=grsOk); Check(D.Insert(0,Rows[0])=grsOk);
+    Revision:=D.Revision; Check(D.Export(BeforeBytes)=grsOk);
+    Check(D.Restore(Empty,nil)=grsCorrupt); Check(D.Loaded and D.Dirty and D.CanUndo);
+    Check(D.Revision=Revision); Check(D.Export(Bad)=grsOk); Check(EqualBytes(Bad,BeforeBytes));
+    Check(D.Restore(Empty,Edited)=grsOk); Edited[0]:=0;
+    Check(D.Export(Bad)=grsOk); Check(EqualBytes(Bad,BeforeBytes)); Check(not D.CanUndo);
+  finally D.Free; end;
+  SetLength(Rows,256);
+  for I:=0 to High(Rows) do begin
+    Rows[I].Key:='K'; Rows[I].ValueName:='V'; Rows[I].ValueType:=3;
+    SetLength(Rows[I].Data,GpoMaxValueBytes);
+  end;
+  SetLength(Rows[255].Data,GpoMaxFileBytes-48-8-255*(28+GpoMaxValueBytes)-28);
+  Check(SerializeRegistryPol(Rows,Edited)=grsOk); S:=Default(TGpoSnapshot);
+  S[gssMachine].Candidate.Exists:=True; S[gssMachine].Candidate.Data:=Edited;
+  Started:=GetTickCount64; Check(GpoEncodeSnapshot(S,Encoded)=grsOk);
+  WriteLn('Snapshot encode near 16 MiB: ',GetTickCount64-Started,' ms');
+  Check(Length(Encoded)=GpoMaxFileBytes);
+  Started:=GetTickCount64; Check(GpoDecodeSnapshot(Encoded,Decoded)=grsOk);
+  WriteLn('Snapshot decode 16 MiB: ',GetTickCount64-Started,' ms');
+  Check(EqualBytes(Decoded[gssMachine].Candidate.Data,Edited));
+end;
 
 function EqualBytes(const A,B:TBytes):Boolean;
 begin
