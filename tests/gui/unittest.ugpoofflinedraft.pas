@@ -240,11 +240,11 @@ function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
 procedure TUnitTestGpoOfflineDraftUI.SnapshotWorkflow;
 {$ifdef windows}
-var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; Empty,BeforeBytes,AfterBytes:TBytes;
-  Dir,Path:string; Id:TGUID; Errors:Integer; Rev:QWord;
+var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; Empty,BeforeBytes,AfterBytes,Bad:TBytes;
+  Dir,Path,BadPath,Err:string; Id:TGUID; Errors:Integer; Rev:QWord; WasDirty,HadUndo:Boolean;
 begin
   Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-snapshot-'+GUIDToString(Id);
-  Check(CreateDir(Dir)); Path:=Dir+'\draft.gpodraft';
+  Check(CreateDir(Dir)); Path:=Dir+'\draft.gpodraft'; BadPath:=Dir+'\invalid.gpodraft';
   F:=TTestOfflineForm.Create(nil); Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job;
   try
     Check(SerializeRegistryPol(nil,Empty)=grsOk); Job.InitialMachine.Exists:=True; Job.InitialMachine.Data:=Copy(Empty);
@@ -274,7 +274,16 @@ begin
     F.SwitchOnImport:=True; Errors:=F.ErrorCalls; F.OpenSnapshotButton.Click;
     Check(F.ErrorCalls=Errors+1); Check(not Assigned(F.OpenedSnapshot));
     Check(F.Draft(gdsComputer).Revision=Rev);
-  finally F.OpenedSnapshot.Free; F.Free; Ref:=nil; Check(SysUtils.DeleteFile(Path)); Check(RemoveDir(Dir)); end;
+    SetLength(Bad,3); Bad[0]:=1; Bad[1]:=2; Bad[2]:=3;
+    Check(GpoSaveNewLocalFile(BadPath,Bad,Err)); F.NextPath:=BadPath;
+    Rev:=F.Draft(gdsComputer).Revision; WasDirty:=F.Draft(gdsComputer).Dirty; HadUndo:=F.Draft(gdsComputer).CanUndo;
+    Check(F.Draft(gdsComputer).Export(BeforeBytes)=grsOk); Errors:=F.ErrorCalls;
+    F.OpenSnapshotButton.Click; Check(F.ErrorCalls=Errors+1); Check(not Assigned(F.OpenedSnapshot));
+    Check(F.Draft(gdsComputer).Loaded and (F.Draft(gdsComputer).Dirty=WasDirty) and
+      (F.Draft(gdsComputer).CanUndo=HadUndo) and (F.Draft(gdsComputer).Revision=Rev));
+    Check(F.Draft(gdsComputer).Export(AfterBytes)=grsOk); Check(EqualBytes(BeforeBytes,AfterBytes));
+  finally F.OpenedSnapshot.Free; F.Free; Ref:=nil; Check(SysUtils.DeleteFile(Path));
+    Check(SysUtils.DeleteFile(BadPath)); Check(RemoveDir(Dir)); end;
 end;
 {$else}
 begin end;
