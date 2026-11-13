@@ -1,6 +1,6 @@
 # OpenRSAT (Open Remote System Administration Tools)
 
-本维护版基于上游 0.4.594，保留最新功能，并增加可选择的“简体中文”、批量 OU 移动、批量删除和多域控制器计算机删除。中文使用与构建说明见 [README.zh-cn.md](./README.zh-cn.md) 和 [build.zh-cn.md](./build.zh-cn.md)。
+This fork is based on upstream OpenRSAT 0.4.594 and adds an optional Simplified Chinese interface, bulk OU moves and deletion, and multi-controller computer deletion. See the [Simplified Chinese documentation index](./docs/zh-CN/README.md) for usage and build instructions.
 
 This fork keeps the upstream features and language selection, and adds Simplified Chinese plus batch directory operations. Select **简体中文** in File → Options → Global; other language choices remain available.
 
