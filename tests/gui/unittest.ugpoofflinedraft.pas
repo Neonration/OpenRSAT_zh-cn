@@ -18,10 +18,13 @@ type
     procedure DomainSummaryExport;
     procedure ImportDialogRace;
     procedure SnapshotWorkflow;
+    procedure LargeSnapshotWorkflow;
+    procedure MaximumSnapshotWorkflow;
+    procedure SnapshotFileBounds;
     procedure HiddenCandidateCloseProtection;
   end;
 implementation
-uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugpolocalfiles,
+uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugposnapshot, ugpolocalfiles,
   ufrmgpoofflinedraft, ufrmpropertygposettings
   {$ifdef windows},Windows{$endif};
 {$ifdef windows}
@@ -239,6 +242,99 @@ begin
 end;
 function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
+procedure TUnitTestGpoOfflineDraftUI.LargeSnapshotWorkflow;
+{$ifdef windows}
+var F:TTestOfflineForm; Rows:TGpoRegistryRecords; Data,After:TBytes;
+  Id:TGUID; Dir,Path,Err:string; I:Integer; Started,Revision:QWord;
+begin
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-large-snapshot-'+GUIDToString(Id);
+  Check(CreateDir(Dir)); Path:=Dir+'\large.gpodraft'; F:=TTestOfflineForm.Create(nil);
+  try
+    SetLength(Rows,145);
+    for I:=0 to High(Rows) do begin Rows[I]:=Item('K','V',3,[]); SetLength(Rows[I].Data,GpoMaxValueBytes); end;
+    Check(SerializeRegistryPol(Rows,Data)=grsOk); Check(Length(Data)>9*1024*1024);
+    Check(F.Draft(gdsComputer).Load(Data)=grsOk);
+    F.Choice:=True; F.SelectChoice:=False; F.NextPath:=Path; Revision:=F.Draft(gdsComputer).Revision;
+    F.SaveSnapshotButton.Click; Check(not FileExists(Path));
+    Check(F.Draft(gdsComputer).Revision=Revision); F.SelectChoice:=True;
+    Started:=GetTickCount64; F.SaveSnapshotButton.Click;
+    WriteLn('Large snapshot GUI save: ',GetTickCount64-Started,' ms');
+    Check(FileExists(Path),'Valid snapshot above 16 MiB must save');
+    if FileExists(Path) then begin
+      Check(not GpoLoadLocalFile(Path,After,Err),'Ordinary policy reads retain their 16 MiB limit');
+      Started:=GetTickCount64; F.OpenSnapshotButton.Click;
+      WriteLn('Large snapshot GUI open: ',GetTickCount64-Started,' ms');
+      Check(Assigned(F.OpenedSnapshot));
+      if Assigned(F.OpenedSnapshot) then begin
+        Check(F.OpenedSnapshot.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Data,After));
+        F.OpenedSnapshot.Free; F.OpenedSnapshot:=nil;
+      end;
+    end;
+  finally F.OpenedSnapshot.Free; F.Free; if FileExists(Path) then Check(SysUtils.DeleteFile(Path)); Check(RemoveDir(Dir)); end;
+end;
+{$else}
+begin end;
+{$endif}
+procedure TUnitTestGpoOfflineDraftUI.SnapshotFileBounds;
+{$ifdef windows}
+var Data,ReadBack:TBytes; Dir,Path,TooLarge,Err,LinkPath:string; Id:TGUID; WLink,WTarget:UnicodeString; Stream:TFileStream;
+begin
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-snapshot-bounds-'+GUIDToString(Id);
+  Check(CreateDir(Dir)); Path:=Dir+'\maximum.bin'; TooLarge:=Dir+'\too-large.bin';
+  try
+    SetLength(Data,GpoSnapshotMaxBytes); Data[0]:=17; Data[High(Data)]:=23;
+    Check(GpoSaveNewSnapshotFile(Path,Data,Err)); Check(not GpoSaveNewSnapshotFile(Path,Data,Err));
+    Check(GpoLoadSnapshotFile(Path,ReadBack,Err)); Check(EqualBytes(Data,ReadBack));
+    ReadBack:=nil; SetLength(Data,GpoSnapshotMaxBytes+1);
+    Check(not GpoSaveNewSnapshotFile(TooLarge,Data,Err)); Check(not FileExists(TooLarge));
+    Check(not GpoSaveNewLocalFile(TooLarge,Data,Err)); Check(not FileExists(TooLarge));
+    LinkPath:=Dir+'\alias.bin'; WLink:=UTF8Decode(LinkPath); WTarget:=UTF8Decode(Path);
+    if CreateTestSymbolicLinkW(PWideChar(WLink),PWideChar(WTarget),2) then begin
+      Check(not GpoLoadSnapshotFile(LinkPath,ReadBack,Err));
+      Check(not GpoSaveNewSnapshotFile(LinkPath,ReadBack,Err)); Check(DeleteFileW(PWideChar(WLink)));
+    end else WriteLn('SKIP: local symbolic-link creation is unavailable');
+    Stream:=TFileStream.Create(Path,fmOpenWrite or fmShareDenyNone);
+    try Stream.Size:=GpoSnapshotMaxBytes+1; finally Stream.Free; end;
+    Check(not GpoLoadSnapshotFile(Path,ReadBack,Err)); Check(Length(ReadBack)=0);
+    Check(SysUtils.DeleteFile(Path));
+  finally Data:=nil; ReadBack:=nil; Check(RemoveDir(Dir)); end;
+end;
+{$else}
+begin end;
+{$endif}
+procedure TUnitTestGpoOfflineDraftUI.MaximumSnapshotWorkflow;
+{$ifdef windows}
+var F:TTestOfflineForm; Rows:TGpoRegistryRecords; Data,After:TBytes; Id:TGUID;
+  Dir,Path:string; I:Integer; Started:QWord;
+begin
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-max-snapshot-'+GUIDToString(Id);
+  Check(CreateDir(Dir)); Path:=Dir+'\maximum.gpodraft'; F:=TTestOfflineForm.Create(nil);
+  try
+    SetLength(Rows,256);
+    for I:=0 to High(Rows) do begin Rows[I]:=Item('K','V',3,[]); SetLength(Rows[I].Data,GpoMaxValueBytes); end;
+    SetLength(Rows[255].Data,GpoMaxFileBytes-8-255*(28+GpoMaxValueBytes)-28);
+    Check(SerializeRegistryPol(Rows,Data)=grsOk); Check(Length(Data)=GpoMaxFileBytes);
+    Rows:=nil;
+    Check(F.Draft(gdsComputer).Load(Data)=grsOk); Check(F.Draft(gdsUser).Load(Data)=grsOk);
+    F.Choice:=True; F.SelectChoice:=True; F.NextPath:=Path;
+    Started:=GetTickCount64; F.SaveSnapshotButton.Click;
+    WriteLn('Maximum snapshot GUI save: ',GetTickCount64-Started,' ms');
+    Check(FileExists(Path));
+    if FileExists(Path) then begin
+      Started:=GetTickCount64; F.OpenSnapshotButton.Click;
+      WriteLn('Maximum snapshot GUI open: ',GetTickCount64-Started,' ms');
+      Check(Assigned(F.OpenedSnapshot));
+      if Assigned(F.OpenedSnapshot) then begin
+        Check(F.OpenedSnapshot.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Data,After));
+        Check(F.OpenedSnapshot.Draft(gdsUser).Export(After)=grsOk); Check(EqualBytes(Data,After));
+        F.OpenedSnapshot.Free; F.OpenedSnapshot:=nil;
+      end;
+    end;
+  finally F.OpenedSnapshot.Free; F.Free; if FileExists(Path) then Check(SysUtils.DeleteFile(Path)); Check(RemoveDir(Dir)); end;
+end;
+{$else}
+begin end;
+{$endif}
 procedure TUnitTestGpoOfflineDraftUI.HiddenCandidateCloseProtection;
 var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; CanClose:Boolean;
 begin
@@ -298,8 +394,9 @@ begin
     F.SwitchOnImport:=True; Errors:=F.ErrorCalls; F.OpenSnapshotButton.Click;
     Check(F.ErrorCalls=Errors+1); Check(not Assigned(F.OpenedSnapshot));
     Check(F.Draft(gdsComputer).Revision=Rev);
-    SetLength(Bad,3); Bad[0]:=1; Bad[1]:=2; Bad[2]:=3;
-    Check(GpoSaveNewLocalFile(BadPath,Bad,Err)); F.NextPath:=BadPath;
+    Check(GpoLoadSnapshotFile(Path,Bad,Err)); Check(Length(Bad)>1);
+    SetLength(Bad,Length(Bad)-1);
+    Check(GpoSaveNewSnapshotFile(BadPath,Bad,Err)); F.NextPath:=BadPath;
     Rev:=F.Draft(gdsComputer).Revision; WasDirty:=F.Draft(gdsComputer).Dirty; HadUndo:=F.Draft(gdsComputer).CanUndo;
     Check(F.Draft(gdsComputer).Export(BeforeBytes)=grsOk); Errors:=F.ErrorCalls;
     F.OpenSnapshotButton.Click; Check(F.ErrorCalls=Errors+1); Check(not Assigned(F.OpenedSnapshot));

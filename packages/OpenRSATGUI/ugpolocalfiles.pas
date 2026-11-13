@@ -6,10 +6,12 @@ uses SysUtils, ugpoformats;
 // Local Windows files only. Save exclusively creates a new regular file.
 function GpoLoadLocalFile(const Path: string; out Data: TBytes; out Error: string): Boolean;
 function GpoSaveNewLocalFile(const Path: string; const Data: TBytes; out Error: string): Boolean;
+function GpoLoadSnapshotFile(const Path: string; out Data: TBytes; out Error: string): Boolean;
+function GpoSaveNewSnapshotFile(const Path: string; const Data: TBytes; out Error: string): Boolean;
 
 implementation
 {$ifdef windows}
-uses Windows;
+uses Windows, ugposnapshot;
 {$push}{$packrecords c}
 type
   TNativeString = record Length, MaximumLength: Word; Buffer: PWideChar; end;
@@ -100,7 +102,7 @@ begin
   end;
 end;
 
-function GpoLoadLocalFile(const Path:string; out Data:TBytes; out Error:string):Boolean;
+function LoadBoundedFile(const Path:string; Limit:Cardinal; out Data:TBytes; out Error:string):Boolean;
 var Parent,H:THandle; Leaf:UnicodeString; Info:TByHandleFileInformation;
   Got,Count:DWORD; Extra:Byte;
 begin
@@ -111,8 +113,8 @@ begin
     if not GetFileInformationByHandle(H,Info) then begin Error:='无法读取文件属性。'; Exit; end;
     if (Info.dwFileAttributes and (FILE_ATTRIBUTE_DIRECTORY or FILE_ATTRIBUTE_REPARSE_POINT))<>0 then
     begin Error:='不能打开目录或重解析点。'; Exit; end;
-    if (Info.nFileSizeHigh<>0) or (Info.nFileSizeLow>GpoMaxFileBytes) then
-    begin Error:='文件超过 16 MiB 上限。'; Exit; end;
+    if (Info.nFileSizeHigh<>0) or (Info.nFileSizeLow>Limit) then
+    begin Error:='文件超过允许的大小上限。'; Exit; end;
     Count:=Info.nFileSizeLow; SetLength(Data,Count);
     if Count>0 then
       if not ReadFile(H,Data[0],Count,Got,nil) or (Got<>Count) then
@@ -127,11 +129,11 @@ begin
   end;
 end;
 
-function GpoSaveNewLocalFile(const Path:string; const Data:TBytes; out Error:string):Boolean;
+function SaveNewBoundedFile(const Path:string; const Data:TBytes; Limit:Cardinal; out Error:string):Boolean;
 var Parent,H:THandle; Leaf:UnicodeString; Written:DWORD; DeleteIt:Byte;
 begin
   Result:=False; Parent:=INVALID_HANDLE_VALUE; H:=INVALID_HANDLE_VALUE;
-  if Length(Data)>GpoMaxFileBytes then begin Error:='文件超过 16 MiB 上限。'; Exit; end;
+  if Length(Data)>Limit then begin Error:='文件超过允许的大小上限。'; Exit; end;
   if not OpenLocalParent(Path,True,Parent,Leaf,Error) then Exit;
   try
     if not OpenLeaf(Parent,Leaf,True,H,Error) then Exit;
@@ -153,10 +155,22 @@ begin
     if Parent<>INVALID_HANDLE_VALUE then CloseHandle(Parent);
   end;
 end;
+function GpoLoadLocalFile(const Path:string; out Data:TBytes; out Error:string):Boolean;
+begin Result:=LoadBoundedFile(Path,GpoMaxFileBytes,Data,Error); end;
+function GpoSaveNewLocalFile(const Path:string; const Data:TBytes; out Error:string):Boolean;
+begin Result:=SaveNewBoundedFile(Path,Data,GpoMaxFileBytes,Error); end;
+function GpoLoadSnapshotFile(const Path:string; out Data:TBytes; out Error:string):Boolean;
+begin Result:=LoadBoundedFile(Path,GpoSnapshotMaxBytes,Data,Error); end;
+function GpoSaveNewSnapshotFile(const Path:string; const Data:TBytes; out Error:string):Boolean;
+begin Result:=SaveNewBoundedFile(Path,Data,GpoSnapshotMaxBytes,Error); end;
 {$else}
 function GpoLoadLocalFile(const Path:string; out Data:TBytes; out Error:string):Boolean;
 begin Data:=nil; Error:='当前平台暂不支持安全的本地文件读取。'; Result:=False; end;
 function GpoSaveNewLocalFile(const Path:string; const Data:TBytes; out Error:string):Boolean;
+begin Error:='当前平台暂不支持安全的本地文件保存。'; Result:=False; end;
+function GpoLoadSnapshotFile(const Path:string; out Data:TBytes; out Error:string):Boolean;
+begin Data:=nil; Error:='当前平台暂不支持安全的本地文件读取。'; Result:=False; end;
+function GpoSaveNewSnapshotFile(const Path:string; const Data:TBytes; out Error:string):Boolean;
 begin Error:='当前平台暂不支持安全的本地文件保存。'; Result:=False; end;
 {$endif}
 end.

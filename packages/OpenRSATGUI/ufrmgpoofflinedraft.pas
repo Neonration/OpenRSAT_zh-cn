@@ -1002,9 +1002,9 @@ begin
   if not CaptureSnapshot(Value) then begin ShowError('无法读取草稿。'); Exit; end;
   Size:=48;
   for S:=Low(S) to High(S) do Inc(Size,Length(Value[S].Baseline.Data)+Length(Value[S].Candidate.Data)+Length(Value[S].Hidden));
-  if Size>GpoMaxFileBytes then begin ShowError('草稿文件超过 16 MiB 上限。'); Exit; end;
+  if Size>GpoSnapshotMaxBytes then begin ShowError('草稿文件超过允许的大小上限。'); Exit; end;
   if GpoEncodeSnapshot(Value,Data)<>grsOk then begin ShowError('无法编码草稿。'); Exit; end;
-  if not GpoSaveNewLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
+  if not GpoSaveNewSnapshotFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
   fStatus.Caption:='已保存双侧草稿；文件包含策略原始内容，不包含域授权。';
 end;
 
@@ -1018,7 +1018,7 @@ begin
   if (Revision<>fRevision) or (SideRevision<>fSideRevision) or
      (R[gdsComputer]<>fDrafts[gdsComputer].Revision) or (R[gdsUser]<>fDrafts[gdsUser].Revision) then
   begin ShowError('选择文件期间草稿已变化，请重试。'); Exit; end;
-  if not GpoLoadLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
+  if not GpoLoadSnapshotFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
   if GpoDecodeSnapshot(Data,Value)<>grsOk then begin ShowError('草稿文件损坏或不受支持。'); Exit; end;
   Window:=TFrmGpoOfflineDraft.Create(Application);
   try
