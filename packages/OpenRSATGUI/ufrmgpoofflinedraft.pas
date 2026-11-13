@@ -33,6 +33,7 @@ type
     fReportRevision,fReportSideRevision:QWord;
     fSide: TGpoDraftSide;
     fValidSide:Boolean;
+    fAllowMalformedRecord:Boolean;
     fSideRevision:QWord;
     fSavedPage, fSavedIndex:array[TGpoDraftSide] of Integer;
     fTree: TTreeView;
@@ -142,6 +143,7 @@ type
   TFriendlyInput = class(TComponent)
     TypeBox:TComboBox;
     HexMemo:TMemo;
+    NameEdit:TEdit;
     procedure Click(Sender:TObject);
   end;
 
@@ -188,6 +190,15 @@ begin
     if Half<0 then Half:=V else begin Data[N]:=Half*16+V; Inc(N); Half:=-1; end;
   end;
   Result:=True;
+end;
+
+function GpoValidateRawDraftRecord(const Item:TGpoRegistryRecord; out Error:string):Boolean;
+var Rows:TGpoRegistryRecords; Bytes:TBytes;
+begin
+  SetLength(Rows,1); Rows[0]:=Item;
+  Result:=SerializeRegistryPol(Rows,Bytes)=grsOk;
+  if not Result then Error:='无效记录：键名不能为空，名称须为有效 UTF-16，且不能超过格式限制。'
+  else Error:='';
 end;
 
 function GpoValidateDraftRecord(const Item:TGpoRegistryRecord; out Error:string):Boolean;
@@ -273,15 +284,37 @@ begin
       SetLength(Data,N);
       for I:=0 to N-1 do begin Data[I]:=Byte(V and $ff); V:=V shr 8; end;
     end;
-    1:
+    1,2,7:
     begin
       U:=UTF8Decode(Text);
-      if Length(U)>(GpoMaxValueBytes div 2)-1 then
+      if UTF8Encode(U)<>Text then begin Error:='文本不是有效 UTF-8。'; Exit; end;
+      if Pos(#0,U)>0 then begin Error:='文本不能包含 NUL。'; Exit; end;
+      if ValueType=7 then
+      begin
+        I:=1;
+        while I<=Length(U) do
+        begin
+          if U[I]=#13 then
+          begin
+            if (I=Length(U)) or (U[I+1]<>#10) then
+            begin Error:='多字符串只允许用换行分隔项目。'; Exit; end;
+            Delete(U,I,1);
+          end;
+          if U[I]=#10 then
+          begin
+            if (I=1) or (I=Length(U)) or (U[I-1]=#0) then
+            begin Error:='多字符串不能包含空项目；空文本表示空列表。'; Exit; end;
+            U[I]:=#0;
+          end;
+          Inc(I);
+        end;
+      end;
+      N:=1; if ValueType=7 then begin if U='' then N:=2 else Inc(N); end;
+      if Length(U)>(GpoMaxValueBytes div 2)-N then
       begin Error:='文本超过数据长度限制。'; Exit; end;
-      SetLength(Data,(Length(U)+1)*2);
+      SetLength(Data,(Length(U)+N)*2);
       for I:=1 to Length(U) do begin Data[(I-1)*2]:=Ord(U[I]) and $ff; Data[(I-1)*2+1]:=Ord(U[I]) shr 8; end;
-      Data[Length(Data)-2]:=0; Data[Length(Data)-1]:=0;
-      R:=Default(TGpoRegistryRecord); R.Key:='K'; R.ValueType:=1; R.Data:=Data;
+      R:=Default(TGpoRegistryRecord); R.Key:='K'; R.ValueType:=ValueType; R.Data:=Data;
       if not GpoValidateDraftRecord(R,Error) then begin Data:=nil; Exit; end;
     end;
     else begin Error:='此类型请继续使用原始十六进制数据。'; Exit; end;
@@ -290,13 +323,34 @@ begin
 end;
 
 procedure TFriendlyInput.Click(Sender:TObject);
-var Text,Error,Prompt:string; Data:TBytes; Kind:Integer;
+var Text,Error,Prompt,OriginalHex,OriginalName:string; Data:TBytes; Kind:Integer; W:TForm; M:TMemo; B:TButton; L:TLabel;
 begin
   Kind:=TypeBox.ItemIndex;
-  if not (Kind in [1,4,11]) then
-  begin MessageDlg('本地草稿','仅 REG_SZ、REG_DWORD 和 REG_QWORD 支持此输入方式；其他类型请使用原始十六进制。',mtInformation,[mbOK],0); Exit; end;
-  if Kind=1 then Prompt:='输入文本（可为空）:' else Prompt:='输入无符号十进制整数:';
-  Text:=''; if not InputQuery('替换原始数据',Prompt,Text) then Exit;
+  OriginalHex:=HexMemo.Text; OriginalName:=NameEdit.Text;
+  if Copy(NameEdit.Text,1,2)='**' then
+  begin MessageDlg('本地草稿','策略指令只能使用原始十六进制编辑。',mtInformation,[mbOK],0); Exit; end;
+  if not (Kind in [1,2,4,7,11]) then
+  begin MessageDlg('本地草稿','此类型请使用原始十六进制。',mtInformation,[mbOK],0); Exit; end;
+  Text:='';
+  if Kind=7 then
+  begin
+    W:=TForm.CreateNew(nil,0);
+    try
+      W.Caption:='替换多字符串数据'; W.Width:=620; W.Height:=400; W.Position:=poScreenCenter;
+      L:=TLabel.Create(W); L.Parent:=W; L.Align:=alTop; L.AutoSize:=False; L.Height:=48;
+      L.WordWrap:=True; L.Caption:='每行一个非空项目；空文本表示空列表。项目不能含换行或 NUL。确认将替换原始数据。';
+      B:=TButton.Create(W); B.Parent:=W; B.Align:=alBottom; B.Caption:='取消'; B.ModalResult:=mrCancel; B.Cancel:=True;
+      B:=TButton.Create(W); B.Parent:=W; B.Align:=alBottom; B.Caption:='确定'; B.ModalResult:=mrOk; B.Default:=True;
+      M:=TMemo.Create(W); M.Parent:=W; M.Align:=alClient; M.ScrollBars:=ssVertical;
+      if W.ShowModal<>mrOk then Exit;
+      Text:=M.Text;
+    finally W.Free; end;
+  end else begin
+    if Kind in [1,2] then Prompt:='输入文本（可为空；环境变量不会展开）:' else Prompt:='输入无符号十进制整数:';
+    if not InputQuery('替换原始数据',Prompt,Text) then Exit;
+  end;
+  if (TypeBox.ItemIndex<>Kind) or (NameEdit.Text<>OriginalName) or
+    (HexMemo.Text<>OriginalHex) then Exit;
   if not GpoEncodeFriendly(Kind,Text,Data,Error) then
   begin MessageDlg('本地草稿',Error,mtError,[mbOK],0); Exit; end;
   HexMemo.Text:=HexPreview(Data,GpoMaxValueBytes);
@@ -1193,11 +1247,19 @@ procedure TFrmGpoOfflineDraft.SaveClick(Sender:TObject);
 begin ExportCurrent; end;
 procedure TFrmGpoOfflineDraft.AddClick(Sender:TObject);
 var R:TGpoRegistryRecord; Err:string; Rows:TGpoRegistryRecords; WasPresent:Boolean;
+  Side:TGpoDraftSide; Revision,SideRevision,DomainRevision:QWord;
 begin
   if fDomain and not fCandidateExists[fSide] and (fDomainExists[fSide] or (Length(Current.Records)>0)) then Exit;
+  Side:=fSide; Revision:=Current.Revision; SideRevision:=fSideRevision; DomainRevision:=fRevision;
   R:=Default(TGpoRegistryRecord); R.ValueType:=3;
+  fAllowMalformedRecord:=False;
   if not EditRecord(R,True) then Exit;
-  if not GpoValidateDraftRecord(R,Err) then begin ShowError(Err); Exit; end;
+  if not fValidSide or (fSide<>Side) or (SideRevision<>fSideRevision) or
+    (Revision<>fDrafts[Side].Revision) or (DomainRevision<>fRevision) then
+  begin ShowError('编辑期间草稿已改变，请重新操作。'); Exit; end;
+  if fAllowMalformedRecord then begin
+    if not GpoValidateRawDraftRecord(R,Err) then begin ShowError(Err); Exit; end;
+  end else if not GpoValidateDraftRecord(R,Err) then begin ShowError(Err); Exit; end;
   Rows:=Current.Records;
   WasPresent:=fCandidateExists[fSide];
   if Current.Insert(Length(Rows),R)<>grsOk then begin ShowError('无法添加记录：超出格式限制。'); Exit; end;
@@ -1206,12 +1268,20 @@ begin
 end;
 procedure TFrmGpoOfflineDraft.EditClick(Sender:TObject);
 var R:TGpoRegistryRecord; Rows:TGpoRegistryRecords; I:Integer; Err:string; Before,After:TBytes;
+  Side:TGpoDraftSide; Revision,SideRevision,DomainRevision:QWord;
 begin
   if fDomain and not fCandidateExists[fSide] then Exit;
   I:=SelectedIndex; Rows:=Current.Records;
   if (I<0) or (I>=Length(Rows)) then begin ShowError('请先选择一条记录。'); Exit; end;
+  Side:=fSide; Revision:=Current.Revision; SideRevision:=fSideRevision; DomainRevision:=fRevision;
+  fAllowMalformedRecord:=False;
   R:=Rows[I]; if not EditRecord(R,False) then Exit;
-  if not GpoValidateDraftRecord(R,Err) then begin ShowError(Err); Exit; end;
+  if not fValidSide or (fSide<>Side) or (SideRevision<>fSideRevision) or
+    (Revision<>fDrafts[Side].Revision) or (DomainRevision<>fRevision) then
+  begin ShowError('编辑期间草稿已改变，请重新操作。'); Exit; end;
+  if fAllowMalformedRecord then begin
+    if not GpoValidateRawDraftRecord(R,Err) then begin ShowError(Err); Exit; end;
+  end else if not GpoValidateDraftRecord(R,Err) then begin ShowError(Err); Exit; end;
   Current.Export(Before);
   if Current.Replace(I,R)<>grsOk then begin ShowError('无法修改记录：超出格式限制。'); Exit; end;
   Current.Export(After);
@@ -1292,7 +1362,7 @@ const TypeNames:array[0..11] of string = ('REG_NONE','REG_SZ','REG_EXPAND_SZ','R
   'REG_DWORD','REG_DWORD_BIG_ENDIAN','REG_LINK','REG_MULTI_SZ','REG_RESOURCE_LIST',
   'REG_FULL_RESOURCE_DESCRIPTOR','REG_RESOURCE_REQUIREMENTS_LIST','REG_QWORD');
 var Dialog:TForm; KeyEdit,NameEdit:TEdit; TypeBox:TComboBox; HexMemo:TMemo; Friendly:TFriendlyInput;
-  Btn:TButton; I,Choice:Integer; Candidate:TGpoRegistryRecord; Err:string;
+  Btn:TButton; RawOption:TCheckBox; I,Choice:Integer; Candidate:TGpoRegistryRecord; Err:string;
   procedure LabelAt(const Text:string; TopValue:Integer; Target:TWinControl);
   var L:TLabel;
   begin
@@ -1304,7 +1374,7 @@ begin
   Result:=False; Dialog:=TForm.CreateNew(Self,0);
   try
     if Adding then Dialog.Caption:='添加本地原始注册表记录' else Dialog.Caption:='修改本地原始注册表记录';
-    Dialog.Width:=660; Dialog.Height:=510; Dialog.Position:=poScreenCenter; Dialog.BorderStyle:=bsDialog;
+    Dialog.Width:=660; Dialog.Height:=545; Dialog.Position:=poScreenCenter; Dialog.BorderStyle:=bsDialog;
     KeyEdit:=TEdit.Create(Dialog); KeyEdit.Parent:=Dialog; KeyEdit.SetBounds(12,35,620,27); KeyEdit.Text:=UTF8Encode(Item.Key);
     KeyEdit.Name:='GpoRecordKey'; KeyEdit.TabOrder:=0;
     LabelAt('注册表键路径(&K)（不含 HKLM/HKCU；不得为空）',12,KeyEdit);
@@ -1321,15 +1391,18 @@ begin
     HexMemo.ScrollBars:=ssVertical; HexMemo.Text:=HexPreview(Item.Data,GpoMaxValueBytes);
     HexMemo.Name:='GpoRecordHex'; HexMemo.TabOrder:=3;
     LabelAt('原始数据(&D)：十六进制字节',187,HexMemo);
-    Friendly:=TFriendlyInput.Create(Dialog); Friendly.TypeBox:=TypeBox; Friendly.HexMemo:=HexMemo;
+    Friendly:=TFriendlyInput.Create(Dialog); Friendly.TypeBox:=TypeBox; Friendly.HexMemo:=HexMemo; Friendly.NameEdit:=NameEdit;
     Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(280,182,352,27);
     Btn.Name:='GpoRecordFriendly'; Btn.TabOrder:=4;
     Btn.Caption:='用十进制或文本替换数据(&F)…'; Btn.OnClick:=@Friendly.Click;
-    Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(428,420,95,30);
-    Btn.Name:='GpoRecordOK'; Btn.TabOrder:=5;
+    RawOption:=TCheckBox.Create(Dialog); RawOption.Parent:=Dialog; RawOption.SetBounds(12,405,600,25);
+    RawOption.Caption:='允许非标准原始数据（仅验证记录格式）'; RawOption.Name:='GpoRecordRawOption';
+    RawOption.TabOrder:=5;
+    Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(428,445,95,30);
+    Btn.Name:='GpoRecordOK'; Btn.TabOrder:=6;
     Btn.Caption:='确定(&O)'; Btn.ModalResult:=mrOk; Btn.Default:=True;
-    Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(537,420,95,30);
-    Btn.Name:='GpoRecordCancel'; Btn.TabOrder:=6;
+    Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(537,445,95,30);
+    Btn.Name:='GpoRecordCancel'; Btn.TabOrder:=7;
     Btn.Caption:='取消(&C)'; Btn.ModalResult:=mrCancel; Btn.Cancel:=True;
     Dialog.ActiveControl:=KeyEdit;
     repeat
@@ -1339,8 +1412,10 @@ begin
       if Choice<0 then begin ShowError('请选择类型。'); Continue; end;
       if Choice<=11 then Candidate.ValueType:=Choice;
       if not GpoParseHex(HexMemo.Text,Candidate.Data,Err) then begin ShowError(Err); Continue; end;
-      if not GpoValidateDraftRecord(Candidate,Err) then begin ShowError(Err); Continue; end;
-      Item:=Candidate; Result:=True; Exit;
+      if RawOption.Checked then begin
+        if not GpoValidateRawDraftRecord(Candidate,Err) then begin ShowError(Err); Continue; end;
+      end else if not GpoValidateDraftRecord(Candidate,Err) then begin ShowError(Err); Continue; end;
+      fAllowMalformedRecord:=RawOption.Checked; Item:=Candidate; Result:=True; Exit;
     until False;
   finally Dialog.Free; end;
 end;

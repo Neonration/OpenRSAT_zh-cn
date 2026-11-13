@@ -7,6 +7,7 @@ type
   published
     procedure TypeAndHexValidation;
     procedure RecordEditorKeyboardLayout;
+    procedure RawRecordEditor;
     procedure LocalDraftInteraction;
     procedure LocalFileBoundaries;
     procedure UnicodeAndConcurrentCreate;
@@ -45,7 +46,7 @@ type
     GptPath, VersionInput, PlanReport:string;
     GptChoice, VersionChoice:Boolean; PlanReports:Integer;
     MutateOnVersion, MutateOnGpt, RebaseOnGpt, InjectedEditOk:Boolean;
-    SwitchOnExport,MutateOnExport:Boolean;
+    SwitchOnExport,MutateOnExport,MutateOnEdit,SwitchOnEdit:Boolean;
     SwitchOnImport,SwitchBackOnImport,MutateOnImport,UndoOnImport,RebaseOnImport,MutateOnConfirm:Boolean;
     SummaryChoice,MutateOnSummary,UndoOnSummary,RebaseOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
     OpenedSnapshot:TFrmGpoOfflineDraft;
@@ -71,9 +72,15 @@ type
   TKeyboardOfflineForm=class(TFrmGpoOfflineDraft)
   public
     Seen, FirstFocus, DefaultOK, CancelOK:Boolean;
-    OrderOK:array[0..6] of Boolean;
+    OrderOK:array[0..7] of Boolean;
     LabelOK:array[0..3] of Boolean;
     function InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
+  protected
+    function ExecuteRecordDialog(Dialog:TForm):TModalResult; override;
+  end;
+  TRawEditorForm=class(TFrmGpoOfflineDraft)
+  public
+    CancelEditor:Boolean;
   protected
     function ExecuteRecordDialog(Dialog:TForm):TModalResult; override;
   end;
@@ -119,9 +126,32 @@ end;
 function TFakeDomainJob.ResultText:string; begin if Text<>'' then Result:=Text else Result:='模拟复核：证据不完整'; end;
 function TKeyboardOfflineForm.InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
 begin Result:=EditRecord(R,Adding); end;
+function TRawEditorForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
+begin
+  if CancelEditor then Exit(mrCancel);
+  TEdit(Dialog.FindComponent('GpoRecordKey')).Text:='Software\QA';
+  TComboBox(Dialog.FindComponent('GpoRecordType')).ItemIndex:=7;
+  TMemo(Dialog.FindComponent('GpoRecordHex')).Text:='00 00 41 00 00 00 00 00';
+  TCheckBox(Dialog.FindComponent('GpoRecordRawOption')).Checked:=True;
+  Result:=mrOk;
+end;
+procedure TUnitTestGpoOfflineDraftUI.RawRecordEditor;
+var F:TRawEditorForm; R:TGpoRegistryRecords; Revision:QWord;
+begin
+  F:=TRawEditorForm.Create(nil);
+  try
+    F.CancelEditor:=True; Revision:=F.Draft(gdsComputer).Revision; F.AddButton.Click;
+    Check(F.Draft(gdsComputer).Revision=Revision); Check(not F.Draft(gdsComputer).Dirty);
+    F.CancelEditor:=False; F.AddButton.Click; R:=F.Draft(gdsComputer).Records;
+    Check(Length(R)=1); Check(R[0].ValueType=7); Check(Length(R[0].Data)=8);
+    Check((R[0].Data[0]=0) and (R[0].Data[2]=65));
+    Check(F.Draft(gdsComputer).Dirty); F.UndoButton.Click;
+    Check(Length(F.Draft(gdsComputer).Records)=0);
+  finally F.Free; end;
+end;
 function TKeyboardOfflineForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
-const Names:array[0..6] of string=('GpoRecordKey','GpoRecordValueName','GpoRecordType',
-  'GpoRecordHex','GpoRecordFriendly','GpoRecordOK','GpoRecordCancel');
+const Names:array[0..7] of string=('GpoRecordKey','GpoRecordValueName','GpoRecordType',
+  'GpoRecordHex','GpoRecordFriendly','GpoRecordRawOption','GpoRecordOK','GpoRecordCancel');
   Keys:array[0..3] of string=('&K','&N','&T','&D');
 var I:Integer; C:TComponent; W:TWinControl; L:TLabel;
 begin
@@ -243,7 +273,14 @@ end;
 function TTestOfflineForm.ChooseSummaryInput(out Path:string):Boolean;
 begin Path:=SummaryPath; Result:=SummaryChoice; end;
 function TTestOfflineForm.EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean;
-begin Result:=EditChoice; if Result then Item:=NextRecord; end;
+begin
+  if MutateOnEdit then begin
+    MutateOnEdit:=False;
+    InjectedEditOk:=Draft(gdsComputer).Insert(Length(Draft(gdsComputer).Records),NextRecord)=grsOk;
+  end;
+  if SwitchOnEdit then begin SwitchOnEdit:=False; SelectSide(gdsUser); end;
+  Result:=EditChoice; if Result then Item:=NextRecord;
+end;
 function TTestOfflineForm.ChooseGptFile(out Path:string):Boolean;
 begin
   if MutateOnGpt then begin
@@ -754,6 +791,16 @@ begin
   Check(GpoEncodeFriendly(1,'',B,E)); Check((Length(B)=2) and (B[0]=0) and (B[1]=0));
   Check(not GpoEncodeFriendly(1,'a'+#0+'b',B,E)); Check(Length(B)=0);
   Check(not GpoEncodeFriendly(1,StringOfChar('a',32767),B,E));
+  Check(GpoEncodeFriendly(2,'%TEMP%',B,E)); Check((Length(B)=14) and (B[0]=37));
+  Check(GpoEncodeFriendly(7,'',B,E)); Check((Length(B)=4) and (B[0]=0) and (B[3]=0));
+  Check(GpoEncodeFriendly(7,'A'+#13#10+'B',B,E));
+  Check((Length(B)=10) and (B[0]=65) and (B[2]=0) and (B[4]=66) and (B[8]=0));
+  Check(not GpoEncodeFriendly(7,#10+'A',B,E));
+  Check(not GpoEncodeFriendly(7,'A'+#10#10+'B',B,E));
+  Check(not GpoEncodeFriendly(7,'A'+#10,B,E));
+  Check(not GpoEncodeFriendly(7,'A'+#13+'B',B,E));
+  Check(not GpoEncodeFriendly(7,'A'+#0+'B',B,E));
+  Check(not GpoEncodeFriendly(2,#$ff,B,E));
   Check(not GpoEncodeFriendly($deadbeef,'1',B,E)); Check(Length(B)=0);
   Check(GpoParseHex('00 aB'+#13#10'Ff',B,E)); Check(Length(B)=3); Check(B[1]=$ab); Check(B[2]=$ff);
   Check(not GpoParseHex('0',B,E)); Check(Length(B)=0);
@@ -841,6 +888,13 @@ begin
     Check(Ord(F.StatusLabel.Caption[3])=$ac);
     Check(Length(F.SaveButton.Caption)>=1); Check(Ord(F.SaveButton.Caption[1])=$e5);
     R:=Item('Software\Policies\Test','A',4,[1,0,0,0]); F.NextRecord:=R;
+    F.EditChoice:=True; F.MutateOnEdit:=True; F.AddButton.Click;
+    Check(F.InjectedEditOk); Check(Length(F.Draft(gdsComputer).Records)=1);
+    Check(Pos('编辑期间',F.LastError)>0); Check(F.Draft(gdsComputer).Undo);
+    Check(Length(F.Draft(gdsComputer).Records)=0);
+    F.SwitchOnEdit:=True; F.AddButton.Click;
+    Check(Length(F.Draft(gdsUser).Records)=0); Check(Pos('编辑期间',F.LastError)>0);
+    F.SelectSide(gdsComputer);
     F.EditChoice:=False; F.AddButton.Click;
     Check(not F.Draft(gdsComputer).Dirty); Check(Length(F.Draft(gdsComputer).Records)=0);
     F.EditChoice:=True;
