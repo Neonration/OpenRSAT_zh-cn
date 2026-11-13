@@ -279,16 +279,19 @@ var I,J,N:Integer; V:QWord; U:UnicodeString; R:TGpoRegistryRecord;
 begin
   Result:=False; Data:=nil; Error:='';
   case ValueType of
-    4,11:
+    4,5,11:
     begin
       if Text='' then begin Error:='请输入无符号十进制整数。'; Exit; end;
       for I:=1 to Length(Text) do if not (Text[I] in ['0'..'9']) then
       begin Error:='请输入无符号十进制整数。'; Exit; end;
-      if not TryStrToQWord(Text,V) or ((ValueType=4) and (V>High(Cardinal))) then
+      if not TryStrToQWord(Text,V) or ((ValueType in [4,5]) and (V>High(Cardinal))) then
       begin Error:='数值超出类型范围。'; Exit; end;
-      if ValueType=4 then N:=4 else N:=8;
+      if ValueType in [4,5] then N:=4 else N:=8;
       SetLength(Data,N);
-      for I:=0 to N-1 do begin Data[I]:=Byte(V and $ff); V:=V shr 8; end;
+      if ValueType=5 then
+        for I:=N-1 downto 0 do begin Data[I]:=Byte(V and $ff); V:=V shr 8; end
+      else
+        for I:=0 to N-1 do begin Data[I]:=Byte(V and $ff); V:=V shr 8; end;
     end;
     1,2,7:
     begin
@@ -337,13 +340,16 @@ function GpoDecodeFriendly(ValueType:Cardinal; const Data:TBytes; out Text,Error
 var R:TGpoRegistryRecord; Encoded:TBytes; U:UnicodeString; V:QWord; I,N:Integer; C:Word;
 begin
   Result:=False; Text:=''; Error:='';
-  if not (ValueType in [1,2,4,7,11]) then begin Error:='此类型请使用原始十六进制。'; Exit; end;
+  if not (ValueType in [1,2,4,5,7,11]) then begin Error:='此类型请使用原始十六进制。'; Exit; end;
   R:=Default(TGpoRegistryRecord); R.Key:='K'; R.ValueType:=ValueType; R.Data:=Data;
   if not GpoValidateDraftRecord(R,Error) then Exit;
-  if ValueType in [4,11] then
+  if ValueType in [4,5,11] then
   begin
     V:=0;
-    for I:=High(Data) downto 0 do V:=(V shl 8) or Data[I];
+    if ValueType=5 then
+      for I:=0 to High(Data) do V:=(V shl 8) or Data[I]
+    else
+      for I:=High(Data) downto 0 do V:=(V shl 8) or Data[I];
     Text:=UIntToStr(V);
   end else begin
     N:=Length(Data) div 2-1;
@@ -381,7 +387,7 @@ begin
   OriginalHex:=HexMemo.Text; OriginalName:=NameEdit.Text;
   if Copy(NameEdit.Text,1,2)='**' then
   begin Editor.ShowError('策略指令只能使用原始十六进制编辑。'); Exit; end;
-  if not (Kind in [1,2,4,7,11]) then
+  if not (Kind in [1,2,4,5,7,11]) then
   begin Editor.ShowError('此类型请使用原始十六进制。'); Exit; end;
   Text:='';
   if LoadExisting and (not GpoParseHex(OriginalHex,Data,Error) or

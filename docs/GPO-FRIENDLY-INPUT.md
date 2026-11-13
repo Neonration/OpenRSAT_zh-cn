@@ -1,7 +1,8 @@
 # Offline registry value input
 
-The offline record editor can replace REG_EXPAND_SZ with literal text and
-REG_MULTI_SZ with a list of nonempty lines. An empty editor represents an empty
+The offline record editor supports unsigned decimal input for REG_DWORD,
+REG_DWORD_BIG_ENDIAN and REG_QWORD. It can replace REG_EXPAND_SZ with literal
+text and REG_MULTI_SZ with a list of nonempty lines. An empty editor represents an empty
 list; empty items, embedded NUL and line breaks within an item cannot be
 represented by this input. Use raw hexadecimal for those bytes. Text is
 validated before replacement, with the Registry.pol size limit enforced.

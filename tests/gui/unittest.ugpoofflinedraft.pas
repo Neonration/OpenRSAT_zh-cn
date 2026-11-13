@@ -909,7 +909,8 @@ var F:TExistingEditorForm; B,C,Encoded:TBytes; Text,Error:string; R:TGpoRegistry
     F.Pane.Rows.Items[0].Selected:=True; F.InputCalls:=0; F.ErrorCalls:=0;
   end;
 begin
-  RoundTrip(4,'4294967295'); RoundTrip(11,'18446744073709551615');
+  RoundTrip(4,'4294967295'); RoundTrip(5,'16909060'); RoundTrip(5,'4294967295');
+  RoundTrip(11,'18446744073709551615');
   RoundTrip(1,'中文😀'); RoundTrip(2,'%TEMP%\路径'); RoundTrip(7,'');
   RoundTrip(7,'第一项'+#10+'second');
   B:=TBytes.Create(65,0,10,0,66,0,0,0,0,0); C:=Copy(B);
@@ -924,6 +925,14 @@ begin
   F:=TExistingEditorForm.Create(nil);
   try
     H:=F.Pane.Rows.Handle;
+    B:=TBytes.Create(1,2,3,4); LoadRecord('BigEndian',5,B);
+    F.AcceptInput:=True; F.AcceptRecord:=True; F.Replacement:='16909060';
+    Rev:=F.Draft(gdsComputer).Revision; F.EditButton.Click;
+    Check(F.SeenText='16909060'); Check(F.Draft(gdsComputer).Revision=Rev);
+    Check(EqualBytes(F.Draft(gdsComputer).Records[0].Data,B));
+    F.Replacement:='16909061'; F.EditButton.Click;
+    Check(EqualBytes(F.Draft(gdsComputer).Records[0].Data,TBytes.Create(1,2,3,5)));
+    F.UndoButton.Click; Check(EqualBytes(F.Draft(gdsComputer).Records[0].Data,B));
     Check(GpoEncodeFriendly(2,'%PATH%\test',B,Error)); LoadRecord('Path',2,B);
     Rev:=F.Draft(gdsComputer).Revision; F.AcceptInput:=False; F.AcceptRecord:=False;
     F.EditButton.Click; Check(F.SeenText='%PATH%\test'); Check(F.InputCalls=1);
@@ -959,6 +968,9 @@ begin
   Check(GpoParseHex('',B,E)); Check(Length(B)=0);
   Check(GpoEncodeFriendly(4,'4294967295',B,E)); Check((Length(B)=4) and (B[0]=$ff) and (B[3]=$ff));
   Check(not GpoEncodeFriendly(4,'4294967296',B,E)); Check(Length(B)=0);
+  Check(GpoEncodeFriendly(5,'16909060',B,E)); Check(EqualBytes(B,TBytes.Create(1,2,3,4)));
+  Check(GpoEncodeFriendly(5,'0',B,E)); Check(EqualBytes(B,TBytes.Create(0,0,0,0)));
+  Check(not GpoEncodeFriendly(5,'4294967296',B,E)); Check(Length(B)=0);
   Check(not GpoEncodeFriendly(4,'-1',B,E)); Check(not GpoEncodeFriendly(4,'0x10',B,E));
   Check(GpoEncodeFriendly(11,'18446744073709551615',B,E)); Check((Length(B)=8) and (B[7]=$ff));
   Check(not GpoEncodeFriendly(11,'18446744073709551616',B,E)); Check(Length(B)=0);
