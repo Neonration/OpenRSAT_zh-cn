@@ -6,6 +6,8 @@
 
 微软文档中 [GetDSPath](https://learn.microsoft.com/en-us/windows/win32/api/gpedit/nf-gpedit-igrouppolicyobject-getdspath) 的示例本来就不包含服务器名，[MS-GPOL](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gpol/2f362c13-9a2d-469b-8c4b-7b4045258995) 也将 GPO 路径描述为基于域名的 DFS 路径；本次返回值不能单独判定为异常或恶意。它同时也未证明后续 SYSVOL 写入会落到指定 DC。输入路径包含指定 DC 的 [OpenDSGPO](https://learn.microsoft.com/en-us/windows/win32/api/gpedit/nf-gpedit-igrouppolicyobject-opendsgpo) 行为与 DFS 写入最终目标仍需要分别验证。
 
+隔离域的只读域控枚举仅返回 ORSAT-DC01；检查时没有现存 SYSVOL SMB 连接。这说明本次实验的域控拓扑，但不能证明一次尚未发生的 `Save` 会选择哪个 DFS 目标，也不能代表多域控环境。
+
 随后一次原本声明为只读的清理预检，由于 PowerShell 远程参数将关闭开关传成非空字符串，意外执行了已获用户授权的临时 GPO 清理；这是执行错误，不是成功的只读预检。有问题的临时脚本已移除。独立只读复核确认该测试对象、同名对象及其 SYSVOL 目录均已不存在，域和站点链接数为零；两条默认 GPO 的已记录元数据及文件哈希与实验前一致。该结果不能证明域发布、恢复或所有目录元数据未变化。实验记录保存在本地忽略提交的 `.tools/gpo-com-lab-*` 和 `.tools/gpo-continuation` 目录。
 
 `tests/manual/gpo-com-probe.cs` 使用固定域控 `ORSAT-DC01.openrsat.test` 和固定域 `openrsat.test` 构造目标路径；只接受 `Codex-COMSave-` 加 12 位小写十六进制名称，并拒绝空 GUID 和两条默认策略 GUID。COM 调用在 STA 线程执行；同步 COM 调用没有硬超时，不能将等待等同于未执行。打开后要求返回的 GPO 名称、显示名、LDAP 路径和 SYSVOL 路径与预期完全匹配，才允许继续。策略数据仅为计算机侧合成 DWORD；独立的纯函数按完整 Registry.pol 字节验证该记录，而不是查找孤立子串。严格路径和文件格式可能拒绝微软接口返回的其他合法表示，不能为使测试通过而放宽目标保护。
