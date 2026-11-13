@@ -17,6 +17,7 @@ type
     procedure DomainDraftWorkflow;
     procedure DomainSummaryExport;
     procedure ImportDialogRace;
+    procedure SnapshotWorkflow;
   end;
 implementation
 uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugpolocalfiles,
@@ -42,6 +43,7 @@ type
     SwitchOnExport,MutateOnExport:Boolean;
     SwitchOnImport,SwitchBackOnImport,MutateOnImport,UndoOnImport,RebaseOnImport,MutateOnConfirm:Boolean;
     SummaryChoice,MutateOnSummary,RebaseOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
+    OpenedSnapshot:TFrmGpoOfflineDraft;
     constructor Create(TheOwner:TComponent); override;
     procedure PollDomainNow;
   protected
@@ -49,6 +51,9 @@ type
     function ConfirmClose(const Branches:string):TGpoCloseChoice; override;
     function ConfirmRestore:Boolean; override;
     function ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean; override;
+    function ChooseSnapshotFile(SaveCopy:Boolean; out Path:string):Boolean; override;
+    function ConfirmSnapshot:Boolean; override;
+    procedure ShowSnapshotWindow(Window:TFrmGpoOfflineDraft); override;
     function ChooseSummaryFile(out Path:string):Boolean; override;
     function ChooseSummaryInput(out Path:string):Boolean; override;
     function ChooseGptFile(out Path:string):Boolean; override;
@@ -155,6 +160,12 @@ begin
 end;
 function TTestOfflineForm.ConfirmRestore:Boolean;
 begin Inc(RestoreCalls); Result:=RestoreChoice; end;
+function TTestOfflineForm.ConfirmSnapshot:Boolean;
+begin Result:=Choice; end;
+function TTestOfflineForm.ChooseSnapshotFile(SaveCopy:Boolean; out Path:string):Boolean;
+begin Result:=ChooseLocalFile(SaveCopy,Path); end;
+procedure TTestOfflineForm.ShowSnapshotWindow(Window:TFrmGpoOfflineDraft);
+begin OpenedSnapshot:=Window; end;
 function TTestOfflineForm.ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean;
 var Payload:TBytes;
 begin
@@ -227,6 +238,47 @@ begin
 end;
 function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
+procedure TUnitTestGpoOfflineDraftUI.SnapshotWorkflow;
+{$ifdef windows}
+var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; Empty,BeforeBytes,AfterBytes:TBytes;
+  Dir,Path:string; Id:TGUID; Errors:Integer; Rev:QWord;
+begin
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-snapshot-'+GUIDToString(Id);
+  Check(CreateDir(Dir)); Path:=Dir+'\draft.gpodraft';
+  F:=TTestOfflineForm.Create(nil); Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job;
+  try
+    Check(SerializeRegistryPol(nil,Empty)=grsOk); Job.InitialMachine.Exists:=True; Job.InitialMachine.Data:=Copy(Empty);
+    Job.InitialUser.Exists:=True; Job.InitialUser.Data:=Copy(Empty);
+    Check(F.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
+    F.EditChoice:=True; F.NextRecord:=Item('Machine','V',$deadbeef,[1]); F.AddButton.Click;
+    F.OpenButton.Click; F.SelectSide(gdsUser);
+    F.NextRecord:=Item('User','V',$deadbeef,[2]); F.AddButton.Click; F.OpenButton.Click;
+    Check(F.Draft(gdsComputer).Export(BeforeBytes)=grsOk);
+    F.Choice:=True; F.SelectChoice:=True; F.NextPath:=Path; F.SaveSnapshotButton.Click;
+    Check(FileExists(Path)); Check(F.Draft(gdsComputer).CanUndo);
+    Errors:=F.ErrorCalls; F.SaveSnapshotButton.Click; Check(F.ErrorCalls=Errors+1,'Existing file must not be overwritten');
+    F.OpenSnapshotButton.Click; Check(Assigned(F.OpenedSnapshot));
+    if Assigned(F.OpenedSnapshot) then begin
+      Check(not F.OpenedSnapshot.PlanButton.Enabled);
+      Check(F.OpenedSnapshot.Draft(gdsComputer).Export(AfterBytes)=grsOk); Check(EqualBytes(BeforeBytes,AfterBytes));
+      Check(not F.OpenedSnapshot.Draft(gdsComputer).CanUndo);
+      F.OpenedSnapshot.SelectSide(gdsUser); Check(Length(F.OpenedSnapshot.Draft(gdsUser).Records)=1);
+      Check(Pos('候选文件缺失',F.OpenedSnapshot.StatusLabel.Caption)>0);
+      Check(Pos('未绑定域',F.OpenedSnapshot.StatusLabel.Caption)>0);
+      Check(F.OpenedSnapshot.NewButton.Enabled); F.OpenedSnapshot.NewButton.Click;
+      Check(Pos('候选文件存在',F.OpenedSnapshot.StatusLabel.Caption)>0);
+      Check(Length(F.OpenedSnapshot.Draft(gdsUser).Records)=1,'Restoring a missing candidate keeps hidden edits');
+      F.OpenedSnapshot.Free; F.OpenedSnapshot:=nil;
+    end;
+    F.SelectSide(gdsComputer); Rev:=F.Draft(gdsComputer).Revision;
+    F.SwitchOnImport:=True; Errors:=F.ErrorCalls; F.OpenSnapshotButton.Click;
+    Check(F.ErrorCalls=Errors+1); Check(not Assigned(F.OpenedSnapshot));
+    Check(F.Draft(gdsComputer).Revision=Rev);
+  finally F.OpenedSnapshot.Free; F.Free; Ref:=nil; Check(SysUtils.DeleteFile(Path)); Check(RemoveDir(Dir)); end;
+end;
+{$else}
+begin end;
+{$endif}
 procedure TUnitTestGpoOfflineDraftUI.DomainDraftWorkflow;
 var F:TTestOfflineForm; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; User,Machine:TGpoPolicyImage; Empty:TBytes; CanClose:Boolean;
   {$ifdef windows}Dir,Path:string;{$endif}

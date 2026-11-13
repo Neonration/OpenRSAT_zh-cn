@@ -3,7 +3,7 @@ unit ufrmgpoofflinedraft;
 interface
 
 uses Classes, SysUtils, Forms, Controls, Graphics, StdCtrls, ComCtrls, ExtCtrls,
-  ugpoformats, ugporegistrydraft, ufrmpropertygposettings;
+  ugpoformats, ugporegistrydraft, ugposnapshot, ufrmpropertygposettings;
 
 type
   TGpoDraftSide = (gdsComputer, gdsUser);
@@ -13,7 +13,7 @@ type
     fDrafts: array[TGpoDraftSide] of TGpoRegistryDraft;
     fPaths: array[TGpoDraftSide] of string;
     fDomainJob:IGpoDomainDraftJob;
-    fDomain:Boolean;
+    fDomain,fDetached:Boolean;
     fDomainExists:array[TGpoDraftSide] of Boolean;
     fDomainBaseline:array[TGpoDraftSide] of TBytes;
     fCandidateExists,fUndoExists,fDomainUndoValid,fUndoPresenceOnly:array[TGpoDraftSide] of Boolean;
@@ -38,6 +38,11 @@ type
     fFindButton:TButton;
     fFindStatus:TLabel;
     fNew, fOpen, fSave, fAdd, fEdit, fDelete, fUndo, fReset, fPreview, fPlan,fSummary,fVerify: TButton;
+    fSaveSnapshot,fOpenSnapshot:TButton;
+    procedure SaveSnapshotClick(Sender:TObject);
+    procedure OpenSnapshotClick(Sender:TObject);
+    function CaptureSnapshot(out Value:TGpoSnapshot):Boolean;
+    function InitializeSnapshot(const Value:TGpoSnapshot):Boolean;
     procedure TreeChanged(Sender:TObject; Node:TTreeNode);
     procedure RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);
     function ExportCurrent:Boolean;
@@ -74,6 +79,9 @@ type
     function ConfirmClose(const Branches:string):TGpoCloseChoice; virtual;
     function ConfirmRestore:Boolean; virtual;
     function ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean; virtual;
+    function ChooseSnapshotFile(SaveCopy:Boolean; out Path:string):Boolean; virtual;
+    function ConfirmSnapshot:Boolean; virtual;
+    procedure ShowSnapshotWindow(Window:TFrmGpoOfflineDraft); virtual;
     function ChooseSummaryFile(out Path:string):Boolean; virtual;
     function ChooseSummaryInput(out Path:string):Boolean; virtual;
     function ChooseGptFile(out Path:string):Boolean; virtual;
@@ -106,6 +114,8 @@ type
     property PlanButton:TButton read fPlan;
     property SummaryButton:TButton read fSummary;
     property VerifyButton:TButton read fVerify;
+    property SaveSnapshotButton:TButton read fSaveSnapshot;
+    property OpenSnapshotButton:TButton read fOpenSnapshot;
     property FindText:TEdit read fFindText;
     property FindButton:TButton read fFindButton;
     property FindStatus:TLabel read fFindStatus;
@@ -397,7 +407,7 @@ begin
   fUserNode:=fTree.Items.AddChild(Root,SUser);
   Root.Expand(False); fTree.OnChange:=@TreeChanged;
   ToolPanel:=TPanel.Create(Self); ToolPanel.Parent:=Self; ToolPanel.Align:=alTop;
-  ToolPanel.Height:=100; ToolPanel.BevelOuter:=bvNone;
+  ToolPanel.Height:=132; ToolPanel.BevelOuter:=bvNone;
   fNew:=MakeButton('新建草稿',0,0,@NewClick);
   fOpen:=MakeButton('打开本地文件',1,0,@OpenClick);
   fSave:=MakeButton('导出本地新文件',2,0,@SaveClick);
@@ -410,6 +420,8 @@ begin
   fPlan:=MakeButton('本地计划预演…',4,1,@PlanClick);
   fSummary:=MakeButton('导出审阅摘要…',0,3,@SummaryClick); fSummary.Visible:=False;
   fVerify:=MakeButton('核对摘要文件…',1,3,@VerifyClick); fVerify.Visible:=False;
+  fSaveSnapshot:=MakeButton('保存双侧草稿…',2,3,@SaveSnapshotClick);
+  fOpenSnapshot:=MakeButton('打开双侧草稿…',3,3,@OpenSnapshotClick);
   with TLabel.Create(Self) do begin Parent:=ToolPanel; Caption:='查找记录：'; SetBounds(8,72,80,24); end;
   fFindText:=TEdit.Create(Self); fFindText.Parent:=ToolPanel; fFindText.SetBounds(88,68,240,26);
   fFindText.OnChange:=@FindChanged; fFindText.OnKeyDown:=@FindKeyDown;
@@ -557,7 +569,7 @@ end;
 function TFrmGpoOfflineDraft.SideDirty(Side:TGpoDraftSide):Boolean;
 begin
   if fDomain then Result:=(fCandidateExists[Side]<>fDomainExists[Side]) or
-    (fCandidateExists[Side] and fDrafts[Side].Dirty)
+    ((fCandidateExists[Side] or fDetached) and fDrafts[Side].Dirty)
   else Result:=fDrafts[Side].Dirty;
 end;
 
@@ -717,7 +729,7 @@ end;
 procedure TFrmGpoOfflineDraft.PresenceClick(Sender:TObject);
 begin
   if not fDomain or not fValidSide then Exit;
-  if (Sender=fNew) and (not fCandidateExists[fSide]) and (Length(Current.Records)=0) then
+  if (Sender=fNew) and (not fCandidateExists[fSide]) and (fDetached or (Length(Current.Records)=0)) then
   begin fUndoExists[fSide]:=False; fCandidateExists[fSide]:=True; end
   else if (Sender=fOpen) and fCandidateExists[fSide] then
   begin fUndoExists[fSide]:=True; fCandidateExists[fSide]:=False; end
@@ -852,14 +864,18 @@ begin
     '。仅原始 Registry.pol；不会应用到域。';
   if fDomain then
   begin
-    if fDomainExists[fSide] then Path:='域基线文件存在' else Path:='域基线文件缺失';
+    if fDomainExists[fSide] then Path:='基线文件存在' else Path:='基线文件缺失';
     if fCandidateExists[fSide] then Path:=Path+'；候选文件存在'
     else Path:=Path+'；候选文件缺失';
-    fNew.Enabled:=not fCandidateExists[fSide] and (Length(Rows)=0);
+    fNew.Enabled:=not fCandidateExists[fSide] and (fDetached or (Length(Rows)=0));
+    if fDetached and (Length(Rows)>0) then fNew.Caption:='恢复候选文件'
+    else fNew.Caption:='创建空文件';
     fOpen.Enabled:=fCandidateExists[fSide];
     fSave.Enabled:=fCandidateExists[fSide];
     fAdd.Enabled:=fCandidateExists[fSide] or ((not fDomainExists[fSide]) and (Length(Rows)=0));
-    fStatus.Caption:='域目标绑定草稿 | '+SideName+' | '+State+' | '+Path+
+    if fDetached then fStatus.Caption:='离线快照草稿 | '+SideName+' | '+State+' | '+Path+
+      '。未绑定域，校验仅检测损坏，不认证来源。'
+    else fStatus.Caption:='域目标绑定草稿 | '+SideName+' | '+State+' | '+Path+
       '。'+fDomainTarget+'；只读，不会应用到域。';
     fPlan.Enabled:=not fDomainWaiting and Assigned(fDomainJob) and (fDomainJob.State in [gddsReady,gddsResult]);
   end;
@@ -876,7 +892,7 @@ function TFrmGpoOfflineDraft.ConfirmClose(const Branches:string):TGpoCloseChoice
 var Choice:Integer;
 begin
   if fDomain then begin
-    Choice:=MessageDlg('关闭域草稿','以下分支仍有域候选修改：'+Branches+
+    Choice:=MessageDlg('关闭草稿','以下分支仍有候选修改：'+Branches+
       '。本地导出不能保存文件存在状态。是否放弃草稿并关闭？',mtConfirmation,[mbYes,mbNo],0);
     if Choice=mrYes then Result:=gccDiscard else Result:=gccReturn;
     Exit;
@@ -905,6 +921,105 @@ begin
     end else begin D.Title:='打开本地 Registry.pol 文件'; D.Options:=D.Options+[ofFileMustExist]; end;
     Result:=D.Execute; if Result then Path:=D.FileName;
   finally D.Free; end;
+end;
+function TFrmGpoOfflineDraft.ConfirmSnapshot:Boolean;
+begin
+  Result:=MessageDlg('保存双侧草稿','文件包含策略原始内容，请妥善保管。将创建新文件，不会覆盖已有文件。',
+    mtConfirmation,[mbOK,mbCancel],0)=mrOK;
+end;
+procedure TFrmGpoOfflineDraft.ShowSnapshotWindow(Window:TFrmGpoOfflineDraft);
+begin Window.Show; end;
+function TFrmGpoOfflineDraft.ChooseSnapshotFile(SaveCopy:Boolean; out Path:string):Boolean;
+var D:TOpenDialog;
+begin
+  Path:='';
+  if SaveCopy then D:=TSaveDialog.Create(Self) else D:=TOpenDialog.Create(Self);
+  try
+    D.Filter:='GPO 草稿 (*.gpodraft)|*.gpodraft|所有文件 (*.*)|*.*';
+    if SaveCopy then begin D.Title:='保存双侧草稿（不覆盖已有文件）';
+      D.Options:=D.Options-[ofOverwritePrompt]; D.FileName:='offline.gpodraft'; end
+    else begin D.Title:='打开双侧草稿'; D.Options:=D.Options+[ofFileMustExist]; end;
+    Result:=D.Execute; if Result then Path:=D.FileName;
+  finally D.Free; end;
+end;
+
+function TFrmGpoOfflineDraft.CaptureSnapshot(out Value:TGpoSnapshot):Boolean;
+var Side:TGpoDraftSide; S:TGpoSnapshotSide; Base,CurrentBytes:TBytes;
+begin
+  Value:=Default(TGpoSnapshot); Result:=False;
+  for Side:=Low(Side) to High(Side) do begin
+    S:=TGpoSnapshotSide(Ord(Side));
+    if (fDrafts[Side].Baseline(Base)<>grsOk) or (fDrafts[Side].Export(CurrentBytes)<>grsOk) then Exit;
+    Value[S].Baseline.Exists:=(not fDomain) or fDomainExists[Side];
+    Value[S].Candidate.Exists:=(not fDomain) or fCandidateExists[Side];
+    if Value[S].Baseline.Exists then Value[S].Baseline.Data:=Base;
+    if Value[S].Candidate.Exists then Value[S].Candidate.Data:=CurrentBytes
+    else Value[S].Hidden:=CurrentBytes;
+  end;
+  Result:=True;
+end;
+
+function TFrmGpoOfflineDraft.InitializeSnapshot(const Value:TGpoSnapshot):Boolean;
+var NewDrafts:TGpoSnapshotDrafts; Side:TGpoDraftSide; S:TGpoSnapshotSide;
+begin
+  Result:=False;
+  if GpoRestoreSnapshot(Value,NewDrafts)<>grsOk then Exit;
+  for Side:=Low(Side) to High(Side) do begin
+    S:=TGpoSnapshotSide(Ord(Side));
+    fDrafts[Side].Free; fDrafts[Side]:=NewDrafts[S];
+    fDomainExists[Side]:=Value[S].Baseline.Exists;
+    fCandidateExists[Side]:=Value[S].Candidate.Exists;
+    fDomainUndoValid[Side]:=False; fPaths[Side]:='';
+  end;
+  fDomain:=True; fDetached:=True;
+  fNew.Caption:='创建空文件'; fNew.OnClick:=@PresenceClick;
+  fOpen.Caption:='删除整个文件'; fOpen.OnClick:=@PresenceClick;
+  Caption:='离线快照草稿（未绑定域）'; fTree.Items[0].Text:='离线快照草稿';
+  fPlan.Caption:='无域复核'; fPlan.Enabled:=False;
+  OnClose:=@DomainClosed; RefreshView; Result:=True;
+end;
+
+procedure TFrmGpoOfflineDraft.SaveSnapshotClick(Sender:TObject);
+var Value:TGpoSnapshot; Data:TBytes; Path,Err:string; R:array[TGpoDraftSide] of QWord;
+  Revision,SideRevision:QWord; Side:TGpoDraftSide; S:TGpoSnapshotSide; Size:Int64;
+  function Unchanged:Boolean;
+  begin
+    Result:=(fRevision=Revision) and (fSideRevision=SideRevision) and
+      (fDrafts[gdsComputer].Revision=R[gdsComputer]) and (fDrafts[gdsUser].Revision=R[gdsUser]);
+  end;
+begin
+  Revision:=fRevision; SideRevision:=fSideRevision;
+  for Side:=Low(Side) to High(Side) do R[Side]:=fDrafts[Side].Revision;
+  if not ConfirmSnapshot then Exit;
+  if not Unchanged then begin ShowError('确认期间草稿已变化，请重试。'); Exit; end;
+  if not ChooseSnapshotFile(True,Path) then Exit;
+  if not Unchanged then begin ShowError('选择文件期间草稿已变化，请重试。'); Exit; end;
+  if not CaptureSnapshot(Value) then begin ShowError('无法读取草稿。'); Exit; end;
+  Size:=48;
+  for S:=Low(S) to High(S) do Inc(Size,Length(Value[S].Baseline.Data)+Length(Value[S].Candidate.Data)+Length(Value[S].Hidden));
+  if Size>GpoMaxFileBytes then begin ShowError('草稿文件超过 16 MiB 上限。'); Exit; end;
+  if GpoEncodeSnapshot(Value,Data)<>grsOk then begin ShowError('无法编码草稿。'); Exit; end;
+  if not GpoSaveNewLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
+  fStatus.Caption:='已保存双侧草稿；文件包含策略原始内容，不包含域授权。';
+end;
+
+procedure TFrmGpoOfflineDraft.OpenSnapshotClick(Sender:TObject);
+var Value:TGpoSnapshot; Data:TBytes; Path,Err:string; Window:TFrmGpoOfflineDraft;
+  R:array[TGpoDraftSide] of QWord; Revision,SideRevision:QWord; Side:TGpoDraftSide;
+begin
+  Revision:=fRevision; SideRevision:=fSideRevision;
+  for Side:=Low(Side) to High(Side) do R[Side]:=fDrafts[Side].Revision;
+  if not ChooseSnapshotFile(False,Path) then Exit;
+  if (Revision<>fRevision) or (SideRevision<>fSideRevision) or
+     (R[gdsComputer]<>fDrafts[gdsComputer].Revision) or (R[gdsUser]<>fDrafts[gdsUser].Revision) then
+  begin ShowError('选择文件期间草稿已变化，请重试。'); Exit; end;
+  if not GpoLoadLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
+  if GpoDecodeSnapshot(Data,Value)<>grsOk then begin ShowError('草稿文件损坏或不受支持。'); Exit; end;
+  Window:=TFrmGpoOfflineDraft.Create(Application);
+  try
+    if not Window.InitializeSnapshot(Value) then begin ShowError('无法恢复草稿。'); Exit; end;
+    ShowSnapshotWindow(Window); Window:=nil;
+  finally Window.Free; end;
 end;
 function TFrmGpoOfflineDraft.ChooseSummaryFile(out Path:string):Boolean;
 var D:TSaveDialog;
@@ -952,12 +1067,13 @@ begin
   begin
     if Side=gdsComputer then SideName:='计算机配置' else SideName:='用户配置';
     if SideDirty(Side) then State:='有未导出修改' else State:='无未导出修改';
-    if fDomain then begin if fDomainExists[Side] then Source:='域文件快照' else Source:='域文件缺失'; end
+    if fDomain then begin if fDomainExists[Side] then Source:='基线文件存在' else Source:='基线文件缺失'; end
     else if fPaths[Side]='' then Source:='新建空草稿' else Source:='本地文件 '+fPaths[Side];
     if fDomain then begin if fCandidateExists[Side] then Source:=Source+'；候选文件存在' else Source:=Source+'；候选文件缺失'; end;
     Result:=Result+SideName+'：'+State+'；基线：'+Source+LineEnding;
   end;
-  if fDomain then Result:=Result+'域目标：'+fDomainTarget+'；只能只读复核，不授权写入。'
+  if fDetached then Result:=Result+'离线快照未绑定域，不授权写入。'
+  else if fDomain then Result:=Result+'域目标：'+fDomainTarget+'；只能只读复核，不授权写入。'
   else Result:=Result+'域版本：未知；本地草稿没有域基线，不能生成域变更计划。';
 end;
 
