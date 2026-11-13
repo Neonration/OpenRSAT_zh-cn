@@ -170,10 +170,10 @@ jobs:
           chmod +x "$RUNNER_TEMP/fpclazup"
           lipo "$RUNNER_TEMP/fpclazup" -verify_arch '${{ matrix.target.arch }}'
           if [ '${{ matrix.target.arch }}' = 'x86_64' ]; then
-            # FPC fixes_3_2 includes the Xcode 16 assembler fix; pin the revision.
+            # The development compiler contains newer macOS assembler fixes.
             git init "$prefix/fpc"
             git -C "$prefix/fpc" remote add origin https://gitlab.com/freepascal.org/fpc/source
-            git -C "$prefix/fpc" fetch --depth 1 origin 7a7bf815302b98f2b11dd201732e3f4d58b8c9bd
+            git -C "$prefix/fpc" fetch --depth 1 origin 7cfa1944185f5b9fd6f5cc9180ffee72e4870249
             git -C "$prefix/fpc" checkout --detach FETCH_HEAD
           else
             git clone --depth 1 --branch release_3_2_2 https://gitlab.com/freepascal.org/fpc/source "$prefix/fpc"
@@ -184,7 +184,44 @@ jobs:
           test -n "$compiler_path"
           file "$compiler_path"
           lipo "$compiler_path" -verify_arch '${{ matrix.target.arch }}'
+          "$compiler_path" -iV
           echo "$prefix/lazarus" >> "$GITHUB_PATH"
+
+      - name: Verify Intel exception handling
+        if: matrix.target.name == 'macosx-intel'
+        run: |
+          cat > "$RUNNER_TEMP/exception-check.pas" <<'EOF'
+          program exceptioncheck;
+          {$mode objfpc}{$goto on}{$modeswitch nonlocalgoto}
+          uses SysUtils;
+          var state: integer;
+          procedure CheckGoto;
+          label done;
+          var item: record value: integer; end;
+            procedure Jump;
+            begin goto done; end;
+          begin
+            item.value := 4;
+            with item do begin Jump; value := 99; end;
+            done: if item.value <> 4 then Halt(2);
+          end;
+          begin
+            state := 0;
+            try
+              try
+                raise Exception.Create('test');
+              finally
+                state := state + 1;
+              end;
+            except
+              on E: Exception do state := state + 2;
+            end;
+            if state <> 3 then Halt(1);
+            CheckGoto;
+          end.
+          EOF
+          "$RUNNER_TEMP/openrsat-fpcup/fpc/bin/x86_64-darwin/fpc.sh" -k-ld_classic "$RUNNER_TEMP/exception-check.pas"
+          "$RUNNER_TEMP/exception-check"
 
       - name: Link dependencies
         run: |
