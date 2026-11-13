@@ -44,6 +44,17 @@ passed its existing checks. These records do not authenticate the evidence
 provider, rule out concurrent changes or replace a fresh same-target read.
 
 Values are capped at 16 MiB per resource and 128 MiB per comparison; adapters
-also check their input sizes before copying. This node is a pure comparison and
-evidence adapter. It is not connected to a write executor or a user interface,
+also check their input sizes before copying. The domain draft's read-only review
+uses its existing background job to capture LDAP, files, then LDAP again. It
+discards the result if the two LDAP observations differ, the target or session
+changes, the operation is cancelled, or the draft or selected side changes.
+Matching observations do not exclude changes that occur and revert between reads,
+or changes after the read. The report shows each resource and explicitly leaves
+unknown candidate metadata uncollected. It is not connected to a write executor
 and performs no LDAP or filesystem writes.
+
+Offline draft snapshots are written directly to a newly created destination.
+CRC detects accidental corruption on reopen; it does not authenticate the file.
+A crash or power loss can leave a partial file. Disk-full and flush failures are
+handled as write failures with a best-effort cleanup, but crash atomicity, every
+filesystem failure and concurrent parent-directory renames have not been proven.

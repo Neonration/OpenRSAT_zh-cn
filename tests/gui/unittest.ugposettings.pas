@@ -16,10 +16,11 @@ type
     procedure CancelPollStates;
     procedure BaselineJobLifecycle;
     procedure DomainDraftJobLifecycle;
+    procedure DiagnosticBackendLifecycle;
     procedure HeaderUsesSystemColors;
   end;
 implementation
-uses Classes, SyncObjs, SysUtils, ugpoformats, ugposysvol, ufrmpropertygposettings, uproperty,
+uses Classes, SyncObjs, SysUtils, ugpoformats, ugposysvol, ugpodiagnostic, ufrmpropertygposettings, uproperty,
   mormot.net.ldap, mormot.net.sock
   {$IFDEF WINDOWS}, Windows, CommCtrl, Graphics, Forms{$ENDIF};
 type
@@ -79,6 +80,10 @@ type
     Job:IGpoDomainDraftJob;
     procedure Execute; override;
   end;
+  TDomainDiagnosticProbe = class(TDomainProbe,IGpoDomainDiagnosticBackend)
+    function Diagnose(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl;
+      out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
+  end;
 constructor TDomainProbe.Create;
 begin inherited Create; Entered:=TEvent.Create(nil,True,False,''); Release:=TEvent.Create(nil,True,False,''); CheckResult:=gprConflict; end;
 destructor TDomainProbe.Destroy;
@@ -93,6 +98,13 @@ function TDomainProbe.Check(const User,Machine:TGpoPolicyImage; Control:TGpoRead
 begin
   if Length(User.Data)>0 then FirstUserByte:=User.Data[0];
   Entered.SetEvent; Release.WaitFor(5000); Result:=CheckResult;
+end;
+function TDomainDiagnosticProbe.Diagnose(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl;
+  out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
+begin
+  Report:=Default(TGpoDiagnosticReport); Report.Summary:=gduIncomplete; Report.HasOther:=True;
+  Report.Items[gdrMachinePolicy].Match:=gdmOther;
+  Entered.SetEvent; Release.WaitFor(5000); Result:=gdtOk;
 end;
 procedure TDomainTestThread.Execute; begin Job.Execute; end;
 constructor TBlockingBaseline.Create;
@@ -428,6 +440,33 @@ begin
     if Assigned(Job) then Job.Cancel;
     if Assigned(Worker) then begin Probe.Release.SetEvent; Worker.WaitFor; Worker.Free; end;
     Job:=nil; Backend:=nil; Frame.Free; Client.Free;
+  end;
+end;
+procedure TUnitTestGpoSettings.DiagnosticBackendLifecycle;
+var Client:TLdapSessionProbe; Request:TGpoBaselineRequest; Probe:TDomainDiagnosticProbe;
+  Backend:IGpoDomainDraftBackend; Job:IGpoDomainDraftJob; Worker:TDomainTestThread;
+  User,Machine:TGpoPolicyImage; I:Integer;
+begin
+  Client:=TLdapSessionProbe.Create; Worker:=nil; Job:=nil;
+  try
+    Client.ResetSameSocket('A'); Request:=Default(TGpoBaselineRequest); Request.SessionToken:=Client.SessionToken;
+    SetLength(Request.ObjectGuid,16); Request.ObjectGuid[0]:=7;
+    Probe:=TDomainDiagnosticProbe.Create; Backend:=Probe; Job:=GpoCreateDomainDraftJob(Request,Backend);
+    Worker:=TDomainTestThread.Create(True); Worker.Job:=Job; Worker.Start;
+    for I:=1 to 200 do begin if Job.State=gddsReady then Break; Sleep(10); end;
+    Check(Job.Initial(User,Machine)); Check(Job.Submit(User,Machine));
+    Check(Probe.Entered.WaitFor(2000)=wrSignaled); Check(not Job.Submit(User,Machine));
+    Probe.Release.SetEvent;
+    for I:=1 to 200 do begin if Job.State=gddsResult then Break; Sleep(10); end;
+    Check(Job.State=gddsResult); Check(Pos('信息不完整',Job.ResultText)>0);
+    Check(Pos('其他值（冲突）',Job.ResultText)>0);
+    Client.ResetSameSocket('B'); Check(Job.State=gddsStopped);
+    Check(Pos('失效',Job.ResultText)>0,'Revoked session cannot expose diagnostics');
+    Worker.WaitFor; FreeAndNil(Worker);
+  finally
+    if Assigned(Job) then Job.Cancel;
+    if Assigned(Worker) then begin Probe.Release.SetEvent; Worker.WaitFor; Worker.Free; end;
+    Job:=nil; Backend:=nil; Client.Free;
   end;
 end;
 procedure TUnitTestGpoSettings.SessionChangesRejectDelayedJobs;

@@ -17,7 +17,7 @@ type
     fDomainExists:array[TGpoDraftSide] of Boolean;
     fDomainBaseline:array[TGpoDraftSide] of TBytes;
     fCandidateExists,fUndoExists,fDomainUndoValid,fUndoPresenceOnly:array[TGpoDraftSide] of Boolean;
-    fRevision,fPendingRevision:QWord;
+    fRevision,fPendingRevision,fPendingSideRevision:QWord;
     fDomainTarget:string;
     fDomainTimer:TTimer;
     fDomainWaiting:Boolean;
@@ -26,6 +26,9 @@ type
     fReviewUser,fReviewMachine:TGpoPolicyImage;
     fReviewRevision:QWord;
     fReviewText:string;
+    fReportMemo:TMemo;
+    fReportJob:IGpoDomainDraftJob;
+    fReportRevision,fReportSideRevision:QWord;
     fSide: TGpoDraftSide;
     fValidSide:Boolean;
     fSideRevision:QWord;
@@ -464,9 +467,14 @@ begin
     CloseButton:=TButton.Create(Window); CloseButton.Parent:=Window; CloseButton.Align:=alBottom;
     CloseButton.Height:=36; CloseButton.Caption:='关闭'; CloseButton.ModalResult:=mrClose;
     Memo:=TMemo.Create(Window); Memo.Parent:=Window; Memo.Align:=alClient; Memo.ReadOnly:=True;
+    Memo.Name:='GpoPlanReport';
     Memo.ScrollBars:=ssAutoBoth; Memo.WordWrap:=False; Memo.Text:=Report;
+    if fDomain and Assigned(fDomainJob) then begin
+      fReportMemo:=Memo; fReportJob:=fDomainJob;
+      fReportRevision:=fRevision; fReportSideRevision:=fSideRevision;
+    end;
     Window.ShowModal;
-  finally Window.Free; end;
+  finally fReportMemo:=nil; fReportJob:=nil; Window.Free; end;
 end;
 procedure TFrmGpoOfflineDraft.PlanClick(Sender:TObject);
 var Input,Path,Err,Report,UserPath,MachinePath:string; Gpc,Gpt:Cardinal;
@@ -749,7 +757,8 @@ begin
   if not DomainCandidates(fPendingUser,fPendingMachine) then begin ShowError('无法读取域草稿内容。'); Exit; end;
   if not fDomainJob.Submit(fPendingUser,fPendingMachine) then
   begin ShowError('域会话已失效或后台仍在工作；草稿可继续编辑和本地导出。'); Exit; end;
-  fPendingRevision:=fRevision; fDomainWaiting:=True; fPlan.Enabled:=False;
+  fPendingRevision:=fRevision; fPendingSideRevision:=fSideRevision;
+  fReviewText:=''; fDomainWaiting:=True; fPlan.Enabled:=False;
   fDomainStarted:=GetTickCount64;
   fStatus.Caption:='正在后台只读复核原域目标；关闭属性页或连接变化会使结果失效。';
 end;
@@ -764,18 +773,27 @@ var User,Machine:TGpoPolicyImage; MessageText:string;
     Result:='无变化';
   end;
 begin
+  if Assigned(fReportMemo) and ((not Assigned(fDomainJob)) or (fReportJob<>fDomainJob) or
+    (fReportJob.State=gddsStopped) or (fReportRevision<>fRevision) or
+    (fReportSideRevision<>fSideRevision)) then begin
+    fReportMemo.Text:='会话、窗口分支或草稿已变化；原结果已清除，请重新采集。';
+    fReportMemo:=nil; fReportJob:=nil; fReviewText:='';
+  end;
   if not Assigned(fDomainJob) then Exit;
   if fDomainWaiting and (GetTickCount64-fDomainStarted>=30000) then fDomainJob.Cancel;
   if fDomainJob.State=gddsStopped then
   begin
-    fPlan.Enabled:=False; fDomainWaiting:=False;
+    fPlan.Enabled:=False; fDomainWaiting:=False; fReviewText:='';
     fStatus.Caption:='域会话已失效；草稿仍可编辑和导出，不可继续域复核。后台系统调用可能仍在等待返回。'; Exit;
   end;
   if not fDomainWaiting or (fDomainJob.State<>gddsResult) then Exit;
   fDomainWaiting:=False; fPlan.Enabled:=True;
-  if (fRevision<>fPendingRevision) or not DomainCandidates(User,Machine) or not SamePolicyImage(User,fPendingUser) or not SamePolicyImage(Machine,fPendingMachine) then
+  if (fRevision<>fPendingRevision) or (fSideRevision<>fPendingSideRevision) or
+    not DomainCandidates(User,Machine) or not SamePolicyImage(User,fPendingUser) or not SamePolicyImage(Machine,fPendingMachine) then
   begin ShowError('复核期间草稿已变化，旧结果已丢弃；请重新复核。'); Exit; end;
   MessageText:=fDomainJob.ResultText;
+  if (fDomainJob.State<>gddsResult) or (fRevision<>fPendingRevision) or (fSideRevision<>fPendingSideRevision) then
+  begin fReviewText:=''; ShowError('会话或草稿已变化，结果已丢弃。'); Exit; end;
   if MessageText='' then MessageText:='只读复核未完成；草稿保留。';
   fReviewRevision:=fRevision; fReviewUser:=User; fReviewUser.Data:=Copy(User.Data);
   fReviewMachine:=Machine; fReviewMachine.Data:=Copy(Machine.Data);
@@ -783,6 +801,7 @@ begin
      (MessageText='域基线已变化；本次检查阻断，草稿保留，可导出后重新采集。') or
      (MessageText='域控或目标身份已变化；本次检查阻断，草稿保留。') or
      (MessageText='只读复核未完成，证据不足或会话失效；草稿保留。') then fReviewText:=MessageText
+  else if Pos('逐项诊断：',MessageText)=1 then fReviewText:='已生成逐项只读诊断；仅代表当时观察，不授权写入。'
   else fReviewText:='复核未得到可识别的结果；不能确认基线。';
   ShowPlanReport(MessageText+LineEnding+'目标：'+fDomainTarget+LineEnding+
     '计算机文件：'+ActionText(gdsComputer,Machine)+'；用户文件：'+ActionText(gdsUser,User)+LineEnding+
@@ -823,11 +842,11 @@ begin
   fFindStatus.Caption:='';
   if fValidSide then begin fSavedPage[fSide]:=fPane.PageSelector.ItemIndex; fSavedIndex[fSide]:=SelectedIndex; end;
   if (Node<>fUserNode) and (Node<>fComputerNode) then begin
-    if fValidSide then Inc(fSideRevision);
+    if fValidSide then begin Inc(fSideRevision); fReviewText:=''; end;
     fValidSide:=False; RefreshView; Exit;
   end;
   if Node=fUserNode then NewSide:=gdsUser else NewSide:=gdsComputer;
-  if not fValidSide or (fSide<>NewSide) then Inc(fSideRevision);
+  if not fValidSide or (fSide<>NewSide) then begin Inc(fSideRevision); fReviewText:=''; end;
   fSide:=NewSide; fValidSide:=True; RefreshView(fSavedIndex[fSide],False);
 end;
 procedure TFrmGpoOfflineDraft.RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);

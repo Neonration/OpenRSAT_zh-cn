@@ -22,9 +22,10 @@ type
     procedure MaximumSnapshotWorkflow;
     procedure SnapshotFileBounds;
     procedure HiddenCandidateCloseProtection;
+    procedure DiagnosticPresentationLifecycle;
   end;
 implementation
-uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugposnapshot, ugpolocalfiles,
+uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugposnapshot, ugpolocalfiles, ugpodiagnostic,
   ufrmgpoofflinedraft, ufrmpropertygposettings
   {$ifdef windows},Windows{$endif};
 {$ifdef windows}
@@ -75,6 +76,12 @@ type
     function InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
   protected
     function ExecuteRecordDialog(Dialog:TForm):TModalResult; override;
+  end;
+  TModalReportProbe=class(TFrmGpoOfflineDraft)
+  public
+    Job:IGpoDomainDraftJob; Timer:TTimer; Stage:Integer; SawCleared:Boolean;
+    procedure Tick(Sender:TObject);
+    procedure RunReport;
   end;
   TConcurrentWriter=class(TThread)
   public
@@ -166,6 +173,25 @@ function TTestOfflineForm.ConfirmRestore:Boolean;
 begin Inc(RestoreCalls); Result:=RestoreChoice; end;
 function TTestOfflineForm.ConfirmSnapshot:Boolean;
 begin Result:=Choice; end;
+procedure TModalReportProbe.Tick(Sender:TObject);
+var I:Integer; C:TComponent;
+begin
+  Inc(Stage);
+  if Stage=1 then begin Job.Cancel; Exit; end;
+  for I:=0 to Screen.FormCount-1 do begin
+    C:=Screen.Forms[I].FindComponent('GpoPlanReport');
+    if (C is TMemo) and (Pos('原结果已清除',TMemo(C).Text)>0) then begin
+      SawCleared:=True; Screen.Forms[I].ModalResult:=mrClose; Exit;
+    end;
+  end;
+  if Stage>8 then for I:=0 to Screen.FormCount-1 do
+    if Assigned(Screen.Forms[I].FindComponent('GpoPlanReport')) then Screen.Forms[I].ModalResult:=mrClose;
+end;
+procedure TModalReportProbe.RunReport;
+begin
+  Timer:=TTimer.Create(Self); Timer.Interval:=120; Timer.OnTimer:=@Tick; Timer.Enabled:=True;
+  try ShowPlanReport('逐项诊断：敏感旧结果'); finally Timer.Enabled:=False; FreeAndNil(Timer); end;
+end;
 function TTestOfflineForm.ChooseSnapshotFile(SaveCopy:Boolean; out Path:string):Boolean;
 begin Result:=ChooseLocalFile(SaveCopy,Path); end;
 procedure TTestOfflineForm.ShowSnapshotWindow(Window:TFrmGpoOfflineDraft);
@@ -242,6 +268,39 @@ begin
 end;
 function EqualBytes(const A,B:TBytes):Boolean;
 begin Result:=Length(A)=Length(B); if Result and (Length(A)>0) then Result:=CompareMem(@A[0],@B[0],Length(A)); end;
+procedure TUnitTestGpoOfflineDraftUI.DiagnosticPresentationLifecycle;
+var F:TTestOfflineForm; Modal:TModalReportProbe; Job:TFakeDomainJob; Ref:IGpoDomainDraftJob; Report:TGpoDiagnosticReport;
+  Text:string; Errors:Integer; Empty:TBytes;
+begin
+  Report:=Default(TGpoDiagnosticReport); Report.Summary:=gduIncomplete; Report.HasOther:=True;
+  Report.Items[gdrMachinePolicy].Baseline.State:=gdsPresent;
+  Report.Items[gdrMachinePolicy].Candidate.State:=gdsPresent;
+  Report.Items[gdrMachinePolicy].Observed.State:=gdsPresent;
+  Report.Items[gdrMachinePolicy].Match:=gdmOther;
+  Report.Items[gdrUserPolicy].Observed.State:=gdsUnreadable;
+  Text:=GpoDiagnosticReportText(Report);
+  Check(Pos('信息不完整',Text)>0); Check(Pos('其他值冲突',Text)>0);
+  Check(Pos('其他值（冲突）',Text)>0); Check(Pos('不可读',Text)>0);
+  Check(Pos('候选=未采集',Text)>0); Check(Pos('不授权重试、回滚或写入',Text)>0);
+  Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job; F:=TTestOfflineForm.Create(nil);
+  try
+    Check(SerializeRegistryPol(nil,Empty)=grsOk); Job.InitialMachine.Exists:=True; Job.InitialMachine.Data:=Empty;
+    Check(F.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
+    F.PlanButton.Click; Check(Job.Current=gddsChecking); F.PlanButton.Click;
+    F.SelectSide(gdsUser); Job.Text:=Text; Job.Current:=gddsResult; Errors:=F.ErrorCalls;
+    F.PollDomainNow; Check(F.ErrorCalls=Errors+1); Check(F.PlanReports=0,'Side changes discard pending results');
+    F.PlanButton.Click; Check(Job.Current=gddsChecking); Job.Current:=gddsResult; F.PollDomainNow;
+    Check(F.PlanReports=1); Check(Pos('其他值（冲突）',F.PlanReport)>0);
+    F.PlanButton.Click; Job.Cancel; F.PollDomainNow;
+    Check(F.PlanReports=1); Check(not F.PlanButton.Enabled);
+  finally F.Free; Ref:=nil; end;
+  Job:=TFakeDomainJob.Create; Job.Current:=gddsReady; Ref:=Job; Modal:=TModalReportProbe.Create(nil);
+  try
+    Job.InitialMachine.Exists:=True; Job.InitialMachine.Data:=Empty; Modal.Job:=Ref;
+    Check(Modal.InitializeDomainDraft(Ref,'dc.example.test','CN=policy,DC=example,DC=test'));
+    Modal.RunReport; Check(Modal.SawCleared,'Open report must clear when its session is revoked');
+  finally Modal.Free; Ref:=nil; end;
+end;
 procedure TUnitTestGpoOfflineDraftUI.LargeSnapshotWorkflow;
 {$ifdef windows}
 var F:TTestOfflineForm; Rows:TGpoRegistryRecords; Data,After:TBytes;

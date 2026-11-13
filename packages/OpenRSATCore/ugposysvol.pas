@@ -114,6 +114,8 @@ type
       out Draft:TGpoObservedDraft):TGpoPreflightResult; static;
     function MatchesObjectGuid(const Expected:TBytes):Boolean;
     function GetBaseline(out User,Machine:TGpoPolicyImage):Boolean;
+    function DiagnosticInputs(const User,Machine:TGpoPolicyImage; out Target:TGpoPreflightTarget;
+      out Plan:TGpoOfflinePlan; out Ldap:TGpoLdapEvidence; out Files:TGpoObservedFiles):Boolean;
     // Candidate data must not alias fields in the output plan.
     function BuildPlan(const Evidence:TGpoLdapEvidence; const Files:TGpoObservedFiles;
       const UserCandidate,MachineCandidate:TGpoPolicyImage; out Plan:TGpoOfflinePlan):TGpoPreflightResult;
@@ -496,6 +498,45 @@ begin
   Machine.Exists:=fMachine.Exists; Machine.Data:=Copy(fMachine.Data);
   Result:=fBound.fToken.IsValid;
   if not Result then begin User:=Default(TGpoPolicyImage); Machine:=Default(TGpoPolicyImage); end;
+end;
+
+function TGpoObservedDraft.DiagnosticInputs(const User,Machine:TGpoPolicyImage;
+  out Target:TGpoPreflightTarget; out Plan:TGpoOfflinePlan; out Ldap:TGpoLdapEvidence;
+  out Files:TGpoObservedFiles):Boolean;
+var A:TGpoFile; Side:TGpoExtensionSide; I:Integer; Gpt:Cardinal;
+  procedure CopyImage(const Image:TGpoPolicyImage; var Item:TGpoObservedFile);
+  begin
+    Item.Attempted:=True; Item.Data:=Copy(Image.Data);
+    if Image.Exists then begin Item.Status:=grsOk; Item.Observation:=gfoPresent; end
+    else begin Item.Status:=grsMissing; Item.Observation:=gfoLeafAbsent; end;
+  end;
+begin
+  Result:=False; Target:=Default(TGpoPreflightTarget); Plan:=Default(TGpoOfflinePlan);
+  Ldap:=Default(TGpoLdapEvidence); Files:=Default(TGpoObservedFiles);
+  if not Assigned(fBound) or not Assigned(fBound.fToken) or not fBound.fToken.IsValid or
+    not fBound.fLdapCaptured or not fBound.fFilesCaptured then Exit;
+  if (ParseGptIni(fIni,Gpt)<>grsOk) or
+    (GpoBuildOfflinePlanWithPresence(fVersion,Gpt,fIni,fUser,User,fMachine,Machine,Plan)<>gopOk) then Exit;
+  Target:=fBound.fTarget; Target.ObjectGuid:=Copy(fBound.fTarget.ObjectGuid);
+  Ldap.Target:=Target; Ldap.Version:=fVersion; Ldap.Flags:=fBound.fFlags; Ldap.USNChanged:=fBound.fUSN;
+  Ldap.SecurityStatus:=gseUnverified; Ldap.SecurityDescriptor:=Copy(fBound.fSecurityDescriptor);
+  for Side:=Low(Side) to High(Side) do begin
+    Ldap.Extensions[Side].Status:=fBound.fExtensions[Side].Status;
+    SetLength(Ldap.Extensions[Side].Values,Length(fBound.fExtensions[Side].Values));
+    for I:=0 to High(Ldap.Extensions[Side].Values) do
+      Ldap.Extensions[Side].Values[I]:=Copy(fBound.fExtensions[Side].Values[I],1,Length(fBound.fExtensions[Side].Values[I]));
+  end;
+  Files.Target:=Target; Files.Captured:=True;
+  for A:=Low(A) to High(A) do begin
+    Files.Items[A].Metadata:=fBound.fFileEvidence[A];
+    Files.Items[A].Metadata.SecurityDescriptor:=Copy(fBound.fFileEvidence[A].SecurityDescriptor);
+  end;
+  Files.Items[gfGptIni].Attempted:=True; Files.Items[gfGptIni].Status:=grsOk;
+  Files.Items[gfGptIni].Observation:=gfoPresent; Files.Items[gfGptIni].Data:=Copy(fIni);
+  CopyImage(fUser,Files.Items[gfUserRegistry]); CopyImage(fMachine,Files.Items[gfMachineRegistry]);
+  Result:=fBound.fToken.IsValid;
+  if not Result then begin Target:=Default(TGpoPreflightTarget); Plan:=Default(TGpoOfflinePlan);
+    Ldap:=Default(TGpoLdapEvidence); Files:=Default(TGpoObservedFiles); end;
 end;
 
 class function TGpoObservedDraft.Bind(const Evidence:TGpoLdapEvidence;

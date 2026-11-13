@@ -5,7 +5,7 @@ unit ufrmpropertygposettings;
 interface
 
 uses Classes, SysUtils, Forms, Controls, Graphics, StdCtrls, ComCtrls, ExtCtrls,
-  upropertyframe, uproperty, ugpoformats, ugposysvol;
+  upropertyframe, uproperty, ugpoformats, ugposysvol, ugpodiagnostic;
 
 const
   GpoRegistryPageSize = 200;
@@ -106,6 +106,11 @@ type
     function Open(const Request:TGpoBaselineRequest; Control:TGpoReadControl; out User,Machine:TGpoPolicyImage):Boolean;
     function Check(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl):TGpoPreflightResult;
   end;
+  IGpoDomainDiagnosticBackend = interface
+    ['{B97675AE-1876-4211-B663-626A86E8707D}']
+    function Diagnose(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl;
+      out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
+  end;
   IGpoDomainDraftJob = interface
     ['{F838258C-8D43-44D8-9EB0-1EDB471EAC1A}']
     procedure Execute;
@@ -179,6 +184,7 @@ function GpoCreateBaselineJob(const Request:TGpoBaselineRequest;
 function GpoCreateDomainDraftJob(const Request:TGpoBaselineRequest;
   const Backend:IGpoDomainDraftBackend=nil):IGpoDomainDraftJob;
 function GpoLdapFailureText(ResultCode: Integer): string;
+function GpoDiagnosticReportText(const Report:TGpoDiagnosticReport):string;
 
 implementation
 
@@ -253,7 +259,7 @@ type
   protected procedure Execute; override;
   public constructor Create(const Job:IGpoBaselineJob);
   end;
-  TGpoDomainBackend = class(TInterfacedObject,IGpoDomainDraftBackend)
+  TGpoDomainBackend = class(TInterfacedObject,IGpoDomainDraftBackend,IGpoDomainDiagnosticBackend)
   private
     fClient:TLdapClient;
     fDraft:TGpoObservedDraft;
@@ -262,6 +268,8 @@ type
     destructor Destroy; override;
     function Open(const Request:TGpoBaselineRequest; Control:TGpoReadControl; out User,Machine:TGpoPolicyImage):Boolean;
     function Check(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl):TGpoPreflightResult;
+    function Diagnose(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl;
+      out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
   end;
   TGpoDomainDraftJob = class(TInterfacedObject,IGpoDomainDraftJob)
   private
@@ -298,6 +306,23 @@ type
 var
   GpoPendingReads: LongInt;
 
+function GpoDiagnosticReportText(const Report:TGpoDiagnosticReport):string;
+const Names:array[TGpoDiagnosticResource] of string=('计算机 Registry.pol','用户 Registry.pol','GPT.INI',
+  'GPC 版本','GPC 标志','计算机扩展','用户扩展','LDAP 安全描述符','LDAP USN',
+  '计算机文件元数据','用户文件元数据','GPT.INI 元数据');
+  States:array[TGpoDiagnosticState] of string=('未采集','不可读','确认缺失','有值');
+  Matches:array[TGpoDiagnosticMatch] of string=('不完整','基线','候选','两者一致','其他值（冲突）');
+var R:TGpoDiagnosticResource;
+begin
+  if Report.Summary=gduIncomplete then Result:='逐项诊断：信息不完整。' else Result:='逐项诊断：可比较的证据已列出。';
+  if Report.HasOther then Result:=Result+' 发现其他值冲突。';
+  Result:=Result+LineEnding;
+  for R:=Low(R) to High(R) do Result:=Result+Names[R]+'：基线='+States[Report.Items[R].Baseline.State]+
+    '；候选='+States[Report.Items[R].Candidate.State]+'；观察='+States[Report.Items[R].Observed.State]+
+    '；比较='+Matches[Report.Items[R].Match]+LineEnding;
+  Result:=Result+'匹配仅表示采集时状态及字节相符，不证明内容有效、操作成功、执行者或持久化；不授权重试、回滚或写入。';
+end;
+
 destructor TGpoDomainBackend.Destroy;
 begin fDraft.Free; fClient.Free; inherited Destroy; end;
 function TGpoDomainBackend.Open(const Request:TGpoBaselineRequest; Control:TGpoReadControl; out User,Machine:TGpoPolicyImage):Boolean;
@@ -324,6 +349,9 @@ begin
     if (Result=gprEvidenceIncomplete) and not Assigned(Bound) then Result:=gprReadUnavailable;
   finally Bound.Free; end;
 end;
+function TGpoDomainBackend.Diagnose(const User,Machine:TGpoPolicyImage; Control:TGpoReadControl;
+  out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
+begin Result:=GpoDiagnoseObservedDraft(fClient,fDN,fGuid,fDraft,User,Machine,Control,Report); end;
 constructor TGpoDomainDraftJob.Create(const Request:TGpoBaselineRequest; const Backend:IGpoDomainDraftBackend);
 begin
   inherited Create; fRequest:=Request; fRequest.ObjectGuid:=Copy(Request.ObjectGuid);
@@ -389,6 +417,7 @@ begin
 end;
 procedure TGpoDomainDraftJob.Execute;
 var U,M:TGpoPolicyImage; R:TGpoPreflightResult; Work,Ok:Boolean; Control:TGpoReadControl;
+  Diagnostics:IGpoDomainDiagnosticBackend; DStatus:TGpoDiagnosticStatus; Report:TGpoDiagnosticReport; DiagnosticText:string;
 begin
   try
     try
@@ -408,12 +437,23 @@ begin
         finally fLock.Release; end;
         if not Work then Continue;
         Control:=BeginOperation; if not Assigned(Control) then Break;
-        try R:=fBackend.Check(U,M,Control); Ok:=Control.Status=grsOk; finally EndOperation; end;
+        Diagnostics:=nil; DiagnosticText:='';
+        try
+          if Supports(fBackend,IGpoDomainDiagnosticBackend,Diagnostics) then begin
+            DStatus:=Diagnostics.Diagnose(U,M,Control,Report);
+            if DStatus=gdtOk then DiagnosticText:=GpoDiagnosticReportText(Report)
+            else if DStatus=gdtTargetMismatch then DiagnosticText:='域控或目标身份已变化；本次检查阻断，草稿保留。'
+            else if DStatus=gdtChangedDuringCapture then DiagnosticText:='采集期间 LDAP 状态已变化；本次结果已丢弃。'
+            else DiagnosticText:='只读复核未完成，证据不足或会话失效；草稿保留。';
+          end else R:=fBackend.Check(U,M,Control);
+          Ok:=Control.Status=grsOk;
+        finally EndOperation; end;
         if not Ok then begin Cancel; Break; end;
         if not Active then Break;
         fLock.Acquire;
         try
-          if R=gprEvidenceIncomplete then fResult:='候选计划与原域基线的只读复核一致；安全证据仍不完整，不能授权写入。'
+          if Assigned(Diagnostics) then fResult:=DiagnosticText
+          else if R=gprEvidenceIncomplete then fResult:='候选计划与原域基线的只读复核一致；安全证据仍不完整，不能授权写入。'
           else if R=gprConflict then fResult:='域基线已变化；本次检查阻断，草稿保留，可导出后重新采集。'
           else if R=gprTargetMismatch then fResult:='域控或目标身份已变化；本次检查阻断，草稿保留。'
           else fResult:='只读复核未完成，证据不足或会话失效；草稿保留。';

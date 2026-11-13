@@ -282,6 +282,12 @@ begin
   Check(Adapter[gdrMachineExtensions].State=gdsUnreadable,'LDAP not returned is unknown, not absence');
   Check(Adapter[gdrUserExtensions].State=gdsPresent);
   Check(Length(Adapter[gdrUserExtensions].Data)=15,'Extension values are length framed');
+  F.Items[gfUserRegistry].Status:=grsOk; F.Items[gfUserRegistry].Observation:=gfoPresent;
+  F.Items[gfUserRegistry].Data:=Header;
+  Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
+  Check(Adapter[gdrUserPolicy].State=gdsUnreadable,'A present file requires valid file evidence');
+  F.Items[gfUserRegistry].Status:=grsAccessDenied; F.Items[gfUserRegistry].Observation:=gfoUnavailable;
+  F.Items[gfUserRegistry].Data:=nil;
   B:=Adapter; E.Extensions[gesUser].Values[0]:='A'; E.Extensions[gesUser].Values[1]:='BC';
   Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
   Check(not CompareMem(@B[gdrUserExtensions].Data[0],@Adapter[gdrUserExtensions].Data[0],15),
@@ -377,6 +383,7 @@ var T:TGpoPreflightTarget; Token:ILdapSessionToken; TokenObj:TPreflightToken;
   E,Other:TGpoLdapEvidence; F,Changed:TGpoObservedFiles; P,Replanned:TGpoOfflinePlan; B:TGpoBoundPlan; Draft:TGpoObservedDraft;
   SD:mormot.core.os.security.TSecurityDescriptor; RawSD:RawByteString;
   OldUser,NewUser,OldMachine,NewMachine,SnapshotUser,SnapshotMachine:TGpoPolicyImage; Ini:TBytes; A:TGpoFile;
+  Control:TGpoReadControl; Diagnostic:TGpoDiagnosticReport;
 begin
   TokenObj:=TPreflightToken.Create; TokenObj.Valid:=True; Token:=TokenObj;
   T:=Default(TGpoPreflightTarget); T.Domain:='example.test'; T.DC:='dc.example.test';
@@ -404,6 +411,25 @@ begin
   try
     Check(Draft.GetBaseline(SnapshotUser,SnapshotMachine));
     Check(SnapshotUser.Exists and SnapshotMachine.Exists);
+    Control:=TGpoReadControl.Create(30000,Token);
+    try
+      Changed:=F; Changed.Items[gfUserRegistry].Data:=Bytes('third');
+      Changed.Items[gfMachineRegistry].Status:=grsAccessDenied;
+      Changed.Items[gfMachineRegistry].Observation:=gfoUnavailable; Changed.Items[gfMachineRegistry].Data:=nil;
+      Check(GpoDiagnoseCapturedDraft(Draft,NewUser,NewMachine,E,E,Changed,Control,Diagnostic)=gdtOk);
+      Check(Diagnostic.HasOther and (Diagnostic.Summary=gduIncomplete));
+      Check(Diagnostic.Items[gdrUserPolicy].Match=gdmOther);
+      Check(Diagnostic.Items[gdrMachinePolicy].Observed.State=gdsUnreadable);
+      Check(Diagnostic.Items[gdrFlags].Candidate.State=gdsNotCollected);
+      Other:=E; Inc(Other.USNChanged);
+      Check(GpoDiagnoseCapturedDraft(Draft,NewUser,NewMachine,E,Other,Changed,Control,Diagnostic)=gdtChangedDuringCapture);
+      Check(not Diagnostic.HasOther);
+      Other:=E; Other.Target.ObjectGuid:=Copy(T.ObjectGuid); Other.Target.ObjectGuid[0]:=2;
+      Check(GpoDiagnoseCapturedDraft(Draft,NewUser,NewMachine,E,Other,Changed,Control,Diagnostic)=gdtTargetMismatch);
+      Control.Cancel;
+      Check(GpoDiagnoseCapturedDraft(Draft,NewUser,NewMachine,E,E,Changed,Control,Diagnostic)=gdtReadUnavailable);
+      Check(not Diagnostic.HasOther);
+    finally Control.Free; end;
     Check(Draft.MatchesObjectGuid(T.ObjectGuid));
     Other:=E; Other.Target.ObjectGuid:=Copy(T.ObjectGuid); Other.Target.ObjectGuid[0]:=2;
     Check(not Draft.MatchesObjectGuid(Other.Target.ObjectGuid));

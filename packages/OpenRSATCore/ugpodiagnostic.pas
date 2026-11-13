@@ -4,7 +4,7 @@ unit ugpodiagnostic;
 
 interface
 
-uses SysUtils, ugpoformats, ugposysvol;
+uses SysUtils, mormot.net.ldap, ugpoformats, ugposysvol;
 
 const
   GpoDiagnosticMaxBytes = 128 * 1024 * 1024;
@@ -33,7 +33,8 @@ type
     Summary: TGpoDiagnosticSummary;
     HasOther: Boolean;
   end;
-  TGpoDiagnosticStatus = (gdtOk, gdtInvalid, gdtTooLarge, gdtSessionInvalid, gdtTargetMismatch);
+  TGpoDiagnosticStatus = (gdtOk, gdtInvalid, gdtTooLarge, gdtSessionInvalid, gdtTargetMismatch,
+    gdtReadUnavailable, gdtChangedDuringCapture);
   TGpoLdapCaptureState = (glcNotAttempted, glcUnreadable, glcCaptured);
 
 // Inputs and outputs must be distinct. A result never authorizes retry, rollback or writing.
@@ -44,10 +45,13 @@ function GpoDiagnosticPlanValues(const Plan: TGpoOfflinePlan;
 function GpoDiagnosticEvidenceValues(const Expected: TGpoPreflightTarget;
   LdapState: TGpoLdapCaptureState; const Ldap: TGpoLdapEvidence;
   const Files: TGpoObservedFiles; out Values: TGpoDiagnosticValues): TGpoDiagnosticStatus;
+function GpoDiagnoseObservedDraft(Client: TLdapClient; const DN,Guid:string; Draft:TGpoObservedDraft;
+  const User,Machine:TGpoPolicyImage; Control:TGpoReadControl; out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
+function GpoDiagnoseCapturedDraft(Draft:TGpoObservedDraft; const User,Machine:TGpoPolicyImage;
+  const Before,After:TGpoLdapEvidence; const Files:TGpoObservedFiles; Control:TGpoReadControl;
+  out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
 
 implementation
-
-uses mormot.net.ldap;
 
 function ValidTarget(const T: TGpoPreflightTarget): Boolean;
 var I: Integer; Nonzero: Boolean; Path: string;
@@ -274,7 +278,9 @@ begin
     Result:=CheckTarget(Expected,Expected); if Result<>gdtOk then Exit;
     if not Files.Items[A].Attempted then Continue;
     if Length(Files.Items[A].Data)>GpoMaxFileBytes then Exit(gdtTooLarge);
-    if (Files.Items[A].Status=grsOk) and (Files.Items[A].Observation=gfoPresent) then begin
+    if (Files.Items[A].Status=grsOk) and (Files.Items[A].Observation=gfoPresent) and
+      (Files.Items[A].Metadata.Kind=gekFile) and ((Files.Items[A].Metadata.Attributes and $410)=0) and
+      (GpoCompareFileEvidence(Files.Items[A].Metadata,Files.Items[A].Metadata)=gprEvidenceIncomplete) then begin
       Temp[FileResources[A]].State:=gdsPresent; Temp[FileResources[A]].Data:=Copy(Files.Items[A].Data);
     end else if (A<>gfGptIni) and (Files.Items[A].Status=grsMissing) and
       (Files.Items[A].Observation=gfoLeafAbsent) and (Length(Files.Items[A].Data)=0) and
@@ -295,6 +301,62 @@ begin
   end;
   Result:=CheckTarget(Expected,Expected); if Result<>gdtOk then Exit;
   Values:=Temp; Result:=gdtOk;
+end;
+
+function GpoDiagnoseCapturedDraft(Draft:TGpoObservedDraft; const User,Machine:TGpoPolicyImage;
+  const Before,After:TGpoLdapEvidence; const Files:TGpoObservedFiles; Control:TGpoReadControl;
+  out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
+var Target:TGpoPreflightTarget; Plan:TGpoOfflinePlan; Initial:TGpoLdapEvidence;
+  InitialFiles,NoFiles:TGpoObservedFiles; Baseline,Candidate,InitialValues,Observed,AfterValues:TGpoDiagnosticValues;
+  R:TGpoDiagnosticResource;
+  function Ready:Boolean;
+  begin Result:=Assigned(Control) and (Control.Status=grsOk); end;
+begin
+  Report:=Default(TGpoDiagnosticReport);
+  if not Assigned(Draft) or not Ready then Exit(gdtReadUnavailable);
+  if not Draft.DiagnosticInputs(User,Machine,Target,Plan,Initial,InitialFiles) then Exit(gdtSessionInvalid);
+  Result:=GpoDiagnosticPlanValues(Plan,Baseline,Candidate); if Result<>gdtOk then Exit;
+  Result:=GpoDiagnosticEvidenceValues(Target,glcCaptured,Initial,InitialFiles,InitialValues); if Result<>gdtOk then Exit;
+  for R:=gdrFlags to High(R) do Baseline[R]:=InitialValues[R];
+  Result:=GpoDiagnosticEvidenceValues(Target,glcCaptured,Before,Files,Observed); if Result<>gdtOk then Exit;
+  NoFiles:=Default(TGpoObservedFiles);
+  Result:=GpoDiagnosticEvidenceValues(Target,glcCaptured,After,NoFiles,AfterValues); if Result<>gdtOk then Exit;
+  for R:=gdrGpcVersion to gdrUsn do
+    if not SameValue(Observed[R],AfterValues[R]) or
+      (Observed[R].ExtensionStatus<>AfterValues[R].ExtensionStatus) then Exit(gdtChangedDuringCapture);
+  if not Ready then Exit(gdtSessionInvalid);
+  Result:=GpoDiagnoseObservations(Target,After.Target,Baseline,Candidate,Observed,Report);
+  if not Ready then begin Report:=Default(TGpoDiagnosticReport); Exit(gdtSessionInvalid); end;
+end;
+
+function GpoDiagnoseObservedDraft(Client:TLdapClient; const DN,Guid:string; Draft:TGpoObservedDraft;
+  const User,Machine:TGpoPolicyImage; Control:TGpoReadControl; out Report:TGpoDiagnosticReport):TGpoDiagnosticStatus;
+var Target:TGpoPreflightTarget; Plan:TGpoOfflinePlan; Initial,Before,After:TGpoLdapEvidence;
+  InitialFiles,Files:TGpoObservedFiles; Capture:TGpoPreflightResult;
+  function Ready:Boolean;
+  begin Result:=Assigned(Control) and (Control.Status=grsOk); end;
+begin
+  Report:=Default(TGpoDiagnosticReport);
+  if not Assigned(Draft) or not Assigned(Client) or not Ready then Exit(gdtReadUnavailable);
+  if not Draft.DiagnosticInputs(User,Machine,Target,Plan,Initial,InitialFiles) then Exit(gdtSessionInvalid);
+  if not SameText(DN,Target.DN) or not SameText(Guid,Target.Guid) then Exit(gdtTargetMismatch);
+  Plan:=Default(TGpoOfflinePlan); Initial:=Default(TGpoLdapEvidence); InitialFiles:=Default(TGpoObservedFiles);
+  Capture:=GpoCaptureLdapEvidence(Client,DN,Guid,Before,Control);
+  if not Ready then Exit(gdtSessionInvalid);
+  if Capture=gprSessionInvalid then Exit(gdtSessionInvalid);
+  if Capture=gprTargetMismatch then Exit(gdtTargetMismatch);
+  if Capture<>gprEvidenceIncomplete then Exit(gdtReadUnavailable);
+  Capture:=GpoCapturePreflightEvidence(Target,Files,Control);
+  if not Ready then Exit(gdtSessionInvalid);
+  if Capture=gprSessionInvalid then Exit(gdtSessionInvalid);
+  if Capture=gprTargetMismatch then Exit(gdtTargetMismatch);
+  if not (Capture in [gprEvidenceIncomplete,gprReadUnavailable]) then Exit(gdtReadUnavailable);
+  Capture:=GpoCaptureLdapEvidence(Client,DN,Guid,After,Control);
+  if not Ready then Exit(gdtSessionInvalid);
+  if Capture=gprSessionInvalid then Exit(gdtSessionInvalid);
+  if Capture=gprTargetMismatch then Exit(gdtTargetMismatch);
+  if Capture<>gprEvidenceIncomplete then Exit(gdtReadUnavailable);
+  Result:=GpoDiagnoseCapturedDraft(Draft,User,Machine,Before,After,Files,Control,Report);
 end;
 
 end.
