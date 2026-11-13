@@ -169,7 +169,15 @@ jobs:
           curl -fL -o "$RUNNER_TEMP/fpclazup" "https://github.com/LongDirtyAnimAlf/Reiniero-fpcup/releases/download/v2.4.0f/$installer"
           chmod +x "$RUNNER_TEMP/fpclazup"
           lipo "$RUNNER_TEMP/fpclazup" -verify_arch '${{ matrix.target.arch }}'
-          git clone --depth 1 --branch release_3_2_2 https://gitlab.com/freepascal.org/fpc/source "$prefix/fpc"
+          if [ '${{ matrix.target.arch }}' = 'x86_64' ]; then
+            # FPC fixes_3_2 includes the Xcode 16 assembler fix; pin the revision.
+            git init "$prefix/fpc"
+            git -C "$prefix/fpc" remote add origin https://gitlab.com/freepascal.org/fpc/source
+            git -C "$prefix/fpc" fetch --depth 1 origin 7a7bf815302b98f2b11dd201732e3f4d58b8c9bd
+            git -C "$prefix/fpc" checkout --detach FETCH_HEAD
+          else
+            git clone --depth 1 --branch release_3_2_2 https://gitlab.com/freepascal.org/fpc/source "$prefix/fpc"
+          fi
           git clone --depth 1 --branch lazarus_4_0 https://gitlab.com/freepascal.org/lazarus/lazarus "$prefix/lazarus"
           "$RUNNER_TEMP/fpclazup" --only=FPCCleanOnly,FPCBuildOnly,LazarusCleanOnly,LazBuild,LazarusConfigOnly --noconfirm --verbose --installdir="$prefix"
           compiler_path=$(find "$prefix/fpc/bin" -type f -name "$compiler" -print -quit)
@@ -221,8 +229,12 @@ jobs:
           ./tests/openrsattests --noenter
 
       - name: Build OpenRSAT for ${{ matrix.target.name }}
-        run: |
-          lazbuild --build-mode=${{ matrix.target.name }} sources/OpenRSAT.lpi
+        if: runner.os != 'macOS'
+        run: lazbuild --build-mode=${{ matrix.target.name }} sources/OpenRSAT.lpi
+
+      - name: Build OpenRSAT for ${{ matrix.target.name }} (macOS)
+        if: runner.os == 'macOS'
+        run: lazbuild --opt=-k-ld_classic --build-mode=${{ matrix.target.name }} sources/OpenRSAT.lpi
 
       - name: Verify macOS binary architecture
         if: runner.os == 'macOS'
