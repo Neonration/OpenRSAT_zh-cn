@@ -186,7 +186,7 @@ jobs:
           lipo "$compiler_path" -verify_arch '${{ matrix.target.arch }}'
           if [ '${{ matrix.target.arch }}' = 'x86_64' ]; then
             # Xcode 16's integrated assembler rejects some FPC-generated CFI labels.
-            printf '%s\n' '-ao-Q' >> "$(dirname "$compiler_path")/fpc.cfg"
+            printf '%s\n' '-ao-fno-integrated-as' >> "$(dirname "$compiler_path")/fpc.cfg"
           fi
           echo "$prefix/lazarus" >> "$GITHUB_PATH"
 
