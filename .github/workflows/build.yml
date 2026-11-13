@@ -178,7 +178,12 @@ jobs:
           else
             git clone --depth 1 --branch release_3_2_2 https://gitlab.com/freepascal.org/fpc/source "$prefix/fpc"
           fi
-          git clone --depth 1 --branch lazarus_4_0 https://gitlab.com/freepascal.org/lazarus/lazarus "$prefix/lazarus"
+          if [ '${{ matrix.target.arch }}' = 'x86_64' ]; then
+            git clone --depth 1 --branch lazarus_4_8 https://gitlab.com/freepascal.org/lazarus/lazarus "$prefix/lazarus"
+            test "$(git -C "$prefix/lazarus" rev-parse HEAD)" = 62c14a4d18c81f222127d42ce9b89b922c63fcbf
+          else
+            git clone --depth 1 --branch lazarus_4_0 https://gitlab.com/freepascal.org/lazarus/lazarus "$prefix/lazarus"
+          fi
           "$RUNNER_TEMP/fpclazup" --only=FPCCleanOnly,FPCBuildOnly,LazarusCleanOnly,LazBuild,LazarusConfigOnly --noconfirm --verbose --installdir="$prefix"
           compiler_path=$(find "$prefix/fpc/bin" -type f -name "$compiler" -print -quit)
           test -n "$compiler_path"
