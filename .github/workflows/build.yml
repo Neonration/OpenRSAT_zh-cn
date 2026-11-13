@@ -263,8 +263,10 @@ jobs:
         if: runner.os == 'macOS'
         timeout-minutes: 5
         run: |
+          set -o pipefail
           lipo tests/openrsattests -verify_arch '${{ matrix.target.arch }}'
-          ./tests/openrsattests --noenter
+          ./tests/openrsattests 2>&1 | tee "$RUNNER_TEMP/openrsat-tests.txt"
+          grep -Eq 'Total assertions failed for all test suits: +0 / [1-9][0-9,]*' "$RUNNER_TEMP/openrsat-tests.txt"
 
       - name: Build OpenRSAT for ${{ matrix.target.name }}
         if: runner.os != 'macOS'
