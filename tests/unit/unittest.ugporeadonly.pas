@@ -1,7 +1,7 @@
 unit unittest.ugporeadonly;
 {$mode ObjFPC}{$H+}
 interface
-uses Classes, SysUtils, mormot.core.base, mormot.core.test, mormot.core.os.security, mormot.net.ldap, ugpoformats, ugposysvol;
+uses Classes, SysUtils, mormot.core.base, mormot.core.test, mormot.core.os.security, mormot.net.ldap, ugpoformats, ugposysvol, ugpodiagnostic;
 type
   TUnitTestGpoReadOnly = class(TSynTestCase)
   published
@@ -21,6 +21,7 @@ type
     procedure FileEvidenceSecurityValidation;
     procedure LdapEvidenceParsing;
     procedure LdapCaptureTransport;
+    procedure UnknownWriteDiagnostics;
     procedure SafePaths;
     procedure NativeTransportBoundary;
     {$if defined(windows) and defined(OPENRSATTESTS)}
@@ -32,6 +33,11 @@ implementation
 type
   TPreflightToken=class(TInterfacedObject,ILdapSessionToken)
     Valid:Boolean;
+    function IsValid:Boolean;
+    procedure Invalidate;
+  end;
+  TExpiringToken=class(TInterfacedObject,ILdapSessionToken)
+    Calls, Limit:Integer;
     function IsValid:Boolean;
     procedure Invalidate;
   end;
@@ -52,6 +58,9 @@ type
   end;
 function TPreflightToken.IsValid:Boolean; begin Result:=Valid; end;
 procedure TPreflightToken.Invalidate; begin Valid:=False; end;
+function TExpiringToken.IsValid:Boolean;
+begin Inc(Calls); Result:=Calls<=Limit; end;
+procedure TExpiringToken.Invalidate; begin Limit:=0; end;
 const TestEvidenceGuid='{12345678-1234-1234-1234-123456789ABC}';
   TestEvidenceDN='CN='+TestEvidenceGuid+',CN=Policies,CN=System,DC=example,DC=test';
 constructor TFakeEvidenceTransport.Create;
@@ -112,7 +121,7 @@ begin
 end;
 procedure TUnitTestGpoReadOnly.LdapCaptureTransport;
 var F:TFakeEvidenceTransport; Transport:IGpoLdapEvidenceTransport; E:TGpoLdapEvidence; Mode:Integer; R:TGpoPreflightResult;
-  Control:TGpoReadControl;
+  Control:TGpoReadControl; Diagnostic:TGpoDiagnosticValues; Files:TGpoObservedFiles;
 begin
   for Mode:=0 to 10 do
   begin
@@ -127,6 +136,11 @@ begin
       Check(E.SecurityStatus=gseUnverified); Check(Assigned(E.Target.Session)); Check(E.USNChanged=17);
       Check(F.AskedMachineExt and F.AskedUserExt);
       Check((E.Extensions[gesMachine].Status=gexNotReturned) and (E.Extensions[gesUser].Status=gexNotReturned));
+      Files:=Default(TGpoObservedFiles);
+      Check(GpoDiagnosticEvidenceValues(E.Target,glcCaptured,E,Files,Diagnostic)=gdtOk);
+      Check((Diagnostic[gdrGpcVersion].State=gdsPresent) and (Length(Diagnostic[gdrGpcVersion].Data)=4));
+      Check((Diagnostic[gdrMachineExtensions].State=gdsUnreadable) and
+        (Diagnostic[gdrMachineExtensions].ExtensionStatus=gexNotReturned));
     end else
     begin
       if Mode in [1,2,6,8,9] then Check(R=gprSessionInvalid) else Check(R=gprReadUnavailable);
@@ -187,6 +201,134 @@ begin
 end;
 function Bytes(const S:RawByteString):TBytes;
 begin Result:=nil; SetLength(Result,Length(S)); if Length(S)>0 then Move(S[1],Result[0],Length(S)); end;
+procedure TUnitTestGpoReadOnly.UnknownWriteDiagnostics;
+var T,Other:TGpoPreflightTarget; Token:TPreflightToken; Expiring:TExpiringToken;
+  U0,U1,M0,M1:TGpoPolicyImage; Plan:TGpoOfflinePlan; Ini:TBytes;
+  B,C,O,Adapter:TGpoDiagnosticValues; Report:TGpoDiagnosticReport; R:TGpoDiagnosticResource;
+  E:TGpoLdapEvidence; F:TGpoObservedFiles; OldCRC:Byte; N:Integer;
+  SD:mormot.core.os.security.TSecurityDescriptor; RawSD:RawByteString; Control:TGpoReadControl;
+begin
+  Token:=TPreflightToken.Create; Token.Valid:=True; T:=Default(TGpoPreflightTarget);
+  T.Session:=Token; T.Domain:='example.test'; T.DC:='dc.example.test';
+  T.DN:=TestEvidenceDN; T.Guid:=TestEvidenceGuid;
+  T.FileSysPath:='\\example.test\SYSVOL\example.test\Policies\'+TestEvidenceGuid;
+  SetLength(T.ObjectGuid,16); T.ObjectGuid[0]:=1;
+  Control:=TGpoReadControl.Create(30000,T.Session);
+  try
+    Control.Cancel;
+    Check(GpoCapturePreflightEvidence(T,F,Control)=gprReadUnavailable);
+    Check(not F.Captured and not F.Items[gfGptIni].Attempted);
+    Check((F.Target.Session=T.Session) and (Length(F.Target.ObjectGuid)=16),
+      'Partial collection retains target without claiming complete evidence');
+  finally Control.Free; end;
+  Ini:=Bytes('[General]'#13#10'Version=1'#13#10);
+  U0:=Default(TGpoPolicyImage); U0.Exists:=True; U0.Data:=Header;
+  U1:=Default(TGpoPolicyImage); M0:=Default(TGpoPolicyImage);
+  M1:=Default(TGpoPolicyImage); M1.Exists:=True; M1.Data:=RecordBytes('K','V',3,[1]);
+  Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,U0,U1,M0,M1,Plan)=gopOk);
+  Check(GpoDiagnosticPlanValues(Plan,B,C)=gdtOk);
+  O:=B; Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+  Check(Report.Items[gdrMachinePolicy].Match=gdmBaseline);
+  Check(Report.Items[gdrUserPolicy].Match=gdmBaseline);
+  O:=C; Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+  Check(Report.Items[gdrMachinePolicy].Match=gdmCandidate);
+  Check(Report.Items[gdrUserPolicy].Match=gdmCandidate);
+  O[gdrMachinePolicy]:=B[gdrMachinePolicy]; O[gdrGptIni]:=B[gdrGptIni];
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+  Check(Report.Items[gdrMachinePolicy].Match=gdmBaseline);
+  Check(Report.Items[gdrUserPolicy].Match=gdmCandidate);
+  Check(Report.Items[gdrGptIni].Match=gdmBaseline);
+  Check(Report.Items[gdrGpcVersion].Match=gdmCandidate);
+  O[gdrMachinePolicy].State:=gdsPresent; O[gdrMachinePolicy].Data:=Bytes('third');
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+  Check(Report.HasOther and (Report.Summary=gduIncomplete));
+  Check(Report.Items[gdrMachinePolicy].Match=gdmOther);
+  Check(Report.Items[gdrFlags].Match=gdmIncomplete);
+  OldCRC:=Report.Items[gdrMachinePolicy].Observed.Data[0]; O[gdrMachinePolicy].Data[0]:=0;
+  Check(Report.Items[gdrMachinePolicy].Observed.Data[0]=OldCRC,'Report must own evidence');
+  O:=B; C[gdrMachinePolicy]:=B[gdrMachinePolicy];
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+  Check(Report.Items[gdrMachinePolicy].Match=gdmBoth,'No-op remains ambiguous');
+  O[gdrUserPolicy].State:=gdsUnreadable; O[gdrUserPolicy].Data:=nil;
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+  Check(Report.Items[gdrUserPolicy].Match=gdmIncomplete);
+  O[gdrFlags].State:=gdsMissing; Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtInvalid);
+  Check(not Report.HasOther and (Report.Items[gdrMachinePolicy].Match=gdmIncomplete));
+  O[gdrFlags].State:=gdsPresent; O[gdrFlags].Data:=Bytes('bad');
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtInvalid);
+  O:=B; Other:=T; Other.ObjectGuid:=Copy(T.ObjectGuid); Other.ObjectGuid[0]:=2;
+  Check(GpoDiagnoseObservations(T,Other,B,C,O,Report)=gdtTargetMismatch);
+  Other:=T; Other.DC:='dc2.example.test'; Check(GpoDiagnoseObservations(T,Other,B,C,O,Report)=gdtTargetMismatch);
+  Other:=T; Other.ObjectGuid:=Copy(T.ObjectGuid); FillChar(Other.ObjectGuid[0],16,0);
+  Check(GpoDiagnoseObservations(T,Other,B,C,O,Report)=gdtInvalid);
+  Other:=T; Other.Session:=TPreflightToken.Create;
+  Check(GpoDiagnoseObservations(T,Other,B,C,O,Report)=gdtSessionInvalid);
+  E:=Default(TGpoLdapEvidence); E.Target:=T; E.Version:=1; E.Flags:=3; E.USNChanged:=17;
+  E.SecurityStatus:=gseUnverified; E.SecurityDescriptor:=Bytes('sd');
+  E.Extensions[gesMachine].Status:=gexNotReturned;
+  E.Extensions[gesUser].Status:=gexReturned; SetLength(E.Extensions[gesUser].Values,2);
+  E.Extensions[gesUser].Values[0]:='AB'; E.Extensions[gesUser].Values[1]:='C';
+  F:=Default(TGpoObservedFiles); F.Target:=T; F.Items[gfMachineRegistry].Attempted:=True;
+  F.Items[gfMachineRegistry].Status:=grsMissing; F.Items[gfMachineRegistry].Observation:=gfoLeafAbsent;
+  SD.FromText('O:SYG:SYD:(A;;GA;;;SY)'); RawSD:=SD.ToBinary;
+  F.Items[gfMachineRegistry].Metadata.Available:=True; F.Items[gfMachineRegistry].Metadata.Kind:=gekParent;
+  F.Items[gfMachineRegistry].Metadata.Attributes:=$10;
+  F.Items[gfMachineRegistry].Metadata.FileIndexLow:=1;
+  F.Items[gfMachineRegistry].Metadata.SecurityDescriptor:=Bytes(RawSD);
+  F.Items[gfUserRegistry].Attempted:=True; F.Items[gfUserRegistry].Status:=grsAccessDenied;
+  Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
+  Check(Adapter[gdrMachinePolicy].State=gdsMissing);
+  Check(Adapter[gdrUserPolicy].State=gdsUnreadable); Check(Adapter[gdrGptIni].State=gdsNotCollected);
+  Check(Adapter[gdrMachineExtensions].State=gdsUnreadable,'LDAP not returned is unknown, not absence');
+  Check(Adapter[gdrUserExtensions].State=gdsPresent);
+  Check(Length(Adapter[gdrUserExtensions].Data)=15,'Extension values are length framed');
+  B:=Adapter; E.Extensions[gesUser].Values[0]:='A'; E.Extensions[gesUser].Values[1]:='BC';
+  Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
+  Check(not CompareMem(@B[gdrUserExtensions].Data[0],@Adapter[gdrUserExtensions].Data[0],15),
+    'Different extension boundaries must not collapse');
+  F.Items[gfMachineRegistry].Metadata.Available:=False;
+  Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtOk);
+  Check(Adapter[gdrMachinePolicy].State=gdsUnreadable,'Missing requires parent evidence');
+  F.Items[gfMachineRegistry].Metadata.Available:=True;
+  F.Target.DC:='dc2.example.test'; Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtTargetMismatch);
+  Check(Adapter[gdrGpcVersion].State=gdsNotCollected,'Failed adapter leaves no evidence');
+  F.Target:=T; E.Target:=Other; Check(GpoDiagnosticEvidenceValues(T,glcCaptured,E,F,Adapter)=gdtSessionInvalid);
+  Check(GpoDiagnosticEvidenceValues(T,glcUnreadable,E,F,Adapter)=gdtSessionInvalid,
+    'A supplied mismatched identity blocks even when LDAP data is unreadable');
+  E.Target:=T; Check(GpoDiagnosticEvidenceValues(T,glcUnreadable,E,F,Adapter)=gdtOk);
+  Check(Adapter[gdrGpcVersion].State=gdsUnreadable);
+  for R:=Low(R) to High(R) do begin
+    B:=Default(TGpoDiagnosticValues); C:=Default(TGpoDiagnosticValues); O:=Default(TGpoDiagnosticValues);
+    B[R].State:=gdsPresent; C[R].State:=gdsPresent; O[R].State:=gdsPresent;
+    case R of
+      gdrGpcVersion,gdrFlags:N:=4;
+      gdrUsn:N:=8;
+      gdrMachineExtensions,gdrUserExtensions:N:=9;
+      gdrMachineMetadata,gdrUserMetadata,gdrGptMetadata:N:=33;
+      else N:=1;
+    end;
+    SetLength(B[R].Data,N);
+    if R in [gdrMachineExtensions,gdrUserExtensions] then begin B[R].Data[0]:=1; B[R].Data[4]:=1; end;
+    if R in [gdrMachineMetadata,gdrUserMetadata,gdrGptMetadata] then begin B[R].Data[0]:=1; B[R].Data[28]:=1; end;
+    B[R].Data[N-1]:=1; C[R].Data:=Copy(B[R].Data); C[R].Data[N-1]:=2;
+    O[R].Data:=Copy(B[R].Data); O[R].Data[N-1]:=3;
+    Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtOk);
+    Check(Report.HasOther and (Report.Items[R].Match=gdmOther),'Third value remains visible per resource');
+  end;
+  O:=Default(TGpoDiagnosticValues); SetLength(O[gdrGptIni].Data,GpoMaxFileBytes+1);
+  O[gdrGptIni].State:=gdsPresent;
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtTooLarge);
+  Check(not Report.HasOther,'Oversize input cannot leave an old conflict report');
+  O:=Default(TGpoDiagnosticValues);
+  PByte(@O[gdrGptIni].State)^:=255;
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtInvalid,'Unknown state cannot be treated as uncollected');
+  O:=Default(TGpoDiagnosticValues);
+  Token.Invalidate; Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtSessionInvalid);
+  Check(not Report.HasOther and (Report.Items[gdrMachinePolicy].Match=gdmIncomplete));
+  Expiring:=TExpiringToken.Create; Expiring.Limit:=12; T.Session:=Expiring;
+  Check(GpoDiagnoseObservations(T,T,B,C,O,Report)=gdtSessionInvalid,'Revocation during comparison must block');
+  for R:=Low(R) to High(R) do Check(Report.Items[R].Match=gdmIncomplete);
+end;
 procedure TUnitTestGpoReadOnly.FileEvidenceSecurityValidation;
 var E,Other:TGpoFileEvidence; SD:mormot.core.os.security.TSecurityDescriptor; RawSD:RawByteString;
   K:TGpoEvidenceKind; N:Integer; NullEvidence:TGpoFileEvidence;

@@ -185,6 +185,10 @@
         <Filename Value="ugposnapshot.pas"/>
         <UnitName Value="ugposnapshot"/>
       </Item>
+      <Item>
+        <Filename Value="ugpodiagnostic.pas"/>
+        <UnitName Value="ugpodiagnostic"/>
+      </Item>
     </Files>
     <i18n>
       <OutDir Value="languages"/>

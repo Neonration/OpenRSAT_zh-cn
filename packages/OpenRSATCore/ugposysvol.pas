@@ -368,6 +368,7 @@ begin
      not Token.IsValid then Exit(gprSessionInvalid);
   if (Target.DN='') or (Length(Target.ObjectGuid)<>16) or SameText(Target.Domain,Target.DC) or
      (GpoBuildSafePath(Target.FileSysPath,Target.Domain,Target.DC,Target.Guid,gfGptIni,Path)<>grsOk) then Exit(gprInvalid);
+  Files.Target:=Target; Files.Target.ObjectGuid:=Copy(Target.ObjectGuid);
   ActiveControl:=Control; OwnControl:=not Assigned(ActiveControl);
   if OwnControl then ActiveControl:=TGpoReadControl.Create(30000,Target.Session);
   try
