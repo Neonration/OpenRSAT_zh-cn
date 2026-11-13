@@ -6,6 +6,9 @@ list; empty items, embedded NUL and line breaks within an item cannot be
 represented by this input. Use raw hexadecimal for those bytes. Text is
 validated before replacement, with the Registry.pol size limit enforced.
 Environment variables are not expanded. Policy commands use raw input only.
+Invalid multi-string input remains in the editor for correction. Input is
+bounded before decoding and line separators are normalized in one pass; values
+that exceed the format limit are rejected without truncation.
 
 Friendly input is an explicit replacement, not an automatic conversion of
 existing bytes. Closing or cancelling it leaves the raw data unchanged. The

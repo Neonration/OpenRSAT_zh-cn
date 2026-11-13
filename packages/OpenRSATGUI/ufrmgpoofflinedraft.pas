@@ -97,6 +97,7 @@ type
     function RequestGpcVersion(out Value:string):Boolean; virtual;
     function EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean; virtual;
     function ExecuteRecordDialog(Dialog:TForm):TModalResult; virtual;
+    function ExecuteFriendlyDialog(Dialog:TForm):TModalResult; virtual;
     procedure ShowError(const MessageText:string); virtual;
     procedure ShowPreview; virtual;
     procedure ShowPlanReport(const Report:string); virtual;
@@ -144,6 +145,7 @@ type
     TypeBox:TComboBox;
     HexMemo:TMemo;
     NameEdit:TEdit;
+    Editor:TFrmGpoOfflineDraft;
     procedure Click(Sender:TObject);
   end;
 
@@ -269,7 +271,7 @@ begin
 end;
 
 function GpoEncodeFriendly(ValueType:Cardinal; const Text:string; out Data:TBytes; out Error:string):Boolean;
-var I,N:Integer; V:QWord; U:UnicodeString; R:TGpoRegistryRecord;
+var I,J,N:Integer; V:QWord; U:UnicodeString; R:TGpoRegistryRecord;
 begin
   Result:=False; Data:=nil; Error:='';
   case ValueType of
@@ -286,28 +288,33 @@ begin
     end;
     1,2,7:
     begin
+      if Length(Text)>(GpoMaxValueBytes div 2)*3 then
+      begin Error:='文本超过数据长度限制。'; Exit; end;
       U:=UTF8Decode(Text);
       if UTF8Encode(U)<>Text then begin Error:='文本不是有效 UTF-8。'; Exit; end;
       if Pos(#0,U)>0 then begin Error:='文本不能包含 NUL。'; Exit; end;
       if ValueType=7 then
       begin
-        I:=1;
+        I:=1; J:=0;
         while I<=Length(U) do
         begin
           if U[I]=#13 then
           begin
             if (I=Length(U)) or (U[I+1]<>#10) then
             begin Error:='多字符串只允许用换行分隔项目。'; Exit; end;
-            Delete(U,I,1);
+            Inc(I);
           end;
           if U[I]=#10 then
           begin
-            if (I=1) or (I=Length(U)) or (U[I-1]=#0) then
+            if (J=0) or (I=Length(U)) or (U[J]=#0) then
             begin Error:='多字符串不能包含空项目；空文本表示空列表。'; Exit; end;
-            U[I]:=#0;
+            Inc(J); U[J]:=#0;
+          end else begin
+            Inc(J); U[J]:=U[I];
           end;
           Inc(I);
         end;
+        SetLength(U,J);
       end;
       N:=1; if ValueType=7 then begin if U='' then N:=2 else Inc(N); end;
       if Length(U)>(GpoMaxValueBytes div 2)-N then
@@ -341,9 +348,14 @@ begin
       L.WordWrap:=True; L.Caption:='每行一个非空项目；空文本表示空列表。项目不能含换行或 NUL。确认将替换原始数据。';
       B:=TButton.Create(W); B.Parent:=W; B.Align:=alBottom; B.Caption:='取消'; B.ModalResult:=mrCancel; B.Cancel:=True;
       B:=TButton.Create(W); B.Parent:=W; B.Align:=alBottom; B.Caption:='确定'; B.ModalResult:=mrOk; B.Default:=True;
-      M:=TMemo.Create(W); M.Parent:=W; M.Align:=alClient; M.ScrollBars:=ssVertical;
-      if W.ShowModal<>mrOk then Exit;
-      Text:=M.Text;
+      M:=TMemo.Create(W); M.Parent:=W; M.Align:=alClient; M.ScrollBars:=ssVertical; M.Name:='GpoMultiText';
+      W.ActiveControl:=M;
+      repeat
+        if Editor.ExecuteFriendlyDialog(W)<>mrOk then Exit;
+        Text:=M.Text;
+        if GpoEncodeFriendly(Kind,Text,Data,Error) then Break;
+        Editor.ShowError(Error); W.ActiveControl:=M;
+      until False;
     finally W.Free; end;
   end else begin
     if Kind in [1,2] then Prompt:='输入文本（可为空；环境变量不会展开）:' else Prompt:='输入无符号十进制整数:';
@@ -351,7 +363,7 @@ begin
   end;
   if (TypeBox.ItemIndex<>Kind) or (NameEdit.Text<>OriginalName) or
     (HexMemo.Text<>OriginalHex) then Exit;
-  if not GpoEncodeFriendly(Kind,Text,Data,Error) then
+  if (Kind<>7) and not GpoEncodeFriendly(Kind,Text,Data,Error) then
   begin MessageDlg('本地草稿',Error,mtError,[mbOK],0); Exit; end;
   HexMemo.Text:=HexPreview(Data,GpoMaxValueBytes);
 end;
@@ -1384,6 +1396,8 @@ end;
 
 function TFrmGpoOfflineDraft.ExecuteRecordDialog(Dialog:TForm):TModalResult;
 begin Result:=Dialog.ShowModal; end;
+function TFrmGpoOfflineDraft.ExecuteFriendlyDialog(Dialog:TForm):TModalResult;
+begin Result:=Dialog.ShowModal; end;
 
 function TFrmGpoOfflineDraft.EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean;
 const TypeNames:array[0..11] of string = ('REG_NONE','REG_SZ','REG_EXPAND_SZ','REG_BINARY',
@@ -1419,7 +1433,7 @@ begin
     HexMemo.ScrollBars:=ssVertical; HexMemo.Text:=HexPreview(Item.Data,GpoMaxValueBytes);
     HexMemo.Name:='GpoRecordHex'; HexMemo.TabOrder:=3;
     LabelAt('原始数据(&D)：十六进制字节',187,HexMemo);
-    Friendly:=TFriendlyInput.Create(Dialog); Friendly.TypeBox:=TypeBox; Friendly.HexMemo:=HexMemo; Friendly.NameEdit:=NameEdit;
+    Friendly:=TFriendlyInput.Create(Dialog); Friendly.TypeBox:=TypeBox; Friendly.HexMemo:=HexMemo; Friendly.NameEdit:=NameEdit; Friendly.Editor:=Self;
     Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(280,182,352,27);
     Btn.Name:='GpoRecordFriendly'; Btn.TabOrder:=4;
     Btn.Caption:='用十进制或文本替换数据(&F)…'; Btn.OnClick:=@Friendly.Click;

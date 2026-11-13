@@ -7,6 +7,7 @@ type
   published
     procedure TypeAndHexValidation;
     procedure RecordEditorKeyboardLayout;
+    procedure MultiInputRetry;
     procedure RawRecordEditor;
     procedure LocalDraftInteraction;
     procedure LocalFileBoundaries;
@@ -90,6 +91,14 @@ type
   protected
     function ExecuteRecordDialog(Dialog:TForm):TModalResult; override;
   end;
+  TMultiEditorForm=class(TFrmGpoOfflineDraft)
+  public
+    Attempts,Errors:Integer; CancelRetry,Retained,FocusRestored:Boolean; HexAfter:string;
+  protected
+    function ExecuteRecordDialog(Dialog:TForm):TModalResult; override;
+    function ExecuteFriendlyDialog(Dialog:TForm):TModalResult; override;
+    procedure ShowError(const MessageText:string); override;
+  end;
   TModalReportProbe=class(TFrmGpoOfflineDraft)
   public
     Job:IGpoDomainDraftJob; Timer:TTimer; Stage:Integer; SawCleared,MutateThenUndo,MutationOk:Boolean;
@@ -132,6 +141,43 @@ end;
 function TFakeDomainJob.ResultText:string; begin if Text<>'' then Result:=Text else Result:='模拟复核：证据不完整'; end;
 function TKeyboardOfflineForm.InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
 begin Result:=EditRecord(R,Adding); end;
+function TMultiEditorForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
+begin
+  TEdit(Dialog.FindComponent('GpoRecordKey')).Text:='Software\QA';
+  TComboBox(Dialog.FindComponent('GpoRecordType')).ItemIndex:=7;
+  TMemo(Dialog.FindComponent('GpoRecordHex')).Text:='AA BB';
+  TButton(Dialog.FindComponent('GpoRecordFriendly')).Click;
+  HexAfter:=TMemo(Dialog.FindComponent('GpoRecordHex')).Text;
+  if CancelRetry then Result:=mrCancel else Result:=mrOk;
+end;
+function TMultiEditorForm.ExecuteFriendlyDialog(Dialog:TForm):TModalResult;
+var M:TMemo;
+begin
+  M:=TMemo(Dialog.FindComponent('GpoMultiText')); Inc(Attempts);
+  if Attempts=1 then begin M.Text:='A'+LineEnding+LineEnding+'B'; Exit(mrOk); end;
+  Retained:=M.Text='A'+LineEnding+LineEnding+'B'; FocusRestored:=Dialog.ActiveControl=M;
+  if CancelRetry then Exit(mrCancel);
+  M.Text:='A'+LineEnding+'B'; Result:=mrOk;
+end;
+procedure TMultiEditorForm.ShowError(const MessageText:string);
+begin Inc(Errors); end;
+procedure TUnitTestGpoOfflineDraftUI.MultiInputRetry;
+var F:TMultiEditorForm; R:TGpoRegistryRecords; Rev:QWord;
+begin
+  F:=TMultiEditorForm.Create(nil);
+  try
+    Rev:=F.Draft(gdsComputer).Revision; F.CancelRetry:=True; F.AddButton.Click;
+    Check(F.Attempts=2); Check(F.Errors=1); Check(F.Retained and F.FocusRestored);
+    Check(F.HexAfter='AA BB'); Check(F.Draft(gdsComputer).Revision=Rev);
+    Check(not F.Draft(gdsComputer).Dirty);
+    F.Attempts:=0; F.Errors:=0; F.CancelRetry:=False; F.AddButton.Click;
+    Check(F.Attempts=2); Check(F.Errors=1); Check(F.Retained and F.FocusRestored);
+    R:=F.Draft(gdsComputer).Records; Check(Length(R)=1);
+    if Length(R)=1 then begin Check(R[0].ValueType=7); Check(Length(R[0].Data)=10);
+      Check((R[0].Data[0]=65) and (R[0].Data[4]=66)); end;
+    F.UndoButton.Click; Check(not F.Draft(gdsComputer).Dirty);
+  finally F.Free; end;
+end;
 function TRawEditorForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
 begin
   if CancelEditor then Exit(mrCancel);
@@ -813,7 +859,7 @@ end;
 begin Check(True,'Local file rehearsal is unavailable on this platform'); end;
 {$endif}
 procedure TUnitTestGpoOfflineDraftUI.TypeAndHexValidation;
-var B:TBytes; E:string; R:TGpoRegistryRecord;
+var B:TBytes; E,S:string; R:TGpoRegistryRecord; Started:QWord; I:Integer;
 begin
   Check(GpoParseHex('',B,E)); Check(Length(B)=0);
   Check(GpoEncodeFriendly(4,'4294967295',B,E)); Check((Length(B)=4) and (B[0]=$ff) and (B[3]=$ff));
@@ -835,6 +881,19 @@ begin
   Check(not GpoEncodeFriendly(7,'A'+#10,B,E));
   Check(not GpoEncodeFriendly(7,'A'+#13+'B',B,E));
   Check(not GpoEncodeFriendly(7,'A'+#0+'B',B,E));
+  Check(GpoEncodeFriendly(7,'A'+#10+'B',B,E)); Check((Length(B)=10) and (B[4]=66));
+  Check(GpoEncodeFriendly(7,StringOfChar('A',32765),B,E)); Check(Length(B)=65534);
+  Check(not GpoEncodeFriendly(7,StringOfChar('A',32766),B,E)); Check(Length(B)=0);
+  Check(GpoEncodeFriendly(7,StringOfChar('A',32763)+'😀',B,E)); Check(Length(B)=65534);
+  Check(not GpoEncodeFriendly(7,StringOfChar('A',32764)+'😀',B,E));
+  S:=''; for I:=1 to 15000 do S:=S+'A'+#13#10;
+  S:=S+'Z'; Check(GpoEncodeFriendly(7,S,B,E)); Check(Length(B)=60006);
+  Started:=GetTickCount64; S:=StringOfChar('A',1000000);
+  Check(not GpoEncodeFriendly(7,S,B,E)); Check(Length(B)=0); Check(GetTickCount64-Started<5000);
+  SetLength(S,1200000);
+  for I:=0 to 399999 do begin S[I*3+1]:='A'; S[I*3+2]:=#13; S[I*3+3]:=#10; end;
+  Started:=GetTickCount64; Check(not GpoEncodeFriendly(7,S,B,E));
+  Check(Length(B)=0); Check(GetTickCount64-Started<5000);
   Check(not GpoEncodeFriendly(2,#$ff,B,E));
   Check(not GpoEncodeFriendly($deadbeef,'1',B,E)); Check(Length(B)=0);
   Check(GpoParseHex('00 aB'+#13#10'Ff',B,E)); Check(Length(B)=3); Check(B[1]=$ab); Check(B[2]=$ff);
