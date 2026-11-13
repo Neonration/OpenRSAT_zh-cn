@@ -1,6 +1,8 @@
 // Isolated lab prototype. This is not part of OpenRSAT or a publication backend.
 using System;
 using System.Runtime.InteropServices;
+using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Text;
 using System.IO;
 
@@ -71,8 +73,28 @@ public static class OpenRsatLabGpoComProbe {
     static void CheckRegistry(int result, string stage) {
         if (result != 0) throw new InvalidOperationException(stage + " Win32 " + result);
     }
+    static string DispatchSta(Func<string> action) {
+        if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA) return action();
+        string result = null;
+        Exception failure = null;
+        Thread thread = new Thread(() => {
+            try { result = action(); }
+            catch (Exception e) { failure = e; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
+        return result;
+    }
+    public static string CheckApartmentDispatch() {
+        return DispatchSta(() => Thread.CurrentThread.GetApartmentState().ToString());
+    }
     public static string Run(string guidText, string expectedName, bool write) {
         if (!ValidTarget(guidText, expectedName)) throw new ArgumentException("Invalid isolated target");
+        return DispatchSta(() => RunOnSta(guidText, expectedName, write));
+    }
+    static string RunOnSta(string guidText, string expectedName, bool write) {
         Guid id = new Guid(guidText);
         string canonical = "{" + id.ToString("D").ToUpperInvariant() + "}";
         string server = Server;

@@ -16,10 +16,20 @@ function Get-CodexComFailurePhase([string]$phase,[bool]$enteredWrite,[bool]$writ
 }
 function Get-CodexGptVersion([byte[]]$bytes) {
   if($null -eq $bytes -or $bytes.Length -eq 0){return $null}
-  $start=0
-  if($bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191){$start=3}
-  for($i=$start;$i -lt $bytes.Length;$i++){if($bytes[$i] -gt 127 -or $bytes[$i] -eq 0){return $null}}
-  $text=[Text.Encoding]::ASCII.GetString($bytes,$start,$bytes.Length-$start)
+  if($bytes.Length -ge 2 -and (($bytes[0] -eq 255 -and $bytes[1] -eq 254) -or
+    ($bytes[0] -eq 254 -and $bytes[1] -eq 255))){return $null}
+  $start=0; $utf8Bom=$bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191
+  if($utf8Bom){$start=3}
+  try { $text=[Text.UTF8Encoding]::new($false,$true).GetString($bytes,$start,$bytes.Length-$start) }
+  catch {
+    if($utf8Bom){return $null}
+    try {
+      $encoding=[Text.Encoding]::GetEncoding(936,[Text.EncoderFallback]::ExceptionFallback,[Text.DecoderFallback]::ExceptionFallback)
+      $text=$encoding.GetString($bytes)
+      if([Convert]::ToBase64String($encoding.GetBytes($text)) -cne [Convert]::ToBase64String($bytes)){return $null}
+    } catch {return $null}
+  }
+  if($text.IndexOf([char]0) -ge 0){return $null}
   $inside=$false; $generalCount=0; $versionCount=0; $number=[uint32]0
   foreach($line in [regex]::Split($text,"\r\n|\r|\n")) {
     $trim=$line.Trim()

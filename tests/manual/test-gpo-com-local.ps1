@@ -13,6 +13,7 @@ $name='Codex-COMSave-0123456789ab'
 $ad='LDAP://orsat-dc01.openrsat.test/CN='+$canon+',CN=Policies,CN=System,DC=openrsat,DC=test'
 $files='\\orsat-dc01.openrsat.test\SYSVOL\openrsat.test\Policies\'+$canon
 Assert ([OpenRsatLabGpoComProbe]::ValidTarget($id,$name)) 'fresh test target'
+Assert ([OpenRsatLabGpoComProbe]::CheckApartmentDispatch() -eq 'STA') 'COM operations dispatch to an STA thread'
 Assert (-not [OpenRsatLabGpoComProbe]::ValidTarget('00000000-0000-0000-0000-000000000000',$name)) 'empty GUID'
 Assert (-not [OpenRsatLabGpoComProbe]::ValidTarget('31B2F340-016D-11D2-945F-00C04FB984F9',$name)) 'default domain policy'
 Assert (-not [OpenRsatLabGpoComProbe]::ValidTarget('6AC1786C-016F-11D2-945F-00C04FB984F9',$name)) 'default DC policy'
@@ -54,6 +55,14 @@ Assert (-not [OpenRsatLabGpoComProbe]::ValidSyntheticPolicy($null)) 'missing pol
 function Gpt([string]$text) { return [Text.Encoding]::ASCII.GetBytes($text) }
 Assert ((Get-CodexGptVersion (Gpt "[General]`r`nVersion=1`r`n")) -eq 1) 'GPT version'
 Assert ((Get-CodexGptVersion (Gpt "[General]`nVersion=0")) -eq 0) 'zero version'
+$unicodeText="[General]`r`nVersion=0`r`ndisplayName=$([char]0x6d4b)$([char]0x8bd5)`r`n"
+$cp936=[Text.Encoding]::GetEncoding(936,[Text.EncoderFallback]::ExceptionFallback,[Text.DecoderFallback]::ExceptionFallback)
+Assert ((Get-CodexGptVersion ($cp936.GetBytes($unicodeText))) -eq 0) 'CP936 display name preserves version'
+Assert ((Get-CodexGptVersion ([Text.Encoding]::UTF8.GetBytes($unicodeText))) -eq 0) 'UTF-8 display name preserves version'
+Assert ($null -eq (Get-CodexGptVersion ([byte[]](91,71,101,110,101,114,97,108,93,10,86,101,114,115,105,111,110,61,48,10,129)))) 'incomplete codepage sequence rejected'
+Assert ($null -eq (Get-CodexGptVersion ([byte[]](239,187,191,91,71,101,110,101,114,97,108,93,10,86,101,114,115,105,111,110,61,48,10,129)))) 'invalid BOM UTF-8 cannot fall back'
+Assert ($null -eq (Get-CodexGptVersion ($cp936.GetBytes($unicodeText+"Version=1`r`n")))) 'localized duplicate version rejected'
+Assert ($null -eq (Get-CodexGptVersion ($cp936.GetBytes($unicodeText+[char]0)))) 'embedded NUL rejected'
 Assert ($null -eq (Get-CodexGptVersion (Gpt "[Other]`nVersion=1"))) 'version outside General'
 Assert ($null -eq (Get-CodexGptVersion (Gpt "[General]`nVersion=1`nVersion=1"))) 'duplicate version'
 Assert ($null -eq (Get-CodexGptVersion (Gpt "[General]`nVersion=1`n[General]`nX=2"))) 'duplicate General'
