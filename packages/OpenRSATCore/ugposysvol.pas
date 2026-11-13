@@ -44,12 +44,19 @@ type
     Items:array[TGpoFile] of TGpoObservedFile;
   end;
   TGpoSecurityEvidence = (gseUnavailable, gseUnverified);
+  TGpoExtensionSide = (gesMachine, gesUser);
+  TGpoExtensionStatus = (gexUnavailable, gexNotReturned, gexReturned);
+  TGpoExtensionEvidence = record
+    Status:TGpoExtensionStatus;
+    Values:array of RawByteString;
+  end;
   TGpoLdapEvidence = record
     Target:TGpoPreflightTarget;
     Version, Flags:Cardinal;
     USNChanged:QWord;
     SecurityDescriptor:TBytes;
     SecurityStatus:TGpoSecurityEvidence;
+    Extensions:array[TGpoExtensionSide] of TGpoExtensionEvidence;
   end;
   TGpoLdapSessionState = record
     Session:IInterface;
@@ -75,6 +82,7 @@ type
     fUSN:QWord;
     fFlags:Cardinal;
     fSecurityDescriptor:TBytes;
+    fExtensions:array[TGpoExtensionSide] of TGpoExtensionEvidence;
     fFilesCaptured:Boolean;
     fFileEvidence:array[TGpoFile] of TGpoFileEvidence;
   public
@@ -379,18 +387,43 @@ begin
   finally if OwnControl then ActiveControl.Free; end;
 end;
 
+function ValidExtensions(const Evidence:TGpoLdapEvidence):Boolean;
+var Side:TGpoExtensionSide; I:Integer; Total:QWord;
+begin
+  Result:=False; Total:=0;
+  for Side:=Low(TGpoExtensionSide) to High(TGpoExtensionSide) do
+  begin
+    if Evidence.Extensions[Side].Status=gexUnavailable then Exit;
+    if (Evidence.Extensions[Side].Status=gexNotReturned) and (Length(Evidence.Extensions[Side].Values)<>0) then Exit;
+    if Length(Evidence.Extensions[Side].Values)>256 then Exit;
+    for I:=0 to High(Evidence.Extensions[Side].Values) do
+    begin
+      Inc(Total,Length(Evidence.Extensions[Side].Values[I]));
+      if Total>16777216 then Exit;
+    end;
+  end;
+  Result:=True;
+end;
+
 class function TGpoBoundPlan.BindEvidence(const Evidence:TGpoLdapEvidence; const Plan:TGpoOfflinePlan;
   out Bound:TGpoBoundPlan):TGpoPreflightResult;
-var SD:mormot.core.os.security.TSecurityDescriptor;
+var SD:mormot.core.os.security.TSecurityDescriptor; Side:TGpoExtensionSide; I:Integer;
 begin
   Bound:=nil;
-  if (Evidence.SecurityStatus<>gseUnverified) or (Evidence.USNChanged=0) or (Length(Evidence.SecurityDescriptor)=0) or
+  if not ValidExtensions(Evidence) or (Evidence.SecurityStatus<>gseUnverified) or (Evidence.USNChanged=0) or (Length(Evidence.SecurityDescriptor)=0) or
      not SD.FromBinary(mormot.core.base.PByteArray(@Evidence.SecurityDescriptor[0]),Length(Evidence.SecurityDescriptor)) then Exit(gprReadUnavailable);
   if Evidence.Version<>Plan.Baseline.GpcVersion then Exit(gprConflict);
   Result:=Bind(Evidence.Target,Plan,Bound);
   if not Assigned(Bound) then Exit;
   Bound.fUSN:=Evidence.USNChanged; Bound.fFlags:=Evidence.Flags;
   Bound.fSecurityDescriptor:=Copy(Evidence.SecurityDescriptor); Bound.fLdapCaptured:=True;
+  for Side:=Low(TGpoExtensionSide) to High(TGpoExtensionSide) do
+  begin
+    Bound.fExtensions[Side].Status:=Evidence.Extensions[Side].Status;
+    SetLength(Bound.fExtensions[Side].Values,Length(Evidence.Extensions[Side].Values));
+    for I:=0 to High(Evidence.Extensions[Side].Values) do
+      Bound.fExtensions[Side].Values[I]:=Copy(Evidence.Extensions[Side].Values[I],1,Length(Evidence.Extensions[Side].Values[I]));
+  end;
 end;
 
 function SamePreflightTarget(const A,B:TGpoPreflightTarget):Boolean;
@@ -615,9 +648,9 @@ end;
 function TGpoBoundPlan.CompareEvidence(const Evidence:TGpoLdapEvidence; GptStatus:TGpoReadStatus; const Ini:TBytes;
   UserStatus:TGpoReadStatus; UserObservation:TGpoFileObservation; const UserData:TBytes;
   MachineStatus:TGpoReadStatus; MachineObservation:TGpoFileObservation; const MachineData:TBytes):TGpoPreflightResult;
-var SD:mormot.core.os.security.TSecurityDescriptor;
+var SD:mormot.core.os.security.TSecurityDescriptor; Side:TGpoExtensionSide; I:Integer;
 begin
-  if not fLdapCaptured or (Evidence.SecurityStatus<>gseUnverified) or (Evidence.USNChanged=0) or (Length(Evidence.SecurityDescriptor)=0) or
+  if not fLdapCaptured or not ValidExtensions(Evidence) or (Evidence.SecurityStatus<>gseUnverified) or (Evidence.USNChanged=0) or (Length(Evidence.SecurityDescriptor)=0) or
      not SD.FromBinary(mormot.core.base.PByteArray(@Evidence.SecurityDescriptor[0]),Length(Evidence.SecurityDescriptor)) then Exit(gprReadUnavailable);
   Result:=Compare(Evidence.Target,grsOk,Evidence.Version,GptStatus,Ini,
     UserStatus,UserObservation,UserData,MachineStatus,MachineObservation,MachineData);
@@ -625,6 +658,13 @@ begin
   if (Evidence.USNChanged<>fUSN) or (Evidence.Flags<>fFlags) or
      (Length(Evidence.SecurityDescriptor)<>Length(fSecurityDescriptor)) or
      not CompareMem(@Evidence.SecurityDescriptor[0],@fSecurityDescriptor[0],Length(fSecurityDescriptor)) then Exit(gprConflict);
+  for Side:=Low(TGpoExtensionSide) to High(TGpoExtensionSide) do
+  begin
+    if (Evidence.Extensions[Side].Status<>fExtensions[Side].Status) or
+       (Length(Evidence.Extensions[Side].Values)<>Length(fExtensions[Side].Values)) then Exit(gprConflict);
+    for I:=0 to High(fExtensions[Side].Values) do
+      if Evidence.Extensions[Side].Values[I]<>fExtensions[Side].Values[I] then Exit(gprConflict);
+  end;
   if not fToken.IsValid then Exit(gprSessionInvalid);
   Result:=gprEvidenceIncomplete;
 end;
@@ -703,6 +743,8 @@ function GpoParseLdapGpc(Entry:TLdapResult; const Domain,DC,ExpectedDN,ExpectedG
   out Evidence:TGpoLdapEvidence):TGpoPreflightResult;
 var Guid,Path,UsnText:string; RawGuid,RawSD:RawByteString;
   SD:mormot.core.os.security.TSecurityDescriptor; U:QWord; I:Integer; NonZero:Boolean; E:TGpoLdapEvidence;
+  Side:TGpoExtensionSide; Attr:TLdapAttribute;
+const Names:array[TGpoExtensionSide] of RawUtf8=('gPCMachineExtensionNames','gPCUserExtensionNames');
 begin
   Evidence:=Default(TGpoLdapEvidence); E:=Default(TGpoLdapEvidence);
   if not Assigned(Entry) then Exit(gprReadUnavailable);
@@ -727,6 +769,18 @@ begin
   SetLength(E.Target.ObjectGuid,16); Move(RawGuid[1],E.Target.ObjectGuid[0],16);
   E.USNChanged:=U; SetLength(E.SecurityDescriptor,Length(RawSD)); Move(RawSD[1],E.SecurityDescriptor[0],Length(RawSD));
   E.SecurityStatus:=gseUnverified;
+  for Side:=Low(TGpoExtensionSide) to High(TGpoExtensionSide) do
+  begin
+    Attr:=Entry.Find(Names[Side]);
+    if not Assigned(Attr) then E.Extensions[Side].Status:=gexNotReturned
+    else begin
+      if Attr.Count>256 then Exit(gprReadUnavailable);
+      E.Extensions[Side].Status:=gexReturned;
+      SetLength(E.Extensions[Side].Values,Attr.Count);
+      for I:=0 to Attr.Count-1 do E.Extensions[Side].Values[I]:=Attr.GetRaw(I);
+    end;
+  end;
+  if not ValidExtensions(E) then Exit(gprReadUnavailable);
   Evidence:=E; Result:=gprEvidenceIncomplete;
 end;
 
@@ -799,7 +853,8 @@ begin
       if GpoReadStopped(Control) then Exit(gprReadUnavailable);
       if not SameSession then Exit(gprSessionInvalid);
       Root:=Transport.Search(ExpectedDN,'(objectClass=groupPolicyContainer)',
-        ['name','objectGUID','gPCFileSysPath','versionNumber','flags','uSNChanged','nTSecurityDescriptor']);
+        ['name','objectGUID','gPCFileSysPath','versionNumber','flags','uSNChanged','nTSecurityDescriptor',
+         'gPCMachineExtensionNames','gPCUserExtensionNames']);
       if GpoReadStopped(Control) then Exit(gprReadUnavailable);
       if not SameSession then Exit(gprSessionInvalid);
       ParseResult:=GpoParseLdapGpc(Root,Domain,DC,ExpectedDN,ExpectedGuid,E);

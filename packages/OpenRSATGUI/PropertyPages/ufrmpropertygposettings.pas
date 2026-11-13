@@ -467,7 +467,7 @@ begin
     if Control.Status<>grsOk then Exit;
     if (R=gprEvidenceIncomplete) and Assigned(Bound) then
       Result:='当前 GPO 的双侧基线在两次只读采集中一致；安全证据仍不完整，不能授权写入。'+LineEnding+
-        '仅检查当前基线，没有检查本地草稿、其他扩展或复制，也没有修改域。'
+        '已比较 LDAP 返回的双侧扩展属性原值；未返回可能是不存在或不可见。没有检查本地草稿、扩展具体内容或复制，也没有修改域。'
     else if R=gprConflict then Result:='只读检查已阻断：采集期间基线发生变化，请重新检查。'
     else if R=gprTargetMismatch then Result:='只读检查已阻断：域控制器或目标身份不一致。';
   finally Bound.Free; Draft.Free; Client.Free; end;

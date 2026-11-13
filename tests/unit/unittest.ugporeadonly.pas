@@ -42,7 +42,7 @@ type
     Token:ILdapSessionToken;
     CancelControl:TGpoReadControl;
     Mode,Calls:Integer;
-    AskedSupport,AskedSD:Boolean;
+    AskedSupport,AskedSD,AskedMachineExt,AskedUserExt:Boolean;
     constructor Create;
     destructor Destroy; override;
     function State(out Value:TGpoLdapSessionState):Boolean;
@@ -89,6 +89,8 @@ begin
   for I:=0 to High(Attributes) do begin
     if Attributes[I]='supportedControl' then AskedSupport:=True;
     if Attributes[I]='nTSecurityDescriptor' then AskedSD:=True;
+    if Attributes[I]='gPCMachineExtensionNames' then AskedMachineExt:=True;
+    if Attributes[I]='gPCUserExtensionNames' then AskedUserExt:=True;
   end;
   if DN='' then
   begin
@@ -123,10 +125,13 @@ begin
     begin
       Check(R=gprEvidenceIncomplete); Check(F.Calls=2); Check(F.GpcFlags=lsfMain); Check(F.AskedSD);
       Check(E.SecurityStatus=gseUnverified); Check(Assigned(E.Target.Session)); Check(E.USNChanged=17);
+      Check(F.AskedMachineExt and F.AskedUserExt);
+      Check((E.Extensions[gesMachine].Status=gexNotReturned) and (E.Extensions[gesUser].Status=gexNotReturned));
     end else
     begin
       if Mode in [1,2,6,8,9] then Check(R=gprSessionInvalid) else Check(R=gprReadUnavailable);
       Check((Length(E.SecurityDescriptor)=0) and (E.SecurityStatus=gseUnavailable));
+      Check((E.Extensions[gesMachine].Status=gexUnavailable) and (E.Extensions[gesUser].Status=gexUnavailable));
       if Mode in [1,2,5,8] then Check(F.Calls=1) else begin Check(F.Calls=2); Check(F.GpcFlags=lsfMain); end;
     end;
     Transport:=nil;
@@ -242,6 +247,7 @@ begin
   Check(GpoBuildOfflinePlanWithPresence(1,1,Ini,OldUser,NewUser,OldMachine,NewMachine,P)=gopOk);
   SD.FromText('O:SYG:SYD:(A;;GA;;;SY)'); RawSD:=SD.ToBinary;
   E:=Default(TGpoLdapEvidence); E.Target:=T; E.Version:=1; E.USNChanged:=4;
+  E.Extensions[gesMachine].Status:=gexNotReturned; E.Extensions[gesUser].Status:=gexNotReturned;
   E.SecurityStatus:=gseUnverified; E.SecurityDescriptor:=Bytes(RawSD);
   F:=Default(TGpoObservedFiles); F.Captured:=True; F.Target:=T;
   for A:=Low(TGpoFile) to High(TGpoFile) do
@@ -404,6 +410,14 @@ begin
     Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,Guid,E)=gprEvidenceIncomplete);
     Check((E.Version=$80000000) and (E.USNChanged=17) and (Length(E.Target.ObjectGuid)=16));
     Check((Length(E.SecurityDescriptor)=Length(RawSD)) and (E.Target.DC='dc.example.test'));
+    Check((E.Extensions[gesMachine].Status=gexNotReturned) and (E.Extensions[gesUser].Status=gexNotReturned));
+    Entry.Attributes.Add('gPCMachineExtensionNames','unknown malformed');
+    Entry.Attributes.Add('gPCMachineExtensionNames','second value');
+    Entry.Attributes.Add('gPCUserExtensionNames','');
+    Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,Guid,E)=gprEvidenceIncomplete);
+    Check((E.Extensions[gesMachine].Status=gexReturned) and (Length(E.Extensions[gesMachine].Values)=2));
+    Check((E.Extensions[gesMachine].Values[0]='unknown malformed') and (E.Extensions[gesMachine].Values[1]='second value'));
+    Check((E.Extensions[gesUser].Status=gexReturned) and (Length(E.Extensions[gesUser].Values)=1) and (E.Extensions[gesUser].Values[0]=''));
     Check(not Assigned(E.Target.Session),'Parsed facts do not authenticate LDAP origin');
     Check(GpoParseLdapGpc(Entry,'example.test','dc.example.test',DN,'{AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA}',E)=gprTargetMismatch);
     Entry.Attributes.Add('objectGUID',StringOfChar(#0,16),aoReplaceValue);
@@ -436,10 +450,29 @@ begin
   Check((P.UserAction=gpaCreate) and (P.MachineAction=gpaDelete));
   SD.FromText('O:SYG:SYD:(A;;GA;;;SY)'); RawSD:=SD.ToBinary;
   E:=Default(TGpoLdapEvidence); E.Target:=T; E.Version:=1; E.USNChanged:=17; E.SecurityDescriptor:=Bytes(RawSD); E.SecurityStatus:=gseUnverified;
+  E.Extensions[gesMachine].Status:=gexReturned; SetLength(E.Extensions[gesMachine].Values,2);
+  E.Extensions[gesMachine].Values[0]:='original'; E.Extensions[gesMachine].Values[1]:='unknown';
+  E.Extensions[gesUser].Status:=gexReturned; SetLength(E.Extensions[gesUser].Values,1);
+  E.Extensions[gesUser].Values[0]:='user-extension';
   Check(TGpoBoundPlan.BindEvidence(E,P,B2)=gprEvidenceIncomplete);
   if Assigned(B2) then
   try
     Check(B2.CompareEvidence(E,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprEvidenceIncomplete);
+    Changed:=E; Changed.Extensions[gesMachine].Values:=Copy(E.Extensions[gesMachine].Values);
+    Changed.Extensions[gesMachine].Values[0]:='changed';
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
+    Changed:=E; Changed.Extensions[gesUser].Values:=Copy(E.Extensions[gesUser].Values);
+    Changed.Extensions[gesUser].Values[0]:='changed user extension';
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
+    Changed:=E; Changed.Extensions[gesUser].Status:=gexNotReturned; Changed.Extensions[gesUser].Values:=nil;
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
+    Changed:=E; Changed.Extensions[gesUser].Status:=gexUnavailable;
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprReadUnavailable);
+    Changed:=E; SetLength(Changed.Extensions[gesMachine].Values,257);
+    Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprReadUnavailable);
+    E.Extensions[gesMachine].Values[0]:='mutated after binding';
+    Check(B2.CompareEvidence(E,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
+    E.Extensions[gesMachine].Values[0]:='original';
     Changed:=E; Inc(Changed.USNChanged);
     Check(B2.CompareEvidence(Changed,grsOk,Ini,grsMissing,gfoLeafAbsent,nil,grsOk,gfoPresent,MOld.Data)=gprConflict);
     Changed:=E; Changed.SecurityDescriptor:=nil;

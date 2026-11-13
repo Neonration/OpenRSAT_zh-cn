@@ -768,6 +768,7 @@ begin
   else fReviewText:='复核未得到可识别的结果；不能确认基线。';
   ShowPlanReport(MessageText+LineEnding+'目标：'+fDomainTarget+LineEnding+
     '计算机文件：'+ActionText(gdsComputer,Machine)+'；用户文件：'+ActionText(gdsUser,User)+LineEnding+
+    '只比较 LDAP 返回的双侧扩展属性原值；未返回可能是不存在或不可见，未解析扩展含义。'+LineEnding+
     '结果仅反映本次采集，之后可能发生变化；不会执行域写入。');
 end;
 
