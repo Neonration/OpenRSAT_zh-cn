@@ -170,20 +170,16 @@ jobs:
           chmod +x "$RUNNER_TEMP/fpclazup"
           lipo "$RUNNER_TEMP/fpclazup" -verify_arch '${{ matrix.target.arch }}'
           if [ '${{ matrix.target.arch }}' = 'x86_64' ]; then
-            # The development compiler contains newer macOS assembler fixes.
+            # Backport upstream nonlocal-label fix to the pinned maintenance compiler.
             git init "$prefix/fpc"
             git -C "$prefix/fpc" remote add origin https://gitlab.com/freepascal.org/fpc/source
-            git -C "$prefix/fpc" fetch --depth 1 origin bdb427b08454cff85dca2fbaccf7249716962845
+            git -C "$prefix/fpc" fetch --depth 1 origin 7a7bf815302b98f2b11dd201732e3f4d58b8c9bd
             git -C "$prefix/fpc" checkout --detach FETCH_HEAD
+            python tools/prepare_fpc_darwin.py "$prefix/fpc"
           else
             git clone --depth 1 --branch release_3_2_2 https://gitlab.com/freepascal.org/fpc/source "$prefix/fpc"
           fi
-          if [ '${{ matrix.target.arch }}' = 'x86_64' ]; then
-            git clone --depth 1 --branch lazarus_4_8 https://gitlab.com/freepascal.org/lazarus/lazarus "$prefix/lazarus"
-            test "$(git -C "$prefix/lazarus" rev-parse HEAD)" = 62c14a4d18c81f222127d42ce9b89b922c63fcbf
-          else
-            git clone --depth 1 --branch lazarus_4_0 https://gitlab.com/freepascal.org/lazarus/lazarus "$prefix/lazarus"
-          fi
+          git clone --depth 1 --branch lazarus_4_0 https://gitlab.com/freepascal.org/lazarus/lazarus "$prefix/lazarus"
           "$RUNNER_TEMP/fpclazup" --only=FPCCleanOnly,FPCBuildOnly,LazarusCleanOnly,LazBuild,LazarusConfigOnly --noconfirm --verbose --installdir="$prefix"
           compiler_path=$(find "$prefix/fpc/bin" -type f -name "$compiler" -print -quit)
           test -n "$compiler_path"
