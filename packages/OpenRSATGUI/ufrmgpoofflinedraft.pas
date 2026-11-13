@@ -28,6 +28,7 @@ type
     fReviewText:string;
     fSide: TGpoDraftSide;
     fValidSide:Boolean;
+    fSideRevision:QWord;
     fSavedPage, fSavedIndex:array[TGpoDraftSide] of Integer;
     fTree: TTreeView;
     fComputerNode, fUserNode: TTreeNode;
@@ -804,8 +805,12 @@ var NewSide:TGpoDraftSide;
 begin
   fFindStatus.Caption:='';
   if fValidSide then begin fSavedPage[fSide]:=fPane.PageSelector.ItemIndex; fSavedIndex[fSide]:=SelectedIndex; end;
-  if (Node<>fUserNode) and (Node<>fComputerNode) then begin fValidSide:=False; RefreshView; Exit; end;
+  if (Node<>fUserNode) and (Node<>fComputerNode) then begin
+    if fValidSide then Inc(fSideRevision);
+    fValidSide:=False; RefreshView; Exit;
+  end;
   if Node=fUserNode then NewSide:=gdsUser else NewSide:=gdsComputer;
+  if not fValidSide or (fSide<>NewSide) then Inc(fSideRevision);
   fSide:=NewSide; fValidSide:=True; RefreshView(fSavedIndex[fSide],False);
 end;
 procedure TFrmGpoOfflineDraft.RowSelected(Sender:TObject; Item:TListItem; Selected:Boolean);
@@ -980,14 +985,24 @@ begin
   fPaths[fSide]:=''; RefreshView;
 end;
 procedure TFrmGpoOfflineDraft.OpenClick(Sender:TObject);
-var Path,Err:string; Data:TBytes; Status:TGpoReadStatus;
+var Path,Err,SourcePath:string; Data:TBytes; Status:TGpoReadStatus;
+  Side:TGpoDraftSide; Revision,SideRevision:QWord;
+  function Unchanged:Boolean;
+  begin
+    Result:=fValidSide and (fSide=Side) and (fSideRevision=SideRevision) and
+      (fPaths[Side]=SourcePath) and (fDrafts[Side].Revision=Revision);
+  end;
 begin
-  if Current.Dirty and not ConfirmDiscard then Exit;
+  if not fValidSide then Exit;
+  Side:=fSide; SideRevision:=fSideRevision; Revision:=fDrafts[Side].Revision; SourcePath:=fPaths[Side];
+  if fDrafts[Side].Dirty and not ConfirmDiscard then Exit;
+  if not Unchanged then begin ShowError('确认期间草稿或分支已变化；请重新打开文件。'); Exit; end;
   if not ChooseLocalFile(False,Path) then Exit;
+  if not Unchanged then begin ShowError('选择文件期间草稿或分支已变化；请重新打开文件。'); Exit; end;
   if not GpoLoadLocalFile(Path,Data,Err) then begin ShowError(Err); Exit; end;
-  Status:=Current.Load(Data);
+  Status:=fDrafts[Side].Load(Data);
   if Status<>grsOk then begin ShowError('无法载入 Registry.pol：'+GpoStatusText(Status)); Exit; end;
-  fPaths[fSide]:=Path; RefreshView;
+  fPaths[Side]:=Path; RefreshView;
 end;
 function TFrmGpoOfflineDraft.ExportCurrent:Boolean;
 var Path,Err,SideName,SourcePath:string; Data,Baseline,After,AfterBaseline:TBytes;

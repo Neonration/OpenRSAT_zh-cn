@@ -16,6 +16,7 @@ type
     procedure LocalPlanRehearsal;
     procedure DomainDraftWorkflow;
     procedure DomainSummaryExport;
+    procedure ImportDialogRace;
   end;
 implementation
 uses SysUtils, Classes, SyncObjs, Forms, Controls, StdCtrls, ExtCtrls, LCLType, ugpoformats, ugporegistrydraft, ugpolocalfiles,
@@ -39,6 +40,7 @@ type
     GptChoice, VersionChoice:Boolean; PlanReports:Integer;
     MutateOnVersion, MutateOnGpt, RebaseOnGpt, InjectedEditOk:Boolean;
     SwitchOnExport,MutateOnExport:Boolean;
+    SwitchOnImport,SwitchBackOnImport,MutateOnImport,UndoOnImport,RebaseOnImport,MutateOnConfirm:Boolean;
     SummaryChoice,MutateOnSummary,RebaseOnSummary:Boolean; SummaryPath:string; CancelOnSummary:IGpoDomainDraftJob;
     constructor Create(TheOwner:TComponent); override;
     procedure PollDomainNow;
@@ -139,7 +141,13 @@ begin
   if Gate.WaitFor(10000)=wrSignaled then Succeeded:=GpoSaveNewLocalFile(Path,Payload,Error);
 end;
 function TTestOfflineForm.ConfirmDiscard:Boolean;
-begin Inc(PromptCalls); Result:=Choice; end;
+begin
+  Inc(PromptCalls); Result:=Choice;
+  if MutateOnConfirm then begin
+    MutateOnConfirm:=False;
+    InjectedEditOk:=Draft(gdsComputer).Insert(Length(Draft(gdsComputer).Records),NextRecord)=grsOk;
+  end;
+end;
 function TTestOfflineForm.ConfirmClose(const Branches:string):TGpoCloseChoice;
 begin
   BranchList:=Branches;
@@ -148,6 +156,7 @@ end;
 function TTestOfflineForm.ConfirmRestore:Boolean;
 begin Inc(RestoreCalls); Result:=RestoreChoice; end;
 function TTestOfflineForm.ChooseLocalFile(SaveCopy:Boolean; out Path:string):Boolean;
+var Payload:TBytes;
 begin
   if QueueExports and SaveCopy then begin
     if ExportCount>1 then begin Result:=False; Exit; end;
@@ -157,6 +166,16 @@ begin
   if SaveCopy and MutateOnExport then begin
     MutateOnExport:=False;
     InjectedEditOk:=Draft(gdsComputer).Insert(Length(Draft(gdsComputer).Records),NextRecord)=grsOk;
+  end;
+  if not SaveCopy and SwitchOnImport then begin SwitchOnImport:=False; SelectSide(gdsUser); end;
+  if not SaveCopy and SwitchBackOnImport then begin SwitchBackOnImport:=False; SelectSide(gdsUser); SelectSide(gdsComputer); end;
+  if not SaveCopy and MutateOnImport then begin
+    MutateOnImport:=False;
+    InjectedEditOk:=Draft(gdsComputer).Insert(Length(Draft(gdsComputer).Records),NextRecord)=grsOk;
+    if UndoOnImport then begin UndoOnImport:=False; InjectedEditOk:=Draft(gdsComputer).Undo and InjectedEditOk; end;
+  end;
+  if not SaveCopy and RebaseOnImport then begin
+    RebaseOnImport:=False; InjectedEditOk:=(SerializeRegistryPol(nil,Payload)=grsOk) and (Draft(gdsComputer).Load(Payload)=grsOk);
   end;
 end;
 function TTestOfflineForm.ChooseSummaryFile(out Path:string):Boolean;
@@ -487,6 +506,49 @@ begin
   R:=Item('K','',3,[0,1,2]); Check(GpoValidateDraftRecord(R,E));
   R:=Item('K','',$deadbeef,[0,59,93]); Check(GpoValidateDraftRecord(R,E));
 end;
+procedure TUnitTestGpoOfflineDraftUI.ImportDialogRace;
+{$ifdef windows}
+var F:TTestOfflineForm; Dir,Path,Err:string; Empty,Before,After,UserBefore,Base:TBytes; Id:TGUID; Errors:Integer;
+  procedure ResetDrafts;
+  begin
+    F.SelectSide(gdsComputer); Check(F.Draft(gdsComputer).Load(Empty)=grsOk);
+    Check(F.Draft(gdsComputer).Insert(0,Item('Computer','Pending',3,[1]))=grsOk);
+    F.SelectSide(gdsUser); Check(F.Draft(gdsUser).Load(Empty)=grsOk);
+    Check(F.Draft(gdsUser).Insert(0,Item('User','Pending',3,[2]))=grsOk);
+    Check(F.Draft(gdsUser).Export(UserBefore)=grsOk); F.SelectSide(gdsComputer);
+    Check(F.Draft(gdsComputer).Export(Before)=grsOk);
+  end;
+begin
+  Check(CreateGUID(Id)=0); Dir:=GetTempDir(False)+'openrsat-import-race-'+GUIDToString(Id);
+  Check(CreateDir(Dir)); Path:=Dir+'\source.pol'; Check(SerializeRegistryPol(nil,Empty)=grsOk);
+  Check(GpoSaveNewLocalFile(Path,Empty,Err)); F:=TTestOfflineForm.Create(nil);
+  try
+    F.Choice:=True; F.SelectChoice:=True; F.NextPath:=Path; F.NextRecord:=Item('New','Value',3,[3]);
+    ResetDrafts; F.SelectChoice:=False; F.OpenButton.Click;
+    Check(F.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Before,After)); F.SelectChoice:=True;
+    F.SwitchOnImport:=True; Errors:=F.ErrorCalls; F.OpenButton.Click;
+    Check(F.ErrorCalls=Errors+1); Check(F.Draft(gdsUser).Export(After)=grsOk); Check(EqualBytes(UserBefore,After));
+    Check(F.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Before,After));
+    ResetDrafts; F.SwitchBackOnImport:=True; Errors:=F.ErrorCalls; F.OpenButton.Click;
+    Check(F.ErrorCalls=Errors+1); Check(F.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Before,After));
+    ResetDrafts; F.MutateOnConfirm:=True; Errors:=F.ErrorCalls; F.OpenButton.Click;
+    Check(F.InjectedEditOk); Check(F.ErrorCalls=Errors+1); Check(Length(F.Draft(gdsComputer).Records)=2);
+    ResetDrafts; F.MutateOnImport:=True; Errors:=F.ErrorCalls; F.OpenButton.Click;
+    Check(F.InjectedEditOk); Check(F.ErrorCalls=Errors+1); Check(Length(F.Draft(gdsComputer).Records)=2);
+    Check(F.Draft(gdsComputer).Baseline(Base)=grsOk); Check(EqualBytes(Base,Empty)); Check(F.Draft(gdsComputer).CanUndo);
+    ResetDrafts; F.MutateOnImport:=True; F.UndoOnImport:=True; Errors:=F.ErrorCalls; F.OpenButton.Click;
+    Check(F.InjectedEditOk); Check(F.ErrorCalls=Errors+1); Check(F.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Before,After));
+    ResetDrafts; F.RebaseOnImport:=True; Errors:=F.ErrorCalls; F.OpenButton.Click;
+    Check(F.InjectedEditOk); Check(F.ErrorCalls=Errors+1); Check(F.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Empty,After));
+    ResetDrafts; F.OpenButton.Click; Check(not F.Draft(gdsComputer).Dirty);
+    Check(F.Draft(gdsComputer).Export(After)=grsOk); Check(EqualBytes(Empty,After));
+    Check(F.Draft(gdsUser).Export(After)=grsOk); Check(EqualBytes(UserBefore,After));
+  finally F.Free; Check(SysUtils.DeleteFile(Path)); Check(RemoveDir(Dir)); end;
+end;
+{$else}
+begin end;
+{$endif}
+
 procedure TUnitTestGpoOfflineDraftUI.LocalDraftInteraction;
 var F:TTestOfflineForm; R:TGpoRegistryRecord; Rows:TGpoRegistryRecords;
   Data,Prior:TBytes; E,Dir,Path:string; CanClose:Boolean;

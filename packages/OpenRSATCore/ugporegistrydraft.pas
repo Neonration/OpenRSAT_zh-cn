@@ -21,6 +21,7 @@ type
     fOriginal, fCurrent, fUndo: TBytes;
     fRecords: TGpoRegistryRecords;
     fLoaded, fCanUndo: Boolean;
+    fRevision: QWord;
     function Accept(const Candidate: TGpoRegistryRecords): TGpoReadStatus;
     function GetRecords: TGpoRegistryRecords;
     function GetDirty: Boolean;
@@ -38,6 +39,7 @@ type
     property Loaded: Boolean read fLoaded;
     property Dirty: Boolean read GetDirty;
     property CanUndo: Boolean read fCanUndo;
+    property Revision: QWord read fRevision;
     property Records: TGpoRegistryRecords read GetRecords;
   end;
 
@@ -75,6 +77,7 @@ begin
   if Result <> grsOk then Exit;
   fOriginal := Copy(Data); fCurrent := Copy(Data); fRecords := Parsed;
   fUndo := nil; fCanUndo := False; fLoaded := True;
+  Inc(fRevision);
 end;
 
 function TGpoRegistryDraft.Accept(const Candidate: TGpoRegistryRecords): TGpoReadStatus;
@@ -88,6 +91,7 @@ begin
   if Result <> grsOk then Exit;
   fUndo := fCurrent; fCanUndo := True;
   fCurrent := Encoded; fRecords := Parsed;
+  Inc(fRevision);
 end;
 
 function TGpoRegistryDraft.Insert(Index: SizeInt;
@@ -147,6 +151,7 @@ begin
   Result := ParseRegistryPol(fUndo,Parsed) = grsOk;
   if not Result then Exit;
   fCurrent := fUndo; fRecords := Parsed; fUndo := nil; fCanUndo := False;
+  Inc(fRevision);
 end;
 
 procedure TGpoRegistryDraft.Reset;
@@ -155,6 +160,7 @@ begin
   if not fLoaded then Exit;
   if ParseRegistryPol(fOriginal,Parsed) <> grsOk then Exit;
   fCurrent := fOriginal; fRecords := Parsed; fUndo := nil; fCanUndo := False;
+  Inc(fRevision);
 end;
 
 function TGpoRegistryDraft.Preview: TGpoRegistryChanges;
