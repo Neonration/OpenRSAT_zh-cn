@@ -67,9 +67,11 @@ checks afterward; changed identity or metadata discards the result. This is not
 an atomic snapshot and cannot rule out changes that revert between checks.
 The optional display name is read afresh and its presence is compared separately
 from its value, including a returned empty value versus an omitted attribute.
-The background connection currently supports Windows Kerberos using the current
-identity, without explicit credentials or TLS; other authentication modes and
-platforms are explicitly unavailable. The independent Kerberos connection forces
+The background settings view supports Windows Kerberos using the current
+identity, with no password and without TLS. A configured username is permitted
+but is not copied to the independent client; the resulting bound identity must
+match the original connection. Explicit passwords, TLS, other authentication
+modes and other platforms remain unavailable. The independent Kerberos connection forces
 signing and sealing. Cancellation is cooperative: a blocked LDAP or SMB system
 call may continue until it returns or times out, retaining its worker slot.
 

@@ -195,7 +195,8 @@ function GpoCreateDomainDraftJob(const Request:TGpoBaselineRequest;
 function GpoLdapFailureText(ResultCode: Integer): string;
 function GpoDiagnosticReportText(const Report:TGpoDiagnosticReport):string;
 function GpoMatchesSelectedObject(Entry:TLdapResult; const DN,Guid:string; const ObjectGuid:RawByteString):Boolean;
-function GpoSupportsBackgroundSettings(BoundAs:TLdapClientBound; ExplicitUser,Password,UsesTls:Boolean):Boolean;
+function GpoSupportsBackgroundSettings(BoundAs:TLdapClientBound; Password,UsesTls:Boolean):Boolean;
+function GpoBackgroundSettingsRestriction(BoundAs:TLdapClientBound; Password,UsesTls:Boolean):string;
 
 implementation
 
@@ -881,8 +882,15 @@ begin
     Assigned(GuidAttr) and (GuidAttr.Count=1) and (GuidAttr.GetRaw=ObjectGuid);
 end;
 
-function GpoSupportsBackgroundSettings(BoundAs:TLdapClientBound; ExplicitUser,Password,UsesTls:Boolean):Boolean;
-begin Result:=(BoundAs=lcbKerberos) and not ExplicitUser and not Password and not UsesTls; end;
+function GpoSupportsBackgroundSettings(BoundAs:TLdapClientBound; Password,UsesTls:Boolean):Boolean;
+begin Result:=(BoundAs=lcbKerberos) and not Password and not UsesTls; end;
+function GpoBackgroundSettingsRestriction(BoundAs:TLdapClientBound; Password,UsesTls:Boolean):string;
+begin
+  if UsesTls then Exit('后台只读加载暂不支持 TLS 连接；不会关闭证书验证或回退明文。');
+  if Password then Exit('后台只读加载暂不支持显式密码；不会复制或保存密码。');
+  if BoundAs<>lcbKerberos then Exit('后台只读加载仅支持当前 Windows 身份的 Kerberos 连接。');
+  Result:='';
+end;
 
 constructor TGpoSettingsRead.Create(const Value: TGpoSettingsSnapshot;
   const Transport: IGpoSettingsTransport);
@@ -1388,9 +1396,9 @@ begin
   if not Nonzero then begin SetSummary('无法读取：所选 GPO 的对象 GUID 无效，请重新打开属性。'); Exit; end;
   {$ifdef windows}
   if not GpoSupportsBackgroundSettings(fProperty.LdapClient.BoundAs,
-    fProperty.LdapClient.Settings.UserName<>'',fProperty.LdapClient.Settings.Password<>'',
-    fProperty.LdapClient.Settings.Tls) then begin
-    SetSummary('后台只读加载仅支持当前 Windows 身份的 Kerberos 连接；当前认证方式暂不支持。'); Exit;
+    fProperty.LdapClient.Settings.Password<>'',fProperty.LdapClient.Settings.Tls) then begin
+    SetSummary(GpoBackgroundSettingsRestriction(fProperty.LdapClient.BoundAs,
+      fProperty.LdapClient.Settings.Password<>'',fProperty.LdapClient.Settings.Tls)); Exit;
   end;
   {$else}
   SetSummary('当前平台暂不支持安全的后台 GPO 只读加载。'); Exit;

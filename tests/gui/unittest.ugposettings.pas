@@ -208,12 +208,15 @@ var Client:TLdapSessionProbe; Frame:TTestGpoFrame; Value,Snapshot:TGpoSettingsSn
   Probe:TSettingsMetadataProbe; Transport:IGpoSettingsTransport; Job:IGpoSettingsRead;
   Worker:TSettingsTestThread; Other:IGpoSettingsRead; Mode:Integer;
 begin
-  Check(GpoSupportsBackgroundSettings(lcbKerberos,False,False,False));
-  Check(not GpoSupportsBackgroundSettings(lcbPlain,False,False,False));
-  Check(not GpoSupportsBackgroundSettings(lcbDigest,False,False,False));
-  Check(not GpoSupportsBackgroundSettings(lcbKerberos,True,False,False));
-  Check(not GpoSupportsBackgroundSettings(lcbKerberos,False,True,False));
-  Check(not GpoSupportsBackgroundSettings(lcbKerberos,False,False,True));
+  Check(GpoSupportsBackgroundSettings(lcbKerberos,False,False));
+  Check(not GpoSupportsBackgroundSettings(lcbPlain,False,False));
+  Check(not GpoSupportsBackgroundSettings(lcbDigest,False,False));
+  Check(not GpoSupportsBackgroundSettings(lcbKerberos,True,False));
+  Check(not GpoSupportsBackgroundSettings(lcbKerberos,False,True));
+  Check(Pos('显式密码',GpoBackgroundSettingsRestriction(lcbKerberos,True,False))>0);
+  Check(Pos('TLS',GpoBackgroundSettingsRestriction(lcbKerberos,False,True))>0);
+  Check(Pos('Kerberos',GpoBackgroundSettingsRestriction(lcbPlain,False,False))>0);
+  Check(GpoBackgroundSettingsRestriction(lcbKerberos,False,False)='');
   Client:=TLdapSessionProbe.Create;
   try
     for Mode:=0 to 16 do begin
