@@ -98,6 +98,7 @@ type
     function EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean; virtual;
     function ExecuteRecordDialog(Dialog:TForm):TModalResult; virtual;
     function ExecuteFriendlyDialog(Dialog:TForm):TModalResult; virtual;
+    function ExecuteFriendlyInput(const Prompt:string; var InputText:string):Boolean; virtual;
     procedure ShowError(const MessageText:string); virtual;
     procedure ShowPreview; virtual;
     procedure ShowPlanReport(const Report:string); virtual;
@@ -134,6 +135,7 @@ type
 function GpoParseHex(const S:string; out Data:TBytes; out Error:string):Boolean;
 function GpoValidateDraftRecord(const Item:TGpoRegistryRecord; out Error:string):Boolean;
 function GpoEncodeFriendly(ValueType:Cardinal; const Text:string; out Data:TBytes; out Error:string):Boolean;
+function GpoDecodeFriendly(ValueType:Cardinal; const Data:TBytes; out Text,Error:string):Boolean;
 function GpoSummaryCandidate(const Data:TBytes; Side:TGpoDraftSide; out Exists:Boolean; out Fingerprint,Error:string):Boolean;
 function GpoPolicyFingerprint(const Bytes:TBytes):string;
 
@@ -147,6 +149,8 @@ type
     NameEdit:TEdit;
     Editor:TFrmGpoOfflineDraft;
     procedure Click(Sender:TObject);
+    procedure EditClick(Sender:TObject);
+    procedure OpenInput(LoadExisting:Boolean);
   end;
 
 resourcestring
@@ -329,16 +333,60 @@ begin
   Result:=True;
 end;
 
+function GpoDecodeFriendly(ValueType:Cardinal; const Data:TBytes; out Text,Error:string):Boolean;
+var R:TGpoRegistryRecord; Encoded:TBytes; U:UnicodeString; V:QWord; I,N:Integer; C:Word;
+begin
+  Result:=False; Text:=''; Error:='';
+  if not (ValueType in [1,2,4,7,11]) then begin Error:='此类型请使用原始十六进制。'; Exit; end;
+  R:=Default(TGpoRegistryRecord); R.Key:='K'; R.ValueType:=ValueType; R.Data:=Data;
+  if not GpoValidateDraftRecord(R,Error) then Exit;
+  if ValueType in [4,11] then
+  begin
+    V:=0;
+    for I:=High(Data) downto 0 do V:=(V shl 8) or Data[I];
+    Text:=UIntToStr(V);
+  end else begin
+    N:=Length(Data) div 2-1;
+    if ValueType=7 then Dec(N);
+    SetLength(U,N);
+    for I:=0 to N-1 do
+    begin
+      C:=Word(Data[I*2]) or (Word(Data[I*2+1]) shl 8);
+      if (ValueType=7) and (C=0) then U[I+1]:=#10
+      else if (C<32) or (C=127) then
+      begin Error:='现有数据含无法在文本框中无损编辑的控制字符；请使用原始十六进制。'; Exit; end
+      else U[I+1]:=WideChar(C);
+    end;
+    Text:=UTF8Encode(U);
+  end;
+  if not GpoEncodeFriendly(ValueType,Text,Encoded,Error) or
+    (Length(Encoded)<>Length(Data)) or
+    ((Length(Data)>0) and not CompareMem(@Encoded[0],@Data[0],Length(Data))) then
+  begin
+    Text:=''; Error:='现有数据无法无损转换；请使用原始十六进制。'; Exit;
+  end;
+  Result:=True;
+end;
+
 procedure TFriendlyInput.Click(Sender:TObject);
+begin OpenInput(False); end;
+
+procedure TFriendlyInput.EditClick(Sender:TObject);
+begin OpenInput(True); end;
+
+procedure TFriendlyInput.OpenInput(LoadExisting:Boolean);
 var Text,Error,Prompt,OriginalHex,OriginalName:string; Data:TBytes; Kind:Integer; W:TForm; M:TMemo; B:TButton; L:TLabel;
 begin
   Kind:=TypeBox.ItemIndex;
   OriginalHex:=HexMemo.Text; OriginalName:=NameEdit.Text;
   if Copy(NameEdit.Text,1,2)='**' then
-  begin MessageDlg('本地草稿','策略指令只能使用原始十六进制编辑。',mtInformation,[mbOK],0); Exit; end;
+  begin Editor.ShowError('策略指令只能使用原始十六进制编辑。'); Exit; end;
   if not (Kind in [1,2,4,7,11]) then
-  begin MessageDlg('本地草稿','此类型请使用原始十六进制。',mtInformation,[mbOK],0); Exit; end;
+  begin Editor.ShowError('此类型请使用原始十六进制。'); Exit; end;
   Text:='';
+  if LoadExisting and (not GpoParseHex(OriginalHex,Data,Error) or
+     not GpoDecodeFriendly(Kind,Data,Text,Error)) then
+  begin Editor.ShowError(Error); Exit; end;
   if Kind=7 then
   begin
     W:=TForm.CreateNew(nil,0);
@@ -349,6 +397,7 @@ begin
       B:=TButton.Create(W); B.Parent:=W; B.Align:=alBottom; B.Caption:='取消'; B.ModalResult:=mrCancel; B.Cancel:=True;
       B:=TButton.Create(W); B.Parent:=W; B.Align:=alBottom; B.Caption:='确定'; B.ModalResult:=mrOk; B.Default:=True;
       M:=TMemo.Create(W); M.Parent:=W; M.Align:=alClient; M.ScrollBars:=ssVertical; M.Name:='GpoMultiText';
+      M.Text:=StringReplace(Text,#10,LineEnding,[rfReplaceAll]);
       W.ActiveControl:=M;
       repeat
         if Editor.ExecuteFriendlyDialog(W)<>mrOk then Exit;
@@ -359,7 +408,7 @@ begin
     finally W.Free; end;
   end else begin
     if Kind in [1,2] then Prompt:='输入文本（可为空；环境变量不会展开）:' else Prompt:='输入无符号十进制整数:';
-    if not InputQuery('替换原始数据',Prompt,Text) then Exit;
+    if not Editor.ExecuteFriendlyInput(Prompt,Text) then Exit;
   end;
   if (TypeBox.ItemIndex<>Kind) or (NameEdit.Text<>OriginalName) or
     (HexMemo.Text<>OriginalHex) then Exit;
@@ -1398,6 +1447,8 @@ function TFrmGpoOfflineDraft.ExecuteRecordDialog(Dialog:TForm):TModalResult;
 begin Result:=Dialog.ShowModal; end;
 function TFrmGpoOfflineDraft.ExecuteFriendlyDialog(Dialog:TForm):TModalResult;
 begin Result:=Dialog.ShowModal; end;
+function TFrmGpoOfflineDraft.ExecuteFriendlyInput(const Prompt:string; var InputText:string):Boolean;
+begin Result:=InputQuery('替换原始数据',Prompt,InputText); end;
 
 function TFrmGpoOfflineDraft.EditRecord(var Item:TGpoRegistryRecord; Adding:Boolean):Boolean;
 const TypeNames:array[0..11] of string = ('REG_NONE','REG_SZ','REG_EXPAND_SZ','REG_BINARY',
@@ -1440,11 +1491,14 @@ begin
     RawOption:=TCheckBox.Create(Dialog); RawOption.Parent:=Dialog; RawOption.SetBounds(12,405,600,25);
     RawOption.Caption:='允许非标准原始数据（仅验证记录格式）'; RawOption.Name:='GpoRecordRawOption';
     RawOption.TabOrder:=5;
+    Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(12,445,205,30);
+    Btn.Name:='GpoRecordEditFriendly'; Btn.TabOrder:=6;
+    Btn.Caption:='编辑现有数据(&E)…'; Btn.OnClick:=@Friendly.EditClick;
     Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(428,445,95,30);
-    Btn.Name:='GpoRecordOK'; Btn.TabOrder:=6;
+    Btn.Name:='GpoRecordOK'; Btn.TabOrder:=7;
     Btn.Caption:='确定(&O)'; Btn.ModalResult:=mrOk; Btn.Default:=True;
     Btn:=TButton.Create(Dialog); Btn.Parent:=Dialog; Btn.SetBounds(537,445,95,30);
-    Btn.Name:='GpoRecordCancel'; Btn.TabOrder:=7;
+    Btn.Name:='GpoRecordCancel'; Btn.TabOrder:=8;
     Btn.Caption:='取消(&C)'; Btn.ModalResult:=mrCancel; Btn.Cancel:=True;
     Dialog.ActiveControl:=KeyEdit;
     repeat

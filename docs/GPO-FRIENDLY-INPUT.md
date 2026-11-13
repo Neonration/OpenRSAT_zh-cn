@@ -12,6 +12,10 @@ that exceed the format limit are rejected without truncation.
 
 Friendly input is an explicit replacement, not an automatic conversion of
 existing bytes. Closing or cancelling it leaves the raw data unchanged. The
+separate Edit existing data button preloads values only after strict validation
+and a byte-for-byte round trip. Strings containing control characters, including
+MULTI_SZ items with embedded line breaks, remain available as raw data.
+The
 record editor also offers an explicit raw-data option for nonstandard values:
 it validates the Registry.pol record structure but does not assert that the
 typed payload is valid. This option does not apply the record to a domain.

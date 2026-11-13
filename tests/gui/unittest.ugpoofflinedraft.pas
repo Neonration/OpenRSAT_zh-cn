@@ -8,6 +8,7 @@ type
     procedure TypeAndHexValidation;
     procedure RecordEditorKeyboardLayout;
     procedure MultiInputRetry;
+    procedure FriendlyExistingValues;
     procedure RawRecordEditor;
     procedure LocalDraftInteraction;
     procedure LocalFileBoundaries;
@@ -79,7 +80,7 @@ type
   TKeyboardOfflineForm=class(TFrmGpoOfflineDraft)
   public
     Seen, FirstFocus, DefaultOK, CancelOK:Boolean;
-    OrderOK:array[0..7] of Boolean;
+    OrderOK:array[0..8] of Boolean;
     LabelOK:array[0..3] of Boolean;
     function InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
   protected
@@ -97,6 +98,16 @@ type
   protected
     function ExecuteRecordDialog(Dialog:TForm):TModalResult; override;
     function ExecuteFriendlyDialog(Dialog:TForm):TModalResult; override;
+    procedure ShowError(const MessageText:string); override;
+  end;
+  TExistingEditorForm=class(TFrmGpoOfflineDraft)
+  public
+    SeenText,Replacement,LastError:string; AcceptInput,AcceptRecord:Boolean;
+    InputCalls,ErrorCalls:Integer;
+  protected
+    function ExecuteRecordDialog(Dialog:TForm):TModalResult; override;
+    function ExecuteFriendlyDialog(Dialog:TForm):TModalResult; override;
+    function ExecuteFriendlyInput(const Prompt:string; var InputText:string):Boolean; override;
     procedure ShowError(const MessageText:string); override;
   end;
   TModalReportProbe=class(TFrmGpoOfflineDraft)
@@ -139,6 +150,26 @@ begin
   LastMachine.Exists:=Machine.Exists; LastMachine.Data:=Copy(Machine.Data); Current:=gddsChecking;
 end;
 function TFakeDomainJob.ResultText:string; begin if Text<>'' then Result:=Text else Result:='模拟复核：证据不完整'; end;
+function TExistingEditorForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
+begin
+  TButton(Dialog.FindComponent('GpoRecordEditFriendly')).Click;
+  if AcceptRecord then Result:=mrOk else Result:=mrCancel;
+end;
+function TExistingEditorForm.ExecuteFriendlyDialog(Dialog:TForm):TModalResult;
+var M:TMemo;
+begin
+  M:=TMemo(Dialog.FindComponent('GpoMultiText')); SeenText:=M.Text; Inc(InputCalls);
+  if not AcceptInput then Exit(mrCancel);
+  M.Text:=Replacement; Result:=mrOk;
+end;
+function TExistingEditorForm.ExecuteFriendlyInput(const Prompt:string; var InputText:string):Boolean;
+begin
+  SeenText:=InputText; Inc(InputCalls); Result:=AcceptInput;
+  if Result then InputText:=Replacement;
+end;
+procedure TExistingEditorForm.ShowError(const MessageText:string);
+begin Inc(ErrorCalls); LastError:=MessageText; end;
+
 function TKeyboardOfflineForm.InspectEditor(var R:TGpoRegistryRecord; Adding:Boolean):Boolean;
 begin Result:=EditRecord(R,Adding); end;
 function TMultiEditorForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
@@ -202,8 +233,8 @@ begin
   finally F.Free; end;
 end;
 function TKeyboardOfflineForm.ExecuteRecordDialog(Dialog:TForm):TModalResult;
-const Names:array[0..7] of string=('GpoRecordKey','GpoRecordValueName','GpoRecordType',
-  'GpoRecordHex','GpoRecordFriendly','GpoRecordRawOption','GpoRecordOK','GpoRecordCancel');
+const Names:array[0..8] of string=('GpoRecordKey','GpoRecordValueName','GpoRecordType',
+  'GpoRecordHex','GpoRecordFriendly','GpoRecordRawOption','GpoRecordEditFriendly','GpoRecordOK','GpoRecordCancel');
   Keys:array[0..3] of string=('&K','&N','&T','&D');
 var I:Integer; C:TComponent; W:TWinControl; L:TLabel;
 begin
@@ -858,6 +889,70 @@ end;
 {$else}
 begin Check(True,'Local file rehearsal is unavailable on this platform'); end;
 {$endif}
+procedure TUnitTestGpoOfflineDraftUI.FriendlyExistingValues;
+var F:TExistingEditorForm; B,C,Encoded:TBytes; Text,Error:string; R:TGpoRegistryRecord;
+  Rows:TGpoRegistryRecords; Rev:QWord; H:PtrUInt;
+  procedure RoundTrip(Kind:Cardinal; const Input:string);
+  begin
+    Check(GpoEncodeFriendly(Kind,Input,B,Error));
+    C:=Copy(B); Check(GpoDecodeFriendly(Kind,B,Text,Error));
+    Check(GpoEncodeFriendly(Kind,Text,Encoded,Error));
+    Check(EqualBytes(B,Encoded)); Check(EqualBytes(B,C));
+  end;
+  procedure LoadRecord(const Name:UnicodeString; Kind:Cardinal; const Bytes:TBytes);
+  begin
+    SetLength(Rows,1); Rows[0]:=Default(TGpoRegistryRecord); Rows[0].Key:='Software\QA';
+    Rows[0].ValueName:=Name; Rows[0].ValueType:=Kind; Rows[0].Data:=Copy(Bytes);
+    Check(SerializeRegistryPol(Rows,Encoded)=grsOk);
+    Check(F.Draft(gdsComputer).Load(Encoded)=grsOk);
+    F.SelectSide(gdsUser); F.SelectSide(gdsComputer);
+    F.Pane.Rows.Items[0].Selected:=True; F.InputCalls:=0; F.ErrorCalls:=0;
+  end;
+begin
+  RoundTrip(4,'4294967295'); RoundTrip(11,'18446744073709551615');
+  RoundTrip(1,'中文😀'); RoundTrip(2,'%TEMP%\路径'); RoundTrip(7,'');
+  RoundTrip(7,'第一项'+#10+'second');
+  B:=TBytes.Create(65,0,10,0,66,0,0,0,0,0); C:=Copy(B);
+  Check(not GpoDecodeFriendly(7,B,Text,Error)); Check(EqualBytes(B,C)); Check(Error<>'');
+  B:=TBytes.Create(0,0,65,0,0,0,0,0); Check(not GpoDecodeFriendly(7,B,Text,Error));
+  B:=TBytes.Create(65,0,0,0,66,0,0,0,0,0,67,0,0,0,0,0);
+  Check(not GpoDecodeFriendly(7,B,Text,Error));
+  B:=TBytes.Create(0,$d8,0,0); Check(not GpoDecodeFriendly(1,B,Text,Error));
+  B:=TBytes.Create(1,2); Check(not GpoDecodeFriendly(4,B,Text,Error));
+  Check(not GpoDecodeFriendly(999,B,Text,Error));
+
+  F:=TExistingEditorForm.Create(nil);
+  try
+    H:=F.Pane.Rows.Handle;
+    Check(GpoEncodeFriendly(2,'%PATH%\test',B,Error)); LoadRecord('Path',2,B);
+    Rev:=F.Draft(gdsComputer).Revision; F.AcceptInput:=False; F.AcceptRecord:=False;
+    F.EditButton.Click; Check(F.SeenText='%PATH%\test'); Check(F.InputCalls=1);
+    Check(F.Draft(gdsComputer).Revision=Rev); Check(not F.Draft(gdsComputer).Dirty);
+    F.AcceptInput:=True; F.AcceptRecord:=True; F.Replacement:='%PATH%\test';
+    F.EditButton.Click; Check(F.Draft(gdsComputer).Revision=Rev); Check(not F.Draft(gdsComputer).Dirty);
+    F.Replacement:='%SYSTEMROOT%\new'; F.EditButton.Click;
+    Check(F.Draft(gdsComputer).Dirty); Check(F.Draft(gdsComputer).Records[0].Data<>nil);
+    Check(GpoDecodeFriendly(2,F.Draft(gdsComputer).Records[0].Data,Text,Error));
+    Check(Text='%SYSTEMROOT%\new'); F.UndoButton.Click; Check(not F.Draft(gdsComputer).Dirty);
+    Check(EqualBytes(F.Draft(gdsComputer).Records[0].Data,B));
+
+    Check(GpoEncodeFriendly(7,'Alpha'+#10+'中文😀',B,Error)); LoadRecord('List',7,B);
+    F.AcceptInput:=True; F.AcceptRecord:=True; F.Replacement:='Alpha'+LineEnding+'中文😀';
+    Rev:=F.Draft(gdsComputer).Revision; F.EditButton.Click;
+    Check(F.SeenText='Alpha'+LineEnding+'中文😀'); Check(F.Draft(gdsComputer).Revision=Rev);
+    F.Replacement:='Alpha'+LineEnding+'Beta'; F.EditButton.Click;
+    Check(GpoDecodeFriendly(7,F.Draft(gdsComputer).Records[0].Data,Text,Error)); Check(Text='Alpha'+#10+'Beta');
+    F.UndoButton.Click; Check(EqualBytes(F.Draft(gdsComputer).Records[0].Data,B));
+    B:=TBytes.Create(0,0,65,0,0,0,0,0); LoadRecord('Invalid',7,B);
+    F.AcceptRecord:=False; Rev:=F.Draft(gdsComputer).Revision; F.EditButton.Click;
+    Check(F.ErrorCalls=1); Check(F.InputCalls=0); Check(F.Draft(gdsComputer).Revision=Rev);
+    Check(EqualBytes(F.Draft(gdsComputer).Records[0].Data,B));
+    Check(GpoEncodeFriendly(4,'42',B,Error)); LoadRecord('**DeleteValues',4,B);
+    F.EditButton.Click; Check(F.ErrorCalls=1); Check(F.InputCalls=0);
+    Check(EqualBytes(F.Draft(gdsComputer).Records[0].Data,B));
+  finally F.Free; end;
+end;
+
 procedure TUnitTestGpoOfflineDraftUI.TypeAndHexValidation;
 var B:TBytes; E,S:string; R:TGpoRegistryRecord; Started:QWord; I:Integer;
 begin

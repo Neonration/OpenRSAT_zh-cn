@@ -30,7 +30,7 @@
 
 GPC 的 LDAP versionNumber 按有符号 Int32 十进制读取，再保留原始32位转换为版本号；GPT.INI 的 Version 单独按无符号 DWORD 读取。例如 LDAP 的 -2147483648 与 GPT.INI 的 2147483648 表示同一版本，用户版本为32768、计算机版本为0。越界或非法文本仍明确失败。
 
-Registry.pol 使用 Microsoft MS-GPREG：`PReg` 标识、DWORD little-endian 版本1、UTF-16LE 名称和分隔符、二进制 DWORD 类型和长度。未知类型保留数值和原始字节，界面明确标注 Unknown；已知类型显示 REG_* 名称。当前仅展示原始十六进制预览，不解释 ADMX 策略含义，也不执行删除指令等记录。
+Registry.pol 使用 Microsoft MS-GPREG：`PReg` 标识、DWORD little-endian 版本1、UTF-16LE 名称和分隔符、二进制 DWORD 类型和长度。未知类型保留数值和原始字节，界面明确标注 Unknown；已知类型显示 REG_* 名称。记录详情可只读显示整数、字符串和多字符串的类型化内容，同时保留完整原始十六进制；异常数据会显示原因。界面不解释 ADMX 策略含义，也不执行删除指令等记录。
 
 限制：单文件16MiB、单值65535字节、65536条记录、名称32767个UTF-16 code units；格式/截断/超限不返回部分成功记录。界面每条最多预览128字节，并显示完整数据长度。文件 transport 仅支持 Windows；其他平台明确 Unsupported。
 
