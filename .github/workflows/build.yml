@@ -55,6 +55,7 @@ jobs:
         run: python tools/prepare_dependencies.py
 
       - name: Setup 7-zip
+        if: runner.os != 'macOS'
         uses: milliewalky/setup-7-zip@v2
 
       - name: Download and extract mORMot2 static (Unix based)
@@ -63,7 +64,12 @@ jobs:
           echo "Download mORMot2 static"
           curl -L -o mormot2static.7z https://synopse.info/files/mormot2static.7z
 
-          7z x -y mormot2static.7z -ostatic
+          if [ '${{ runner.os }}' = 'macOS' ]; then
+            mkdir static
+            tar -xf mormot2static.7z -C static
+          else
+            7z x -y mormot2static.7z -ostatic
+          fi
 
           rm -rf submodules/mORMot2/static
           mv static submodules/mORMot2/static
@@ -139,7 +145,7 @@ jobs:
         run: |
           test "$(uname -m)" = '${{ matrix.target.arch }}'
           file ./windres
-          lipo -verify_arch '${{ matrix.target.arch }}' ./windres
+          lipo ./windres -verify_arch '${{ matrix.target.arch }}'
           ./windres --version
 
       - name: Install FPC and Lazarus IDE
@@ -162,14 +168,14 @@ jobs:
           fi
           curl -fL -o "$RUNNER_TEMP/fpclazup" "https://github.com/LongDirtyAnimAlf/Reiniero-fpcup/releases/download/v2.4.0f/$installer"
           chmod +x "$RUNNER_TEMP/fpclazup"
-          lipo -verify_arch '${{ matrix.target.arch }}' "$RUNNER_TEMP/fpclazup"
+          lipo "$RUNNER_TEMP/fpclazup" -verify_arch '${{ matrix.target.arch }}'
           git clone --depth 1 --branch release_3_2_2 https://gitlab.com/freepascal.org/fpc/source "$prefix/fpc"
           git clone --depth 1 --branch lazarus_4_0 https://gitlab.com/freepascal.org/lazarus/lazarus "$prefix/lazarus"
           "$RUNNER_TEMP/fpclazup" --only=FPCCleanOnly,FPCBuildOnly,LazarusCleanOnly,LazBuild,LazarusConfigOnly --noconfirm --verbose --installdir="$prefix"
           compiler_path=$(find "$prefix/fpc/bin" -type f -name "$compiler" -print -quit)
           test -n "$compiler_path"
           file "$compiler_path"
-          lipo -verify_arch '${{ matrix.target.arch }}' "$compiler_path"
+          lipo "$compiler_path" -verify_arch '${{ matrix.target.arch }}'
           echo "$prefix/lazarus" >> "$GITHUB_PATH"
 
       - name: Link dependencies
@@ -211,7 +217,7 @@ jobs:
         if: runner.os == 'macOS'
         timeout-minutes: 5
         run: |
-          lipo -verify_arch '${{ matrix.target.arch }}' tests/openrsattests
+          lipo tests/openrsattests -verify_arch '${{ matrix.target.arch }}'
           ./tests/openrsattests --noenter
 
       - name: Build OpenRSAT for ${{ matrix.target.name }}
@@ -222,7 +228,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           file "bin/${{ matrix.target.name }}/OpenRSAT"
-          lipo -verify_arch '${{ matrix.target.arch }}' "bin/${{ matrix.target.name }}/OpenRSAT"
+          lipo "bin/${{ matrix.target.name }}/OpenRSAT" -verify_arch '${{ matrix.target.arch }}'
           otool -L "bin/${{ matrix.target.name }}/OpenRSAT"
 
       - name: Include translations
