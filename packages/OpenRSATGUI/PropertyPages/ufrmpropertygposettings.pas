@@ -64,6 +64,7 @@ type
     Domain, DC, Port, BoundUser: string;
     ObjectGuid: RawByteString;
     NeedsMetadata: Boolean;
+    DisplayNamePresent: Boolean;
     MetadataStatus: TGpoReadStatus;
     MetadataError: string;
     GptVersion: Cardinal;
@@ -918,7 +919,7 @@ function TGpoSettingsRead.AcceptsSession(const Token: IInterface): Boolean;
 begin Result := Assigned(Token) and (Token = fValue.SessionToken); end;
 
 function ReadSettingsMetadata(var Value:TGpoSettingsSnapshot; Control:TGpoReadControl):TGpoReadStatus;
-var Client:TLdapClient; Root:TLdapResult; Domain,DC,SafePath:string;
+var Client:TLdapClient; Root:TLdapResult; DisplayName:TLdapAttribute; Domain,DC,SafePath:string;
 begin
   Result:=grsIoError; Value.MetadataError:='无法完成后台 LDAP 只读查询。';
   if Control.Status<>grsOk then Exit(Control.Status);
@@ -955,7 +956,11 @@ begin
     end;
     if not Assigned(Root.Find('gPCFileSysPath')) or not Assigned(Root.Find('versionNumber')) or
       not Assigned(Root.Find('flags')) then begin Value.MetadataError:='GPO 必要属性缺失。'; Exit; end;
-    if Assigned(Root.Find('displayName')) then Value.Container.DisplayName:=Root.Find('displayName').GetReadable;
+    DisplayName:=Root.Find('displayName');
+    if Assigned(DisplayName) then begin
+      if DisplayName.Count<>1 then begin Value.MetadataError:='GPO 显示名称无效。'; Exit; end;
+      Value.DisplayNamePresent:=True; Value.Container.DisplayName:=DisplayName.GetReadable;
+    end;
     Value.Container.FileSysPath:=Root.Find('gPCFileSysPath').GetReadable;
     if not GpoParseLdapVersion(Root.Find('versionNumber').GetReadable,Value.Container.Version) or
       not GpoParseUnsigned(Root.Find('flags').GetReadable,Value.Container.Flags) or
@@ -971,6 +976,7 @@ procedure TGpoSettingsRead.Execute;
 var Data: TBytes; Status: TGpoReadStatus; Metadata:IGpoSettingsMetadataTransport; After:TGpoSettingsSnapshot;
   function Prepare(var Value:TGpoSettingsSnapshot):TGpoReadStatus;
   begin
+    Value.DisplayNamePresent:=False; Value.Container.DisplayName:='';
     if Assigned(fTransport) then begin
       if Supports(fTransport,IGpoSettingsMetadataTransport,Metadata) then Result:=Metadata.Prepare(Value,fControl)
       else begin Value.MetadataError:='后台元数据读取不可用。'; Result:=grsUnsupported; end;
@@ -982,7 +988,7 @@ var Data: TBytes; Status: TGpoReadStatus; Metadata:IGpoSettingsMetadataTransport
     Result:=SameText(A.Domain,B.Domain) and SameText(A.DC,B.DC) and
       SameText(A.Container.DistinguishedName,B.Container.DistinguishedName) and
       SameText(A.Container.Guid,B.Container.Guid) and (A.ObjectGuid=B.ObjectGuid) and
-      (A.Container.DisplayName=B.Container.DisplayName) and
+      (A.DisplayNamePresent=B.DisplayNamePresent) and (A.Container.DisplayName=B.Container.DisplayName) and
       SameText(A.Container.FileSysPath,B.Container.FileSysPath) and
       (A.Container.Version=B.Container.Version) and (A.Container.Flags=B.Container.Flags);
   end;

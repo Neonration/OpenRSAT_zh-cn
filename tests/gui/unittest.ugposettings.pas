@@ -183,6 +183,11 @@ begin
   if (Mode=3) and (PrepareCalls=2) then Value.ObjectGuid:=#2+StringOfChar(#0,15);
   if (Mode=6) and (PrepareCalls=2) then Value.DC:='other.example.test';
   if (Mode=8) and (PrepareCalls=2) then Exit(grsIoError);
+  if ((Mode=10) and (PrepareCalls=1)) or ((Mode=11) and (PrepareCalls=2)) or (Mode=12) then begin
+    Value.DisplayNamePresent:=True; Value.Container.DisplayName:='Example';
+  end;
+  if ((Mode=13) and (PrepareCalls=2)) or ((Mode=14) and (PrepareCalls=1)) or (Mode=15) then
+    Value.DisplayNamePresent:=True;
   Value.Container.FileSysPath:='\\example.test\SYSVOL\example.test\Policies\{12345678-1234-1234-1234-123456789ABC}';
   Result:=Control.Status;
 end;
@@ -191,7 +196,7 @@ function TSettingsMetadataProbe.Read(const Container:TGpoContainer; const Domain
 var Rows:TGpoRegistryRecords;
 begin
   Data:=nil; Inc(ReadCalls); Result:=grsMissing;
-  if (Mode in [3,6,8,9]) and (Artifact=gfMachineRegistry) then begin
+  if (Mode in [3,6,8,9,10,11,12,13,14,15,16]) and (Artifact=gfMachineRegistry) then begin
     SetLength(Rows,1); Rows[0].Key:='K'; Rows[0].ValueName:='V'; Rows[0].ValueType:=3;
     Result:=SerializeRegistryPol(Rows,Data);
   end;
@@ -211,7 +216,7 @@ begin
   Check(not GpoSupportsBackgroundSettings(lcbKerberos,False,False,True));
   Client:=TLdapSessionProbe.Create;
   try
-    for Mode:=0 to 9 do begin
+    for Mode:=0 to 16 do begin
       Value:=Default(TGpoSettingsSnapshot); Value.SessionToken:=Client.SessionToken;
       Value.NeedsMetadata:=True; Value.ObjectGuid:=#1+StringOfChar(#0,15);
       Value.Domain:='example.test'; Value.DC:='dc.example.test';
@@ -254,6 +259,12 @@ begin
             Check(Pos('无法再次核验',Snapshot.MetadataError)>0); Check(Length(Snapshot.UserRecords)=0); end;
           9:begin Check(Probe.ReadCalls=3); Check(Snapshot.MetadataStatus=grsCancelled);
             Check(Length(Snapshot.MachineRecords)=0); end;
+          10,11,13,14:begin Check(Probe.PrepareCalls=2); Check(Snapshot.MetadataStatus=grsIoError,
+              'Display name presence change must discard results');
+            Check(Length(Snapshot.MachineRecords)=0);
+            Frame:=TTestGpoFrame.Create(nil); Frame.ShowSnapshot(Snapshot);
+            Check((Frame.ComputerRows.Items.Count=0) and (Pos('Example',Frame.Summary.Text)=0)); end;
+          12,15,16:begin Check(Snapshot.MetadataStatus=grsOk); Check(Length(Snapshot.MachineRecords)=1); end;
         end;
       finally Probe.Release.SetEvent; Worker.WaitFor; Worker.Free; Frame.Free; Job:=nil; Transport:=nil; end;
     end;

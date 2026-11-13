@@ -65,6 +65,8 @@ background job using a separate LDAP client. It checks the selected nonzero
 objectGUID, domain and controller before reading files and repeats the LDAP
 checks afterward; changed identity or metadata discards the result. This is not
 an atomic snapshot and cannot rule out changes that revert between checks.
+The optional display name is read afresh and its presence is compared separately
+from its value, including a returned empty value versus an omitted attribute.
 The background connection currently supports Windows Kerberos using the current
 identity, without explicit credentials or TLS; other authentication modes and
 platforms are explicitly unavailable. The independent Kerberos connection forces
