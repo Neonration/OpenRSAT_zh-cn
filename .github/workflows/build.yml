@@ -173,7 +173,7 @@ jobs:
             # The development compiler contains newer macOS assembler fixes.
             git init "$prefix/fpc"
             git -C "$prefix/fpc" remote add origin https://gitlab.com/freepascal.org/fpc/source
-            git -C "$prefix/fpc" fetch --depth 1 origin 7cfa1944185f5b9fd6f5cc9180ffee72e4870249
+            git -C "$prefix/fpc" fetch --depth 1 origin bdb427b08454cff85dca2fbaccf7249716962845
             git -C "$prefix/fpc" checkout --detach FETCH_HEAD
           else
             git clone --depth 1 --branch release_3_2_2 https://gitlab.com/freepascal.org/fpc/source "$prefix/fpc"
